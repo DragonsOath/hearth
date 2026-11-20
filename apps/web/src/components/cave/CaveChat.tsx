@@ -712,33 +712,34 @@ export function CaveChat({
           </p>
         )}
         {convo.data?.remote && (
+          // One line (11-20, the owner: on a phone the four-line notice covered much of the typing
+          // space). The how-to is in its tooltip and in Ember's own message in the chat, which also
+          // says how to turn it off.
           <p
             role="status"
-            className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-gold/40 bg-raised px-2.5 py-1.5 text-[0.8rem] text-ink"
+            className="mb-2 flex items-center gap-2 rounded-lg border border-gold/40 bg-raised px-2.5 py-1 text-[0.8rem] text-ink"
             data-testid="cave-remote"
+            title={`In the Claude app, open Code and pick ${convo.data.remote.title}. Type /rc to turn it off.`}
           >
             <Smartphone strokeWidth={1.5} className="h-4 w-4 shrink-0 text-gold" aria-hidden />
-            <span className="min-w-0">
-              <b className="font-medium">
-                Remote Control {convo.data.remote.connecting ? "is connecting" : "is on"}
-              </b>
-              : in the Claude app, open Code and pick{" "}
-              <b className="font-medium" data-testid="cave-remote-title">
-                {convo.data.remote.title}
-              </b>
-              .
+            <b className="min-w-0 shrink truncate font-medium">
+              Remote Control {convo.data.remote.connecting ? "is connecting" : "is on"}
+            </b>
+            <span className="min-w-0 flex-1 truncate text-muted" data-testid="cave-remote-title">
+              {convo.data.remote.title}
             </span>
             {convo.data.remote.url && (
               <a
                 href={convo.data.remote.url}
                 target="_blank"
                 rel="noreferrer"
-                className="text-gold underline-offset-2 hover:underline"
+                aria-label="Open in Claude"
+                className="shrink-0 text-gold underline-offset-2 hover:underline"
               >
-                Open in Claude
+                <span className="sm:hidden">Open</span>
+                <span className="hidden sm:inline">Open in Claude</span>
               </a>
             )}
-            <span className="text-muted">Type /rc to turn it off.</span>
           </p>
         )}
         {talk.on && (

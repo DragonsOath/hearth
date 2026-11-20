@@ -1,0 +1,27 @@
+# The speech programs for Hearth's voices, on this machine (`pnpm voices start`).
+#   piper:   speaking, with the five voices (`pnpm voices download` puts them in DC_VOICES_DIR)
+#   whisper: listening, on the processor (compose.gpu.yml switches it to an NVIDIA card)
+# Both speak the Wyoming protocol, the same as Home Assistant's voice add-ons, so one setup
+# can serve both. Ports: 10200 (Piper) and 10300 (Whisper), changeable with DC_TTS_PORT and
+# DC_STT_PORT. Only this machine and your home network can reach them; never forward them
+# to the internet.
+name: dragon-control-speech
+services:
+  piper:
+    image: rhasspy/wyoming-piper:latest
+    command: ["--voice", "en_US-warden-medium"]
+    volumes:
+      - ${DC_VOICES_DIR:?Set DC_VOICES_DIR (pnpm voices start does)}:/data
+    ports:
+      - "${DC_TTS_PORT:-10200}:10200"
+    restart: unless-stopped
+  whisper:
+    image: rhasspy/wyoming-whisper:latest
+    command: ["--model", "small-int8", "--language", "en"]
+    volumes:
+      - whisper-models:/data
+    ports:
+      - "${DC_STT_PORT:-10300}:10300"
+    restart: unless-stopped
+volumes:
+  whisper-models:

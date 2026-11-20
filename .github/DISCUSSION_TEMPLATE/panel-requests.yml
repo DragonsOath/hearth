@@ -1,0 +1,73 @@
+title: "Panel: "
+labels: ["panel request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ask for a full Hearth panel for an app you run, or a feature on a panel Hearth already has.
+        One app per request, please. **Search first:** if someone already asked, add your vote
+        there instead. One request with 40 votes says far more than 40 separate posts.
+
+        Something broken? That's a bug, not a request: report it on
+        [GitHub Issues](https://github.com/DragonsOath/hearth/issues/new/choose).
+        How requests are chosen: [How requests work](https://github.com/DragonsOath/hearth/blob/main/docs/HOW_REQUESTS_WORK.md).
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What are you asking for?
+      options:
+        - "A full panel for an app"
+        - "A feature on a panel Hearth already has"
+    validations:
+      required: true
+  - type: input
+    id: app-name
+    attributes:
+      label: App name
+      description: The app, and its Docker image if you know it.
+      placeholder: "Navidrome (deluan/navidrome)"
+    validations:
+      required: true
+  - type: textarea
+    id: show-first
+    attributes:
+      label: What you want
+      description: For a full panel, the few things you check most. For a feature, what it should do.
+      placeholder: "What is playing now, recently added albums, scan status."
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What it would save you, or what you can't do today.
+      placeholder: "I open Navidrome three times a day just to see if a scan finished."
+    validations:
+      required: true
+  - type: dropdown
+    id: ember
+    attributes:
+      label: Did you try asking Ember?
+      description: Ember can reach most apps' own settings and API already, so it may work today.
+      options:
+        - "Yes, and it couldn't do it"
+        - "No"
+    validations:
+      required: true
+  - type: input
+    id: link
+    attributes:
+      label: Link
+      description: The app's website or its API documentation, if you have it.
+      placeholder: "https://www.navidrome.org/docs/developers/subsonic-api/"
+  - type: dropdown
+    id: test
+    attributes:
+      label: Will you test it?
+      description: Panels are checked against a throwaway copy of the app; a real user trying it before release helps a lot.
+      options:
+        - "Yes, I can try it before release"
+        - "Maybe"
+        - "No"
+    validations:
+      required: true

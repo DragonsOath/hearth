@@ -1,0 +1,621 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/inter/wght-italic.css";
+@import "@fontsource/cormorant-garamond/400.css";
+@import "@fontsource/cormorant-garamond/500.css";
+@import "@fontsource/cormorant-garamond/400-italic.css";
+/* Ember conversations (self-hosted, OFL). */
+@import "@fontsource/monaspace-radon/400.css";
+@import "@fontsource/monaspace-radon/700.css";
+
+/*
+ * The palette is a theme (Settings > Themes, lib/theme.ts): these are the default, Sapphire.
+ * "gold" is the theme's main color whatever its hue (blue here); a theme sets every token
+ * below on <html>. Status colours stay the same in every theme. All text tokens clear
+ * WCAG AA on --bg.
+ */
+@theme {
+  /* A tablet, upright or not, gets the desktop layout (11-15, the owner): md starts at the
+     narrowest tablets (600px), and sm below it. Phones stay under 600px. */
+  --breakpoint-sm: 34rem;
+  --breakpoint-md: 37.5rem;
+  --color-bg: #070b14;
+  --color-panel: #0d1321;
+  --color-raised: #131b2c;
+  --color-line: #1d2739;
+  --color-line-strong: #2b3953;
+  --color-ink: #e6ebf4;
+  --color-muted: #9ba8bd;
+  --color-faint: #7e8aa0;
+  --color-gold: #3d8bff;
+  --color-gold-bright: #6aa7ff;
+  --color-gold-deep: #2562c4;
+  /* The theme's second accent (titles, page labels, main buttons). */
+  --color-accent: #e2ae4a;
+  --color-ok: #93ae97;
+  --color-warn: #d2926a;
+  --color-bad: #cf6f63;
+
+  /* Command center: clearer status for live state, and an accent per kind of project. */
+  --color-live: #5fbf7a;
+  --color-amber: #e3a948;
+  --color-alert: #e05a4f;
+  --color-tint-red: #d9564b;
+  --color-tint-blue: #4f8fdc;
+  --color-tint-violet: #9a6bdc;
+  --color-tint-teal: #3fb58f;
+  --color-tint-gold: #d8b25e;
+
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-cave: "Monaspace Radon", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  --ease-quiet: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* The theme's main action (Send, Approve and run) and title colors, outside Tailwind's tokens. */
+:root {
+  --color-action: #f5a623;
+  --color-action-hover: #ffb94a;
+  --color-action-ink: #14100a;
+  --talk-title: #e2ae4a;
+}
+
+@layer base {
+  /*
+   * The page never scrolls sideways (11-13, the owner: "make every screen fixed, no scrolling
+   * side to side"). clip, not hidden: sticky headers keep working. Strips that scroll on their
+   * own (tabs, carousels) still do.
+   */
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: clip;
+    overscroll-behavior-x: none;
+  }
+  /*
+   * Scrollbars in the theme's own colors, thin, with no arrow buttons (10-20: the browser's
+   * grey and white bars clashed). Built from the theme tokens, so every theme follows.
+   */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--color-gold) 45%, var(--color-line-strong))
+      transparent;
+  }
+  *:hover {
+    scrollbar-color: color-mix(in oklab, var(--color-gold) 75%, var(--color-line-strong))
+      transparent;
+  }
+  /*
+   * Every scrolling or clipping box is the reference box for what is positioned inside it.
+   * Without this, visually hidden labels (.sr-only, position: absolute) inside a long
+   * conversation were placed relative to the page instead and stretched it by thousands of
+   * pixels of empty space. Zero specificity and in the base layer: any explicit position
+   * utility (fixed, absolute, sticky) still wins.
+   */
+  :where(
+    .overflow-auto,
+    .overflow-y-auto,
+    .overflow-x-auto,
+    .overflow-hidden,
+    .overflow-x-hidden,
+    .overflow-y-hidden
+  ) {
+    position: relative;
+  }
+
+  html {
+    color-scheme: dark;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html[data-theme="hearth"] body {
+    background-image:
+      radial-gradient(ellipse 70% 45% at 100% 0%, rgb(255 90 31 / 0.07), transparent 70%),
+      radial-gradient(ellipse 60% 40% at 0% 100%, rgb(255 138 0 / 0.05), transparent 70%);
+  }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    /* Cormorant defaults to old-style figures, which make "31" read as "3I". */
+    font-variant-numeric: lining-nums;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-gold) 35%, transparent);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 1px solid var(--color-gold);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+
+  button,
+  a,
+  select,
+  [role="button"] {
+    cursor: pointer;
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+@utility eyebrow {
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-faint);
+  font-weight: 500;
+}
+
+@utility safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/*
+ * The numbers and status words at the top of an app's panel (10-26: SABnzbd's "Downloading"
+ * spilled out of its box in a narrow panel). The value shrinks with its tile and, as a last
+ * resort, wraps, so it always stays inside. In a wide panel it keeps its usual size.
+ */
+@layer components {
+  .stat-tile {
+    container-type: inline-size;
+    min-width: 0;
+  }
+  .stat-value {
+    font-size: clamp(0.95rem, 14cqi, 1.35rem);
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+  /* Small rounded status labels: a long word grows the label or wraps inside it, never out. */
+  .fit-pill {
+    display: inline-block;
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+.fade-in {
+  animation: fade-in 320ms var(--ease-quiet) both;
+}
+/* Home fits the window exactly: a fade without the slide, which would briefly overflow it. */
+.fade-in-flat {
+  animation: fade-in-flat 320ms var(--ease-quiet) both;
+}
+@keyframes fade-in-flat {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-panel) 0%,
+    var(--color-raised) 50%,
+    var(--color-panel) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- Command center ---------- */
+
+/* A faint ornamental geometry behind everything: never competing with content. */
+.cc-backdrop {
+  background:
+    radial-gradient(
+      1200px 600px at 50% -10%,
+      color-mix(in oklab, var(--color-gold) 7%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 500px at 50% 110%,
+      color-mix(in oklab, var(--color-gold) 4%, transparent),
+      transparent 60%
+    ),
+    var(--color-bg);
+}
+
+.cc-hub {
+  background: radial-gradient(
+    circle at 50% 38%,
+    color-mix(in oklab, var(--color-gold) 16%, var(--color-bg)) 0%,
+    var(--color-bg) 62%
+  );
+  box-shadow:
+    0 0 0 2px color-mix(in oklab, var(--color-gold-bright) 85%, transparent),
+    0 0 0 8px color-mix(in oklab, var(--color-gold) 12%, transparent),
+    0 0 0 9px color-mix(in oklab, var(--color-gold) 35%, transparent),
+    0 0 64px 10px color-mix(in oklab, var(--color-gold) 32%, transparent),
+    inset 0 0 44px color-mix(in oklab, var(--color-gold) 18%, transparent);
+}
+
+.cc-glow {
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--color-gold) 45%, transparent),
+    0 0 36px color-mix(in oklab, var(--color-gold) 14%, transparent);
+}
+
+.cc-card {
+  background: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--tint) 14%, var(--color-panel)) 0%,
+    var(--color-panel) 70%
+  );
+  border: 1px solid color-mix(in oklab, var(--tint) 45%, transparent);
+  box-shadow: 0 0 22px color-mix(in oklab, var(--tint) 10%, transparent);
+  transition:
+    border-color 200ms var(--ease-quiet),
+    box-shadow 200ms var(--ease-quiet),
+    transform 200ms var(--ease-quiet);
+}
+.cc-card:hover {
+  border-color: color-mix(in oklab, var(--tint) 75%, transparent);
+  box-shadow: 0 0 30px color-mix(in oklab, var(--tint) 20%, transparent);
+}
+
+/*
+ * A project the owner gave a color (Home's project cards): a bright rim, a translucent halo of
+ * the color around it, and a soft wash of it inside, like the halo on branded panels. The text
+ * keeps the card's own colors, so it reads on every color.
+ */
+.cc-card.project-glow {
+  background:
+    linear-gradient(
+      150deg,
+      color-mix(in oklab, var(--glow) 30%, transparent) 0%,
+      color-mix(in oklab, var(--glow) 12%, transparent) 55%,
+      color-mix(in oklab, var(--glow) 18%, transparent) 100%
+    ),
+    var(--color-panel);
+  border-color: color-mix(in oklab, var(--glow) 90%, white);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--glow) 85%, transparent),
+    0 0 16px 2px color-mix(in oklab, var(--glow) 55%, transparent),
+    0 0 44px 8px color-mix(in oklab, var(--glow) 26%, transparent),
+    inset 0 0 22px color-mix(in oklab, var(--glow) 22%, transparent);
+}
+.cc-card.project-glow:hover {
+  border-color: color-mix(in oklab, var(--glow) 70%, white);
+  box-shadow:
+    0 0 0 1px var(--glow),
+    0 0 20px 3px color-mix(in oklab, var(--glow) 65%, transparent),
+    0 0 56px 12px color-mix(in oklab, var(--glow) 32%, transparent),
+    inset 0 0 26px color-mix(in oklab, var(--glow) 26%, transparent);
+}
+
+.cc-slide-in {
+  animation: cc-slide-in 260ms var(--ease-quiet) both;
+}
+@keyframes cc-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.cc-grow {
+  animation: cc-grow 240ms var(--ease-quiet) both;
+  transform-origin: 50% 40%;
+}
+@keyframes cc-grow {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-in,
+  .fade-in-flat,
+  .cc-slide-in,
+  .cc-grow {
+    animation: none;
+  }
+  .cc-card {
+    transition: none;
+  }
+}
+
+/* Voice: the conversation portrait breathes while the answer is spoken; the mic buzzes while you speak. */
+@keyframes portrait-breathe {
+  0%,
+  100% {
+    transform: scale(0.97);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
+@keyframes mic-buzz {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate(-1px, 0.5px) rotate(-7deg);
+  }
+  50% {
+    transform: translate(1px, -0.5px) rotate(5deg);
+  }
+  75% {
+    transform: translate(-0.5px, -1px) rotate(-4deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mic-buzz {
+    animation: none !important;
+  }
+}
+
+/*
+ * Ember's workstation (conversation mode). Its look became the default theme, Sapphire
+ *; here only its backdrop, a glow of the theme's main color over the background.
+ */
+.talk-theme {
+  background:
+    radial-gradient(
+      ellipse 60% 45% at 50% 18%,
+      color-mix(in oklab, var(--color-gold) 22%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 90% 70% at 50% 100%,
+      color-mix(in oklab, var(--color-gold-deep) 30%, transparent),
+      transparent 75%
+    ),
+    var(--color-bg);
+}
+.talk-theme .cc-glow {
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--color-gold) 16%, transparent),
+    0 14px 36px rgba(0, 0, 0, 0.5);
+}
+.talk-theme .eyebrow {
+  letter-spacing: 0.08em;
+}
+/* The main action, in every theme (Sapphire: orange, as in the owner's picture). */
+.dc-primary {
+  background: var(--color-action);
+  color: var(--color-action-ink);
+}
+.dc-primary:hover:not(:disabled) {
+  background: var(--color-action-hover);
+}
+.talk-title {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  color: var(--talk-title);
+  letter-spacing: 0.08em;
+}
+
+/* Conversation mode: the bar under what you said, emptying until it is sent. */
+@keyframes talk-countdown {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+/*
+ * Service panel looks (components/panels/brands.tsx), chosen in Settings, Themes, Panels and set
+ * on the root as data-panels. Minimal (the default) shows no decoration at all. Only colors,
+ * borders and the decorated band behind the header change: the panel's layout never does.
+ */
+.panel-brand {
+  display: none;
+}
+:root[data-panels="service"] .panel-brand[data-layer="service"],
+:root[data-panels="hearth"] .panel-brand[data-layer="hearth"] {
+  display: block;
+}
+/* The service's own color rings its icon; Hearth's ember stays in the controls. */
+:root[data-panels="service"] [data-brand] .panel-icon {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--brand-primary) 70%, transparent),
+    0 0 22px color-mix(in srgb, var(--brand-primary) 45%, transparent);
+}
+:root[data-panels="hearth"] [data-brand] .panel-icon {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--color-gold) 55%, transparent),
+    0 0 20px color-mix(in srgb, var(--color-gold) 35%, transparent);
+}
+
+/*
+ * A painted frame (a service with its own artwork): Hearth's lava glow around the whole panel,
+ * strong on the outside, with the service's own color glowing just inside.
+ */
+:root[data-panels="service"] [data-painted],
+:root[data-panels="hearth"] [data-painted] {
+  border-color: #ff7a1a;
+  box-shadow:
+    0 0 0 1px rgb(255 122 26 / 0.9),
+    0 0 16px 2px rgb(255 98 0 / 0.6),
+    0 0 46px 8px rgb(255 72 0 / 0.3),
+    inset 0 0 28px color-mix(in srgb, var(--brand-primary) 32%, transparent);
+}
+
+/* Ember's panel: its painted lava frame and a strong glow, with Service or Hearth branding. */
+.ember-frame {
+  display: none;
+}
+:root[data-panels="service"] .ember-frame,
+:root[data-panels="hearth"] .ember-frame {
+  display: block;
+}
+:root[data-panels="service"] [data-ember-frame],
+:root[data-panels="hearth"] [data-ember-frame] {
+  border-color: #ff8a1e;
+  box-shadow:
+    0 0 0 1px rgb(255 138 30 / 0.9),
+    0 0 18px 3px rgb(255 98 0 / 0.6),
+    0 0 50px 10px rgb(255 72 0 / 0.3);
+}
+/* With branding on, Ember's picture in its panel is larger, like the artwork's own mascot. */
+:root[data-panels="service"] [data-ember-frame] .ember-avatar,
+:root[data-panels="hearth"] [data-ember-frame] .ember-avatar {
+  width: 3.5rem;
+  height: 3.5rem;
+  filter: drop-shadow(0 0 10px rgb(255 122 26 / 0.55));
+}
+/* Hearth branding: Hearth's orange inside the frame too, whatever the service. */
+:root[data-panels="hearth"] [data-painted] {
+  --brand-primary: #ff8a1e;
+  --brand-secondary: #73380a;
+}
+/* The seam between a branded panel's header and its content: the line under the tabs glows. */
+:root[data-panels="service"] [data-painted] > div > nav,
+:root[data-panels="hearth"] [data-painted] > div > nav {
+  border-bottom-color: color-mix(in srgb, var(--brand-primary) 85%, white);
+  box-shadow: 0 6px 14px -8px var(--brand-primary);
+}
+
+/* The phone's panel ring (PanelCarousel). While it shows, a sideways swipe moves round it and
+   never also means "go back" in the browser. */
+html:has([data-testid="carousel"]) {
+  overscroll-behavior-x: none;
+}
+/* A short slide from the side a panel came from. */
+@keyframes lair-slide-from-right {
+  from {
+    transform: translateX(14%);
+    opacity: 0.4;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes lair-slide-from-left {
+  from {
+    transform: translateX(-14%);
+    opacity: 0.4;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.lair-slide-from-right {
+  animation: lair-slide-from-right 180ms ease-out;
+}
+.lair-slide-from-left {
+  animation: lair-slide-from-left 180ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lair-slide-from-right,
+  .lair-slide-from-left {
+    animation: none;
+  }
+}
+
+/*
+ * The Lair's conversation in the War Room's colors (the owner, 2026-11-02): your messages
+ * translucent orange with blue text, the AI's translucent blue with orange text. Each sits on the
+ * panel's own color first, so the lava frame behind never shows through the words. Fixed colors,
+ * the same in every theme, like the War Room's (ember/chat-look.css).
+ */
+.lair-you {
+  background: linear-gradient(rgb(255 140 30 / 0.3), rgb(255 140 30 / 0.3)), var(--color-panel);
+  border-color: rgb(255 140 30 / 0.75);
+  color: #9fd8ff;
+}
+.lair-ember {
+  background: linear-gradient(rgb(56 140 255 / 0.14), rgb(56 140 255 / 0.14)), var(--color-panel);
+  border-color: rgb(56 140 255 / 0.4);
+  color: #ffa54f;
+}
+.lair-ember > p {
+  color: inherit;
+}
+.lair-ember a {
+  color: #ffc48a;
+}
+/* Long names without spaces (release names, paths) wrap inside the bubble, never past it. */
+.lair-you,
+.lair-you *,
+.lair-ember,
+.lair-ember * {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+/*
+ * The Ember mark (11-12): on every button that starts Ember, so a click that uses the owner's AI
+ * plan never looks like a plain one. Ember's own orange, fixed in every theme like the Lair's.
+ */
+.ember-mark {
+  background: rgb(255 140 30 / 0.16);
+  box-shadow: inset 0 0 0 1px rgb(255 140 30 / 0.6);
+  color: #ffa54f;
+}
+
+/* A phone's chat (11-16): the rows above the conversation are in the chat's menu instead. */
+@media (max-width: 599.98px) {
+  html[data-chat-fit] [data-phone-collapse]:not([data-chat-menu] *) {
+    display: none;
+  }
+}
+
+/* A conversation search hit (Thread Looks, 11-17): the message that matched, marked briefly. */
+.search-hit {
+  border-radius: 1rem;
+  outline: 2px solid color-mix(in srgb, var(--color-gold) 70%, transparent);
+  outline-offset: 4px;
+  transition: outline-color 0.6s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .search-hit {
+    transition: none;
+  }
+}

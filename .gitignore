@@ -1,0 +1,26 @@
+node_modules/
+dist/
+/data/
+*.db
+*.db-shm
+*.db-wal
+.env
+.env.*
+!.env.example
+test-results/
+playwright-report/
+coverage/
+*.tsbuildinfo
+
+# Personal keys and credentials kept next to the project; never committed.
+/Control Keys/
+
+# Built companion bundle (made by `pnpm build`).
+/integrations/claude-code/plugin/companion/
+
+# Private notes about this installation (kept on this machine, never published).
+/private/
+dist-elevated/
+.premium-e2e/
+.premium-e2e-addons/
+.premium-test-addons/

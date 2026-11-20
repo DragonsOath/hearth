@@ -1,0 +1,127 @@
+# The elevated executor and RAID on throwaway drives (Linux), and Storage Spaces through the Windows
+# executor. Slow, so only when the code they test changes, or by hand from the Actions tab (the owner
+# 11-04: Actions minutes). Windows minutes count double and Windows is tested in larger batches
+# (11-05), so its job runs only by hand: Run workflow, with "windows" ticked.
+name: Storage and executor
+
+on:
+  pull_request:
+    paths:
+      - "apps/server/src/elevated/**"
+      - "apps/server/src/storage/**"
+      - "deploy/**"
+      - "scripts/test-elevation-install.sh"
+      - "scripts/windows-elevation-ci.ts"
+      - "apps/server/tsup.config.ts"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/storage.yml"
+  workflow_dispatch:
+    inputs:
+      windows:
+        description: "Also run Storage Spaces on Windows (minutes count double)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: storage-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-storage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.15.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter ./apps/server build
+      # The elevated executor, installed for real on this throwaway machine (root, systemd).
+      - name: Elevated executor install test
+        run: sudo env "PATH=$PATH" bash scripts/test-elevation-install.sh
+      # RAID management against real Linux software RAID, on throwaway loop devices (files posing
+      # as drives) on this disposable machine: create, fail, remove, rebuild, check, grow.
+      - name: RAID on loop devices
+        run: |
+          sudo apt-get install -y -qq mdadm
+          sudo env "PATH=$PATH" RAID_LOOPBACK=1 ./node_modules/.bin/vitest run apps/server/src/storage/raid/raid.loopback.test.ts
+      # The same for ZFS: a RAID-Z1 pool on loop devices, a spare, offline and back, a replace
+      # with its rebuild, and a scrub, through the executor's own zfs.* code.
+      - name: ZFS on loop devices
+        run: |
+          sudo apt-get install -y -qq zfsutils-linux
+          sudo modprobe zfs
+          zfs version
+          sudo env "PATH=$PATH" RAID_LOOPBACK_ZFS=1 ./node_modules/.bin/vitest run apps/server/src/storage/raid/zfs.loopback.test.ts
+      # SnapRAID on loop devices: a sync through the executor's own background unit, the safety
+      # stop after many deletions, a lost drive's files rebuilt from parity, and a scrub.
+      - name: SnapRAID on loop devices
+        run: |
+          sudo apt-get install -y -qq snapraid || (
+            curl -sL https://github.com/amadvance/snapraid/releases/download/v12.3/snapraid-12.3.tar.gz | tar xz &&
+            cd snapraid-12.3 && ./configure -q && make -s -j4 && sudo make install )
+          snapraid --version
+          sudo env "PATH=$PATH" RAID_LOOPBACK_SNAPRAID=1 ./node_modules/.bin/vitest run apps/server/src/storage/raid/snapraid.loopback.test.ts
+      # Btrfs on loop devices: a RAID 1 created and read, a scrub, a drive added, converted to
+      # RAID 1C3 in place and back, a drive replaced, and one removed in the background.
+      - name: Btrfs on loop devices
+        run: |
+          sudo apt-get install -y -qq btrfs-progs
+          sudo env "PATH=$PATH" RAID_LOOPBACK_BTRFS=1 ./node_modules/.bin/vitest run apps/server/src/storage/raid/btrfs.loopback.test.ts
+
+  # Storage Spaces through the Windows elevated executor, installed for real on a throwaway Windows
+  # machine (as SYSTEM, on its named pipe), on virtual drives (VHDX files): never real disks.
+  windows-storage:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.windows }}
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.15.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter ./apps/server build
+      - name: Install the Windows executor
+        shell: powershell
+        run: |
+          $hh = Join-Path $env:RUNNER_TEMP "hearth-home"
+          New-Item -ItemType Directory -Force "$hh\app\apps\server\dist-elevated", "$hh\node" | Out-Null
+          Copy-Item apps\server\dist-elevated\hearth-elevated.js "$hh\app\apps\server\dist-elevated\"
+          Copy-Item (Get-Command node).Source "$hh\node\node.exe"
+          powershell -ExecutionPolicy Bypass -File deploy\windows\install-elevation.ps1 -HearthHome $hh -HearthUser "$env:USERDOMAIN\$env:USERNAME" -DryRun
+          powershell -ExecutionPolicy Bypass -File deploy\windows\install-elevation.ps1 -HearthHome $hh -HearthUser "$env:USERDOMAIN\$env:USERNAME"
+          if ($LASTEXITCODE) { exit 1 }
+          powershell -ExecutionPolicy Bypass -File deploy\windows\install-elevation.ps1 -Verify
+          if ($LASTEXITCODE) { exit 1 }
+      - name: Four virtual drives
+        shell: powershell
+        run: |
+          foreach ($i in 1..4) {
+            $f = Join-Path $env:RUNNER_TEMP "spaces$i.vhdx"
+            $s = Join-Path $env:RUNNER_TEMP "dp$i.txt"
+            "create vdisk file=`"$f`" maximum=6000 type=expandable`r`nattach vdisk" | Set-Content -Encoding ascii $s
+            diskpart /s $s | Out-Null
+          }
+          Get-PhysicalDisk | Format-Table DeviceId, FriendlyName, BusType, Size, CanPool, CannotPoolReason -AutoSize
+      - name: Storage Spaces end to end
+        shell: powershell
+        run: |
+          apps\server\node_modules\.bin\tsx.cmd scripts\windows-elevation-ci.ts
+          if ($LASTEXITCODE) { exit 1 }
+      - name: The executor's log
+        if: always()
+        shell: powershell
+        run: Get-Content "$env:ProgramData\Hearth\elevation\log\elevated.jsonl" -ErrorAction SilentlyContinue | Select-Object -Last 40

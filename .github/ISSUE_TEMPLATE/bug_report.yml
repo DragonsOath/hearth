@@ -1,0 +1,51 @@
+name: Bug report
+description: Something in Hearth does not work as it should, including a panel that is wrong.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting it. Never paste passwords, API keys or tokens here: Hearth keeps
+        those in its Secure Vault, and nobody needs them to fix a bug.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to see it
+      description: What to click, in order, so someone else can see it happen.
+      placeholder: |
+        1. Open the Seerr panel
+        2. Press Request on a movie
+        3. The approval says nothing about the folder
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: The page or panel, and the tab ("Uptime Kuma, Monitors tab").
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Hearth version
+      description: Settings, About.
+    validations:
+      required: true
+  - type: input
+    id: app
+    attributes:
+      label: The app's version
+      description: For a panel, the version of the app it shows.
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: A screenshot or log lines help (check them for secrets first).

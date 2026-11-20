@@ -1,0 +1,139 @@
+/* The War Room's toolbar (Menu, Home, Lair, Panels, Terminal and Chat, Open, New project,
+   GitHub, Artifacts, Pause queue, Kill switch). Each button has its own color, so it is found
+   by color as well as by name. */
+
+.er .btn.tb {
+  --c-rgb: var(--a1-rgb);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.er .btn.tb svg,
+.er .tb-view button svg {
+  width: 17px;
+  height: 17px;
+  flex: none;
+}
+.er .btn.tb-panels {
+  --c-rgb: 46, 201, 234;
+}
+.er .btn.tb-open {
+  --c-rgb: 61, 155, 255;
+}
+.er .btn.tb-new {
+  --c-rgb: 255, 122, 26;
+}
+.er .btn.tb-gh {
+  --c-rgb: 176, 92, 255;
+}
+.er .btn.tb-art {
+  --c-rgb: 255, 199, 44;
+}
+.er .btn.tb-pause {
+  --c-rgb: 255, 179, 71;
+}
+.er .btn.tb-kill {
+  --c-rgb: 255, 77, 77;
+}
+.er .btn.tb-menu {
+  --c-rgb: 207, 214, 222;
+}
+.er .btn.tb-home {
+  --c-rgb: 61, 220, 106;
+}
+.er .btn.tb-lair {
+  --c-rgb: 255, 90, 54;
+}
+.er .tb-view button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* A control deck: icon over label, a color bar on top. */
+
+.er .ptab-tools {
+  gap: 6px;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 6px;
+}
+.er .btn.tb {
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  min-width: 74px;
+  min-height: 50px;
+  padding: 6px 12px 5px;
+  border-radius: 10px;
+  font: 700 11px var(--head);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.86);
+  background: rgba(10, 14, 22, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 3px solid rgb(var(--c-rgb));
+}
+.er .btn.tb svg {
+  width: 20px;
+  height: 20px;
+  color: rgb(var(--c-rgb));
+  stroke: currentColor;
+}
+.er .btn.tb:hover,
+.er .btn.tb[aria-pressed="true"],
+.er .btn.tb.on {
+  background: rgba(var(--c-rgb), 0.18);
+  transform: translateY(-1px);
+  filter: none;
+}
+.er .tb-view {
+  padding: 0;
+  gap: 4px;
+  border: 0;
+  background: none;
+}
+.er .tb-view button {
+  flex-direction: column;
+  gap: 3px;
+  min-width: 74px;
+  min-height: 50px;
+  padding: 6px 12px 5px;
+  border-radius: 10px;
+  font: 700 11px var(--head);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: rgba(10, 14, 22, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 3px solid rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.7);
+}
+.er .tb-view button svg {
+  width: 20px;
+  height: 20px;
+}
+.er .tb-view button[aria-selected="true"] {
+  color: #fff;
+  border-top-color: var(--a1);
+  background: rgba(var(--a1-rgb), 0.28);
+}
+.er .top-right .tb {
+  min-height: 44px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .er .btn.tb:hover {
+    transform: none;
+  }
+}
+
+/* The status lights share the row with the bigger buttons: they wrap onto a second line
+   instead of sliding under the Claude Code / Codex switch. */
+.er .top .pills {
+  flex: 1 1 0;
+  flex-wrap: wrap;
+  row-gap: 4px;
+}

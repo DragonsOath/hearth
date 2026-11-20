@@ -1,0 +1,47 @@
+[
+  {
+    "name": "Planned",
+    "color": "e8a33d",
+    "description": "We're going to build it. No date promised."
+  },
+  {
+    "name": "PR welcome",
+    "color": "2da44e",
+    "description": "A good idea we can't get to soon. Anyone is welcome to build it."
+  },
+  {
+    "name": "Ember can do this",
+    "color": "f06a2a",
+    "description": "It already works today. Ask Ember."
+  },
+  {
+    "name": "Not planned",
+    "color": "8b949e",
+    "description": "We've decided against it, and we say why."
+  },
+  {
+    "name": "Duplicate",
+    "color": "cfd3d7",
+    "description": "Already asked for. Vote on the original instead."
+  },
+  {
+    "name": "panel request",
+    "color": "c5a3ff",
+    "description": "A request for a full panel, or a feature on one."
+  },
+  {
+    "name": "bug",
+    "color": "d73a4a",
+    "description": "Something in Hearth doesn't work as it should."
+  },
+  {
+    "name": "enhancement",
+    "color": "a2eeef",
+    "description": "An idea for Hearth itself."
+  },
+  {
+    "name": "ember-made",
+    "color": "f0883e",
+    "description": "A custom panel made with Ember Panel Builder and submitted from a Hearth install."
+  }
+]

@@ -1,0 +1,1 @@
+ALTER TABLE `movie_nights` ADD `look` text DEFAULT 'cinematic' NOT NULL;

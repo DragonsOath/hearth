@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "dragon-control",
+  "displayName": "Hearth",
+  "version": "0.1.0",
+  "description": "Your homelab companion: Hearth's shared memory of your projects, history, open work, and past sessions, in every Claude Code terminal. Switches into homelab mode on its own when you talk homelab.",
+  "author": { "name": "homelab" },
+  "license": "UNLICENSED",
+  "keywords": ["homelab", "memory", "dragon-control", "self-hosted"]
+}

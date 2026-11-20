@@ -1,0 +1,1 @@
+ALTER TABLE `movie_nights` ADD `code` text DEFAULT '' NOT NULL;

@@ -1,0 +1,71 @@
+name: Panel requests
+
+# A clear request for a new panel, opened as an issue, is pointed to the panel request board and
+# closed: there it can be upvoted, and the most asked-for are built first. Only clear requests
+# (.github/scripts/panel-request.mjs); a problem with an existing panel always stays an issue.
+# A new request on the board is announced on Discord, through the repository secret
+# PANEL_REQUESTS_WEBHOOK (a Discord webhook address, set in Settings > Secrets; never in the code).
+on:
+  issues:
+    types: [opened]
+  discussion:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  redirect:
+    if: github.event_name == 'issues'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const { isPanelRequest } = await import(`${process.env.GITHUB_WORKSPACE}/.github/scripts/panel-request.mjs`);
+            const issue = context.payload.issue;
+            const labels = (issue.labels ?? []).map((l) => l.name);
+            if (!isPanelRequest(issue.title, issue.body ?? "", labels)) return;
+            const board = `https://github.com/${context.repo.owner}/${context.repo.repo}/discussions/new?category=panel-requests`;
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: issue.number,
+              body: [
+                "Thanks for asking for a panel! Panel requests live on the panel request board, where others can upvote them and the most asked-for are built first.",
+                "",
+                `Please post it there: ${board} (search first: if it is already asked for, upvote it and add what you would use it for).`,
+                "",
+                "If this is a problem with a panel Hearth already has, reopen this issue and say so.",
+              ].join("\n"),
+            });
+            await github.rest.issues.update({
+              ...context.repo,
+              issue_number: issue.number,
+              state: "closed",
+              state_reason: "not_planned",
+            });
+
+  discord:
+    if: github.event_name == 'discussion' && github.event.discussion.category.slug == 'panel-requests'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Announce on Discord
+        env:
+          WEBHOOK: ${{ secrets.PANEL_REQUESTS_WEBHOOK }}
+          TITLE: ${{ github.event.discussion.title }}
+          URL: ${{ github.event.discussion.html_url }}
+          WHO: ${{ github.event.discussion.user.login }}
+        run: |
+          if [ -z "$WEBHOOK" ]; then
+            echo "::notice::PANEL_REQUESTS_WEBHOOK is not set, so nothing was sent to Discord."
+            exit 0
+          fi
+          jq -n --arg t "$TITLE" --arg u "$URL" --arg w "$WHO" \
+            '{content: ("New panel request from " + $w + ": **" + $t + "**\n" + $u), allowed_mentions: {parse: []}}' \
+            | curl -sS --fail -H "Content-Type: application/json" -d @- "$WEBHOOK" > /dev/null

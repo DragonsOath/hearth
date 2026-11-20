@@ -1,0 +1,41 @@
+# Hearth's licence service (docs/design/PREMIUM.md "Licence service"). Deploy: see README.md.
+name = "hearth-licence"
+main = "src/worker.ts"
+routes = [
+  { pattern = "licence.dragonsoath.com", custom_domain = true },
+  # The owner's code page and the sponsor claim page, on the main site: only /codes and /codes/...
+  # come here (not /codes-anything); everything else on hearth.dragonsoath.com is unchanged.
+  { pattern = "hearth.dragonsoath.com/codes", zone_name = "dragonsoath.com" },
+  { pattern = "hearth.dragonsoath.com/codes/*", zone_name = "dragonsoath.com" },
+]
+workers_dev = false
+compatibility_date = "2026-06-01"
+
+[vars]
+# The owner's licence signing key, public half (Settings, Premium on the owner's Hearth). Only
+# requests signed with it can add codes or take licences back. Empty: those are refused.
+OWNER_KEY = ""
+# The owner's code page (hearth.dragonsoath.com/codes): the GitHub OAuth app's client id (README, The code site), and the
+# only GitHub account let in (the owner's numeric id). The app's secret is a Worker secret.
+# The OAuth app "Hearth codes", owned by the DragonsOath organization (11-19).
+GITHUB_CLIENT_ID = "Ov23lihrZNu9ZtBGQgZY"
+OWNER_GITHUB_ID = "295516420"
+SITE_ORIGIN = "https://hearth.dragonsoath.com"
+# A one-time sponsorship of at least this (US dollars) claims Founder at /codes/claim. Launch price.
+FOUNDER_MIN_USD = "60"
+# The Hearth Discord server, and the forums the Founder offer can watch: #around-the-fire, and #founder-test
+# (hidden: the owner and Ember Bot only), whose id is filled in once it exists.
+GUILD_ID = "1569095537272295595"
+FORUM_ID = "1569127294042116246"
+TEST_FORUM_ID = "1573249055050698874"
+
+# Ember Bot DMs Founder codes on Approve (its EmberDesk; a service binding, never the internet).
+[[services]]
+binding = "EMBER"
+service = "ember-bot"
+entrypoint = "EmberDesk"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "hearth-licence"
+database_id = "15b90be6-a140-4474-b36d-0e2847e5b8b0"

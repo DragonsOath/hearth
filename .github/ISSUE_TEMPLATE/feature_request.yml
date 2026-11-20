@@ -1,0 +1,21 @@
+name: Feature request
+description: An idea for Hearth itself. For a panel for an app, use Request a panel instead.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Want a panel for an app? Request it on the panel request board, where others can upvote
+        it: https://github.com/DragonsOath/hearth/discussions/new?category=panel-requests
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What you would like Hearth to do, and why it would help you.
+    validations:
+      required: true
+  - type: textarea
+    id: now
+    attributes:
+      label: What you do today
+      description: How you handle it without this, if you do.

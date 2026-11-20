@@ -1,0 +1,30 @@
+# Announces a published release on the public Hearth Discord server: the full notes in
+# #announcements and Ember's heads-up in #general (services/ember-bot/src/announce.ts). Releases
+# start as drafts, so this runs only when the owner publishes one.
+name: discord-release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  announce:
+    # Test builds are published as pre-releases; only full releases are announced in public.
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node services/ember-bot/src/announce-cli.ts
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_NAME: ${{ github.event.release.name }}
+          RELEASE_BODY: ${{ github.event.release.body }}
+          DISCORD_ANNOUNCE_WEBHOOK: ${{ secrets.DISCORD_ANNOUNCE_WEBHOOK }}
+          DISCORD_GENERAL_WEBHOOK: ${{ secrets.DISCORD_GENERAL_WEBHOOK }}
+          DISCORD_ANNOUNCE_CHANNEL_ID: ${{ vars.DISCORD_ANNOUNCE_CHANNEL_ID }}

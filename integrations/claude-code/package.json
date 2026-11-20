@@ -1,0 +1,19 @@
+{
+  "name": "@dragon-control/claude-code",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The homelab companion for Claude Code: Hearth's memory in every terminal.",
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@dragon-control/core": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.31.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1"
+  }
+}

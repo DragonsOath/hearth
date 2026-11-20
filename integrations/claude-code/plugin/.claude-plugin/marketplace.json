@@ -1,0 +1,20 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "dragon-control",
+  "owner": { "name": "homelab" },
+  "metadata": {
+    "description": "Hearth's homelab companion for Claude Code.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "dragon-control",
+      "source": "./",
+      "description": "Hearth's shared homelab memory in every Claude Code terminal, with homelab mode, offline cache, and word-for-word session saving.",
+      "version": "0.1.0",
+      "author": { "name": "homelab" },
+      "category": "productivity",
+      "strict": false
+    }
+  ]
+}

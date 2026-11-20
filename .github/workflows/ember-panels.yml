@@ -1,0 +1,35 @@
+name: Ember panels
+
+# A pull request the panel submission service opened (an ember-panel/ branch) may only add panel
+# files under packages/core/panels/. Every other pull request skips this at once, so it costs no
+# Actions minutes.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  paths:
+    if: startsWith(github.head_ref, 'ember-panel/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Only panel files
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          bad=$(git diff --name-only --diff-filter=ACMRTD "$BASE" "$HEAD" | grep -v '^packages/core/panels/community/[a-z0-9-]*/[a-z0-9-]*\.json$' || true)
+          if [ -n "$bad" ]; then
+            echo "An Ember panel pull request may only add panel files under packages/core/panels/community/. It also changes:"
+            echo "$bad"
+            exit 1
+          fi
+          for f in $(git diff --name-only --diff-filter=ACMR "$BASE" "$HEAD"); do
+            python3 -c "import json,sys; d=json.load(open(sys.argv[1])); assert d.get('format')=='hearth-panel', 'not a Hearth panel file'" "$f"
+          done
+          echo "Only panel files. OK."

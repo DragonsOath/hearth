@@ -1,0 +1,1 @@
+ALTER TABLE `vault_secrets` ADD `browser_sign_in` integer DEFAULT false NOT NULL;

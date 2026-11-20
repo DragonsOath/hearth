@@ -1,0 +1,1 @@
+ALTER TABLE `services` ADD `origin` text DEFAULT 'discovered' NOT NULL;

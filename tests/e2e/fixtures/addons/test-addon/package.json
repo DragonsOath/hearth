@@ -1,0 +1,8 @@
+{
+  "name": "test-addon",
+  "private": true,
+  "hearth": {
+    "addon": "index.mjs",
+    "web": "web"
+  }
+}

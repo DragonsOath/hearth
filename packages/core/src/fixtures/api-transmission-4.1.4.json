@@ -1,0 +1,31 @@
+{
+  "app": "transmission",
+  "version": "4.1.4",
+  "source": "Transmission 4.1.4 RPC specification (docs/rpc-spec.md at tag 4.1.4). It names methods in snake_case (torrent_get); Hearth sends the long-standing names (torrent-get), which the throwaway linuxserver/transmission 4.1.4 accepted on 2026-11-08, as Transmission 3.x does",
+  "endpoints": [
+    "RPC blocklist-update",
+    "RPC free-space",
+    "RPC group-get",
+    "RPC group-set",
+    "RPC port-test",
+    "RPC queue-move-bottom",
+    "RPC queue-move-down",
+    "RPC queue-move-top",
+    "RPC queue-move-up",
+    "RPC session-close",
+    "RPC session-get",
+    "RPC session-set",
+    "RPC session-stats",
+    "RPC torrent-add",
+    "RPC torrent-get",
+    "RPC torrent-reannounce",
+    "RPC torrent-remove",
+    "RPC torrent-rename-path",
+    "RPC torrent-set",
+    "RPC torrent-set-location",
+    "RPC torrent-start",
+    "RPC torrent-start-now",
+    "RPC torrent-stop",
+    "RPC torrent-verify"
+  ]
+}

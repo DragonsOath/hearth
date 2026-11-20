@@ -1,0 +1,12 @@
+packages:
+  - apps/*
+  - packages/*
+  - integrations/*
+  - services/*
+allowBuilds:
+  esbuild: true
+# The terminal's prebuilt pseudo-terminal binaries: keep both Linux processors and Windows in the
+# lockfile, so one release archive runs on x64 and arm64.
+supportedArchitectures:
+  os: [current, linux, win32]
+  cpu: [current, x64, arm64]

@@ -1,0 +1,10 @@
+{
+  "name": "hearth-voice-pack",
+  "private": true,
+  "description": "Hearth's built-in voice (Kokoro to speak, Whisper to listen). Hearth downloads this into its data folder the first time Standard voice is used; it is not installed with Hearth.",
+  "type": "module",
+  "dependencies": {
+    "@huggingface/transformers": "3.8.1",
+    "kokoro-js": "1.2.1"
+  }
+}

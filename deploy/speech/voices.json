@@ -1,0 +1,84 @@
+{
+  "_about": "The five built-in voices (Piper medium models), attached to a GitHub release. `pnpm voices download` fetches these files and refuses any whose checksum does not match. How they were made: docs/VOICES.md.",
+  "repo": "DragonsOath/hearth",
+  "release": "voices-v2",
+  "voices": [
+    {
+      "id": "warden",
+      "label": "Guardian",
+      "voice": "en_US-warden-medium"
+    },
+    {
+      "id": "operator",
+      "label": "Operator",
+      "voice": "en_US-operator-medium"
+    },
+    {
+      "id": "enchantress",
+      "label": "Enchantress",
+      "voice": "en_US-enchantress-medium"
+    },
+    {
+      "id": "scholar",
+      "label": "Scholar",
+      "voice": "en_US-scholar-medium"
+    },
+    {
+      "id": "companion",
+      "label": "Companion",
+      "voice": "en_US-companion-medium"
+    }
+  ],
+  "files": [
+    {
+      "name": "en_US-warden-medium.onnx",
+      "bytes": 63516050,
+      "sha256": "50b12ba6894b997969dc8a76b43e68501dddb76615e6df1f5a452097cad86896"
+    },
+    {
+      "name": "en_US-warden-medium.onnx.json",
+      "bytes": 5036,
+      "sha256": "7f148fbd2f9ec7af2bb464af3229fed50acb51038d2769b0b802e98826a5b4ae"
+    },
+    {
+      "name": "en_US-operator-medium.onnx",
+      "bytes": 63516050,
+      "sha256": "fed61f73e03629450cbcc24371d35294f26164edf469e319f7ce1b0c67e7b9d9"
+    },
+    {
+      "name": "en_US-operator-medium.onnx.json",
+      "bytes": 5036,
+      "sha256": "7f148fbd2f9ec7af2bb464af3229fed50acb51038d2769b0b802e98826a5b4ae"
+    },
+    {
+      "name": "en_US-enchantress-medium.onnx",
+      "bytes": 63516050,
+      "sha256": "a65b585074dfca2b6b0567bf311c62e9a9cdde3fcb1e667053ca4813cf5da1b0"
+    },
+    {
+      "name": "en_US-enchantress-medium.onnx.json",
+      "bytes": 5036,
+      "sha256": "7f148fbd2f9ec7af2bb464af3229fed50acb51038d2769b0b802e98826a5b4ae"
+    },
+    {
+      "name": "en_US-scholar-medium.onnx",
+      "bytes": 63516050,
+      "sha256": "a5cf3fb1cca370b2a28c48faf310a79213e897bdcc9d1bacf79467b97c97154d"
+    },
+    {
+      "name": "en_US-scholar-medium.onnx.json",
+      "bytes": 5036,
+      "sha256": "7f148fbd2f9ec7af2bb464af3229fed50acb51038d2769b0b802e98826a5b4ae"
+    },
+    {
+      "name": "en_US-companion-medium.onnx",
+      "bytes": 63516050,
+      "sha256": "68e59c9ee68b419f0d8c110821ec91ae771d78bde9de2d226e8c529b1343e1fe"
+    },
+    {
+      "name": "en_US-companion-medium.onnx.json",
+      "bytes": 5036,
+      "sha256": "7f148fbd2f9ec7af2bb464af3229fed50acb51038d2769b0b802e98826a5b4ae"
+    }
+  ]
+}

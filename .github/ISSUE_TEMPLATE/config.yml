@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Request a panel
+    url: https://github.com/DragonsOath/hearth/discussions/new?category=panel-requests
+    about: Ask for a full panel or a feature on one, or vote for one already asked for.
+  - name: How requests work
+    url: https://github.com/DragonsOath/hearth/blob/main/docs/HOW_REQUESTS_WORK.md
+    about: How requests are chosen, and what each label means.
+  - name: Questions and ideas
+    url: https://github.com/DragonsOath/hearth/discussions
+    about: Ask how something works or share an idea.

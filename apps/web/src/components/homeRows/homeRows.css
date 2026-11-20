@@ -1,0 +1,143 @@
+/* Home rows editor (11-07): the motion that makes it feel alive. Calm when reduced motion is on. */
+.hr-panel {
+  --hr-ember: #ff7a3d;
+  --hr-ember-ink: #1a0d05;
+  --hr-violet: #8b6cff;
+  --hr-violet-ink: #0c0620;
+}
+
+.hr-lift {
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.hr-lift:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.hr-lift:active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
+}
+
+.hr-row .hr-strip > * {
+  transition: transform 0.25s ease;
+}
+.hr-row:hover .hr-strip > * {
+  transform: translateY(-3px);
+}
+.hr-row:hover .hr-strip > *:nth-child(2) {
+  transition-delay: 0.03s;
+}
+.hr-row:hover .hr-strip > *:nth-child(3) {
+  transition-delay: 0.06s;
+}
+.hr-row:hover .hr-strip > *:nth-child(4) {
+  transition-delay: 0.09s;
+}
+.hr-row:hover .hr-strip > *:nth-child(5) {
+  transition-delay: 0.12s;
+}
+.hr-row:hover .hr-strip > *:nth-child(6) {
+  transition-delay: 0.15s;
+}
+.hr-row:hover .hr-strip > *:nth-child(7) {
+  transition-delay: 0.18s;
+}
+.hr-row:hover .hr-strip > *:nth-child(8) {
+  transition-delay: 0.21s;
+}
+
+.hr-strip {
+  mask-image: linear-gradient(90deg, #000 82%, transparent);
+}
+
+.hr-new {
+  animation:
+    hr-in 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.3) both,
+    hr-glow 2.2s ease-out 0.2s both;
+}
+@keyframes hr-in {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes hr-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgb(255 122 61 / 0);
+  }
+  20% {
+    box-shadow:
+      0 0 0 3px rgb(255 122 61 / 0.75),
+      0 0 40px -6px rgb(255 122 61 / 0.7);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(255 122 61 / 0);
+  }
+}
+.hr-pop {
+  animation: hr-pop 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.6);
+}
+@keyframes hr-pop {
+  from {
+    transform: scale(0.6);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.hr-rise {
+  animation: hr-rise 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+}
+@keyframes hr-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.hr-flame {
+  animation: hr-flicker 1.6s ease-in-out infinite;
+}
+@keyframes hr-flicker {
+  0%,
+  100% {
+    transform: scale(1) rotate(-2deg);
+  }
+  50% {
+    transform: scale(1.08) rotate(2deg);
+  }
+}
+.hr-idea:hover:not(:disabled) {
+  border-color: var(--hr-ember);
+  box-shadow: 0 8px 28px -12px rgb(255 122 61 / 0.55);
+}
+.hr-app:hover:not(:disabled) {
+  border-color: var(--color-live);
+  box-shadow: 0 8px 28px -12px rgb(95 191 122 / 0.45);
+}
+.hr-send:hover:not(:disabled) {
+  box-shadow: 0 10px 34px -8px rgb(255 122 61 / 0.9);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hr-new,
+  .hr-pop,
+  .hr-rise,
+  .hr-flame {
+    animation: none;
+  }
+  .hr-lift,
+  .hr-row .hr-strip > * {
+    transition: none;
+  }
+}

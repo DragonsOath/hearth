@@ -1,0 +1,31 @@
+# Hearth's panel donation service (Premium: Donate your panel). Not deployed by any workflow: the
+# owner deploys it by hand once approved (README.md). Everything here is public; the receipt key and
+# the GitHub token are secrets.
+name = "hearth-panel-intake"
+main = "src/worker.ts"
+compatibility_date = "2026-06-01"
+
+[vars]
+REPO = "DragonsOath/hearth-premium"
+BASE = "main"
+PER_LICENCE = "3"
+PER_ADDRESS = "5"
+DAILY_TOTAL = "50"
+PER_RUN = "3"
+# The receipt key's id (its public half goes into Hearth's PANEL_INTAKE_KEYS in a release).
+RECEIPT_KEY_ID = ""
+# The licence public keys Hearth trusts (PRODUCTION_KEYS), as JSON: {"<key id>": "<public key>"}.
+LICENCE_KEYS = "{}"
+
+# Submissions, the filing queue and the daily counters: create a KV namespace and put its id here.
+[[kv_namespaces]]
+binding = "STORE"
+id = ""
+
+# Every ten minutes: file up to PER_RUN queued submissions as pull requests.
+[triggers]
+crons = ["*/10 * * * *"]
+
+# Secrets (never in this file): RECEIPT_KEY (Ed25519 private key, PKCS#8, base64) and
+# GITHUB_TOKEN (fine-grained, the dragonsoath-dev account, DragonsOath/hearth-premium only,
+# Contents and Pull requests read and write, nothing else).

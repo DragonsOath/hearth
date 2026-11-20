@@ -1,0 +1,23 @@
+{
+  "app": "wizarr",
+  "version": "2.2.1",
+  "source": "the installed Wizarr /api/swagger.json, read 2026-10-31",
+  "endpoints": [
+    "DELETE /api/api-keys/{key_id}",
+    "DELETE /api/invitations/{invitation_id}",
+    "DELETE /api/users/{user_id}",
+    "GET /api/admins",
+    "GET /api/api-keys",
+    "GET /api/invitations",
+    "GET /api/libraries",
+    "GET /api/servers",
+    "GET /api/status",
+    "GET /api/users",
+    "POST /api/invitations",
+    "POST /api/users/{user_id}/disable",
+    "POST /api/users/{user_id}/enable",
+    "POST /api/users/{user_id}/extend",
+    "POST /api/users/{user_id}/reset-password",
+    "PUT /api/users/{user_id}/update-expiry"
+  ]
+}

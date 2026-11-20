@@ -1,0 +1,1 @@
+ALTER TABLE `custom_panels` ADD `origin` text DEFAULT 'ember' NOT NULL;

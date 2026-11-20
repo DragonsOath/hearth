@@ -1,0 +1,112 @@
+/* The War Room's look, as the owner chose it (2026-10-24): the Lair's monospace font throughout, your
+   messages in translucent orange with blue text, Claude Code's replies in translucent blue with
+   orange text. Colors are fixed here, so they stay the same in the Codex theme. */
+.ember-shell {
+  --mono: var(--font-cave, "Monaspace Radon", ui-monospace, "Cascadia Mono", Consolas, monospace);
+  --you-rgb: 255, 140, 30;
+  --you-text: #9fd8ff;
+  --reply-rgb: 56, 140, 255;
+  --reply-text: #ffa54f;
+}
+.er .convo,
+.ember-shell .er .gh-panel {
+  font-family: var(--mono);
+}
+.er .convo {
+  font-size: 13.5px;
+}
+.er .msg.you,
+.er .convo .msg.you {
+  background: rgba(var(--you-rgb), 0.3);
+  border: 1px solid rgba(var(--you-rgb), 0.75);
+  color: var(--you-text);
+}
+.er .msg.ember,
+.er .convo .msg.ember,
+.ember-shell.theme-codex .er .convo .msg.ember {
+  background: rgba(var(--reply-rgb), 0.14);
+  border: 1px solid rgba(var(--reply-rgb), 0.4);
+  color: var(--reply-text);
+}
+.er .convo .msg.ember a {
+  color: #ffc48a;
+}
+
+/* Pictures beside messages (yours on the right, the AI's on the left): Settings can turn them off. */
+.er .msg-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+}
+.er .msg-row.you {
+  justify-content: flex-end;
+}
+.er .msg-row > .msg {
+  align-self: auto;
+  min-width: 0;
+}
+.er .msg-row .msg-pic {
+  width: 32px;
+  height: 32px;
+  margin-top: 2px;
+}
+
+/* Read aloud: beside Copy in the corner of the AI's messages. */
+.er .play {
+  position: absolute;
+  top: 5px;
+  right: 33px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0.35;
+  transition:
+    opacity 0.15s,
+    background 0.15s,
+    border-color 0.15s;
+}
+.er .msg:hover .play,
+.er .play:focus-visible,
+.er .play[aria-pressed="true"] {
+  opacity: 1;
+}
+.er .play:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--line);
+}
+.er .play[aria-pressed="true"] {
+  color: var(--a2);
+}
+@media (hover: none) {
+  .er .play {
+    opacity: 0.75;
+  }
+}
+.er .convo .msg.ember {
+  padding-right: 68px;
+}
+
+/* Outline icons (voice chat, the ear) in the War Room's filled-icon buttons. */
+.er .btn.icon svg.stroke-icon {
+  fill: none;
+  stroke: var(--muted);
+}
+.er .btn.icon.on svg.stroke-icon {
+  fill: none;
+  stroke: var(--a2);
+}
+
+/* Long names without spaces (release names, paths, keys) wrap inside the bubble instead of
+   running past it and adding a sideways scroll bar to the conversation. */
+.er .msg,
+.er .msg * {
+  overflow-wrap: anywhere;
+}

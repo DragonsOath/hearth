@@ -1,0 +1,47 @@
+{
+  "name": "dragon-control",
+  "version": "0.0.1",
+  "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "packageManager": "pnpm@11.15.1",
+  "type": "module",
+  "description": "Self-hosted control plane for homelabs: monitor, diagnose, and repair your infrastructure with the AI agent of your choice.",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "build": "pnpm --filter \"./apps/*\" --filter \"./integrations/*\" build",
+    "start": "node apps/server/dist/index.js",
+    "owner:reset": "node apps/server/dist/reset-owner.js",
+    "backup:decrypt": "node apps/server/dist/tools-cli.js decrypt",
+    "backup:now": "node apps/server/dist/tools-cli.js backup-now",
+    "discover": "node apps/server/dist/tools-cli.js discover",
+    "companion:key": "node apps/server/dist/tools-cli.js companion-key",
+    "jurisdiction": "node apps/server/dist/tools-cli.js jurisdiction",
+    "service": "node apps/server/dist/tools-cli.js service",
+    "voices": "node apps/server/dist/tools-cli.js voices",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e",
+    "verify:clean": "bash scripts/verify-clean-clone.sh"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.3",
+    "eslint": "^10.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.9",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.70.1",
+    "vitest": "^5.0.2"
+  }
+}

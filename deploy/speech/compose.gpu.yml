@@ -1,0 +1,19 @@
+# Listening on an NVIDIA graphics card (`pnpm voices start --gpu`): needs the NVIDIA driver and,
+# on Linux, the NVIDIA Container Toolkit. Not yet tested on a GPU in Hearth's own runs;
+# the same image runs on the owner's GPU machine.
+services:
+  whisper:
+    image: ghcr.io/ksmarty/wyoming-whisper-gpu:latest
+    command: []
+    environment:
+      WYO_WHISPER_MODEL: Systran/faster-whisper-small.en
+      WYO_WHISPER_LANGUAGE: en
+      WYO_WHISPER_DEVICE: cuda
+      WYO_WHISPER_COMPUTE_TYPE: float16
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

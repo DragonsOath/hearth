@@ -1,0 +1,30 @@
+{
+  "app": "traefik",
+  "version": "3.7.17",
+  "source": "Traefik's API reference (docs/content/reference/install-configuration/api-dashboard.md at v3.7), plus GET /api/certificates, which the disposable test Traefik 3.7.17 answered on 2026-11-08",
+  "endpoints": [
+    "GET /api/certificates",
+    "GET /api/entrypoints",
+    "GET /api/entrypoints/{name}",
+    "GET /api/http/middlewares",
+    "GET /api/http/middlewares/{name}",
+    "GET /api/http/routers",
+    "GET /api/http/routers/{name}",
+    "GET /api/http/services",
+    "GET /api/http/services/{name}",
+    "GET /api/overview",
+    "GET /api/rawdata",
+    "GET /api/support-dump",
+    "GET /api/tcp/middlewares",
+    "GET /api/tcp/middlewares/{name}",
+    "GET /api/tcp/routers",
+    "GET /api/tcp/routers/{name}",
+    "GET /api/tcp/services",
+    "GET /api/tcp/services/{name}",
+    "GET /api/udp/routers",
+    "GET /api/udp/routers/{name}",
+    "GET /api/udp/services",
+    "GET /api/udp/services/{name}",
+    "GET /api/version"
+  ]
+}

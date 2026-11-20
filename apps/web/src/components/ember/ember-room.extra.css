@@ -1,0 +1,471 @@
+/* The War Room's own additions to EMBER's look (ember-room.css is generated from EMBER). */
+
+/* Wrappers only scope EMBER's styles; they take no space of their own. */
+.er {
+  display: contents;
+}
+
+.ember-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  isolation: isolate;
+}
+
+/* Hearth's panel layer: EMBER's three columns underneath, Hearth's panels floating over them. */
+.er-canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* Only EMBER's own column grid: Hearth's panels float in the canvas too, and their Tailwind
+   "grid" lists must keep their natural height (forced to 100% they spill over what follows). */
+.er-canvas > [data-testid="talk-canvas"] > .er-fill > .grid,
+.er-canvas .er-fill > main.grid {
+  height: 100%;
+}
+
+/* Hearth's panel list, as a drawer on the left of the room. */
+.hearth-rail {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 8px;
+  z-index: 650;
+  display: flex;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(var(--a1-rgb), 0.45);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.6),
+    0 0 30px rgba(var(--a1-rgb), 0.12);
+  font-family: var(--font-sans, "Inter Variable", system-ui, sans-serif);
+}
+.hearth-rail > nav {
+  background: rgba(10, 14, 21, 0.96);
+}
+
+.er .back-hearth {
+  letter-spacing: 0.04em;
+  flex: none;
+}
+.er .panels-btn.on {
+  border-color: rgba(var(--a1-rgb), 0.7);
+  color: var(--a2);
+  background: rgba(var(--a1-rgb), 0.12);
+}
+.er .art-link[aria-pressed="true"] {
+  border-color: rgba(var(--a1-rgb), 0.7);
+  background: rgba(var(--a1-rgb), 0.12);
+}
+.er button.art-link {
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+}
+
+/* Artifacts uses the GitHub panel's frame, with a viewer inside. */
+.er .art-panel .viewseg {
+  flex: none;
+}
+.er .art-panel .art-find {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: #c9d1d9;
+  font-size: 12.5px;
+}
+.er .art-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.er .art-view-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #21262d;
+}
+.er .art-view-h b {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.er .art-view-h a.btn {
+  text-decoration: none;
+  color: inherit;
+}
+.er .art-view-b {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+}
+.er .art-view-b iframe {
+  width: 100%;
+  height: 100%;
+  min-height: 60vh;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  background: #fff;
+}
+.er .art-view-b img,
+.er .art-view-b video {
+  max-width: 100%;
+  border-radius: 8px;
+}
+.er .art-code {
+  margin: 0;
+  font: 12px/1.5 var(--mono);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.er .art-view-b .md {
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+/* GitHub and Artifacts are one docked panel at a time; the closed one stays out of the way. */
+.ember-shell:not(.gh-open) .er .gh-panel {
+  visibility: hidden;
+}
+.ember-shell.gh-open .er .gh-panel[aria-hidden="true"] {
+  transform: translateX(calc(100% + 24px));
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Hearth's panels keep Hearth's own type; EMBER's monospace stays inside EMBER's columns. */
+.er-canvas {
+  font-family: var(--font-sans, "Inter Variable", system-ui, sans-serif);
+  font-size: 16px;
+  line-height: 1.5;
+}
+.er-canvas .er-fill > .grid {
+  font: 13px/1.45 var(--mono);
+}
+
+/* With GitHub or Artifacts docked, the conversation takes the room the queue column leaves. */
+@media (min-width: 1200px) {
+  .ember-shell.gh-open .er .grid {
+    grid-template-columns: 320px minmax(0, 1fr);
+  }
+  .ember-shell.gh-open.view-term .er .grid {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
+}
+
+/* Home, the Lair, and Hearth's menu from the War Room. */
+.er .hearth-nav {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+.er .nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.04em;
+}
+.er .nav-btn svg {
+  width: 15px;
+  height: 15px;
+}
+.er .nav-btn.on {
+  border-color: rgba(var(--a1-rgb), 0.7);
+  color: var(--a2);
+}
+.hearth-menu-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: rgba(0, 0, 0, 0.45);
+}
+.hearth-menu {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 901;
+  width: min(300px, 86vw);
+  display: flex;
+  flex-direction: column;
+  background: rgba(10, 14, 21, 0.98);
+  border-right: 1px solid rgba(var(--a1-rgb), 0.45);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+  font-family: var(--font-sans, "Inter Variable", system-ui, sans-serif);
+  font-size: 16px;
+}
+@media (max-width: 599px) {
+  .er .nav-btn span {
+    display: none;
+  }
+}
+
+/* The project tabs scroll sideways when there are many, without a scrollbar of their own. */
+.er .ptab-list {
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.er .ptab-list::-webkit-scrollbar {
+  display: none;
+}
+.er .ptab-list[data-dragging] {
+  cursor: grabbing;
+  user-select: none;
+}
+
+/* Which PC a tab's project is on (docs/design/ONE_ACCOUNT.md). */
+.er .ptab-pc {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+.er .ptab-pc.dot {
+  width: 10px;
+  height: 10px;
+}
+.er .ptab.offline {
+  opacity: 0.5;
+}
+.er .np-pcs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 10px;
+}
+.er .np-pc {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 84px;
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px solid var(--line, #2a2f3a);
+  background: transparent;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+.er .np-pc img {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+}
+.er .np-pc.on {
+  border-color: currentColor;
+  background: rgba(255, 255, 255, 0.06);
+}
+.er .np-pc:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* A held task's Approve and Cancel stand out, in the queue and in the task detail: big,
+   translucent orange and red, with bold white words, so a waiting task is never missed. */
+.er .task .acts button.act-approve,
+.er .task .acts button.act-cancel,
+.er .btn.act-approve,
+.er .btn.act-cancel {
+  min-height: 34px;
+  padding: 6px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.er .task .acts button.act-approve,
+.er .btn.act-approve {
+  background: rgba(255, 122, 26, 0.38);
+  border: 1px solid rgba(255, 140, 50, 0.95);
+  box-shadow: 0 0 12px rgba(255, 122, 26, 0.35);
+}
+.er .task .acts button.act-approve:hover,
+.er .btn.act-approve:hover {
+  background: rgba(255, 122, 26, 0.6);
+}
+.er .task .acts button.act-cancel,
+.er .btn.act-cancel {
+  background: rgba(255, 70, 70, 0.22);
+  border: 1px solid rgba(255, 90, 90, 0.8);
+}
+.er .task .acts button.act-cancel:hover,
+.er .btn.act-cancel:hover {
+  background: rgba(255, 70, 70, 0.4);
+}
+.er .task:has(.acts button.act-approve) {
+  border-color: var(--a1);
+  animation: er-held 1.6s ease-in-out infinite;
+}
+@keyframes er-held {
+  50% {
+    box-shadow: 0 0 0 2px rgba(255, 122, 26, 0.45);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .er .task:has(.acts button.act-approve) {
+    animation: none;
+  }
+}
+
+/* The Open menu: projects on the other PCs, under each PC's icon and name. */
+.er .pmenu-pc {
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+  padding-top: 4px;
+}
+.er .pmenu-pc-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 2px;
+  font: 600 11px var(--head);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.er .pmenu b .ptab-pc {
+  margin-right: 6px;
+  vertical-align: -3px;
+}
+
+/* Hearth's panels float over the room's own text: solid, so none of it shows through. */
+.er-canvas .cc-slide-in {
+  background-color: var(--color-panel);
+}
+
+/* Ollama: its brand is black and white, so the War Room is too while Ollama is chosen. */
+.ember-shell.theme-ollama {
+  --a1: #f2f2f2;
+  --a1-rgb: 242, 242, 242;
+  --a2: #ffffff;
+  --a2-rgb: 255, 255, 255;
+  --line-rgb: 210, 210, 210;
+  --cyan: #d9d9d9;
+  --cyan-rgb: 217, 217, 217;
+  --line2-rgb: 180, 180, 180;
+  --btn1: #ffffff;
+  --btn2: #d6d6d6;
+  --btn-border: #ffffff;
+  --on-accent: #000000;
+  --bar1: #bdbdbd;
+  --bar2: #ffffff;
+  --bg: #000000;
+  --bg2: #070707;
+  --bg-glow: #1a1a1a;
+  --panel: rgba(12, 12, 12, 0.86);
+  --line: rgba(var(--line-rgb), 0.2);
+  --line2: rgba(var(--line2-rgb), 0.12);
+}
+.ember-shell.theme-ollama .er .engine {
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow:
+    inset 0 0 18px rgba(255, 255, 255, 0.06),
+    0 0 18px rgba(255, 255, 255, 0.1);
+}
+.ember-shell.theme-ollama .er .engine .glider {
+  box-shadow:
+    0 0 18px rgba(255, 255, 255, 0.35),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+.ember-shell.theme-ollama .er .seg[aria-checked="true"] .st {
+  color: #000000;
+  background: rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.45);
+}
+.ember-shell.theme-ollama .er .convo .msg.ember {
+  background: rgba(14, 14, 14, 0.92);
+}
+.ember-shell.theme-ollama .er .term-wrap {
+  background: #050505;
+}
+.er .seg[data-engine="ollama"]:not([aria-checked="true"]) svg {
+  color: #ffffff;
+}
+.er .task .eng-ollama {
+  color: #e6e6e6;
+}
+/* Chat in Ollama's colors too: your messages light grey, its replies white on near black. */
+.ember-shell.theme-ollama {
+  --you-rgb: 200, 200, 200;
+  --you-text: #ffffff;
+  --reply-rgb: 255, 255, 255;
+  --reply-text: #f0f0f0;
+}
+.ember-shell.theme-ollama .er .convo .msg.ember a {
+  color: #ffffff;
+  text-decoration: underline;
+}
+/* Ollama, your messages: black text on a near-white bubble (10-27); its replies stay white. */
+.ember-shell.theme-ollama .er .msg.you,
+.ember-shell.theme-ollama .er .convo .msg.you {
+  background: rgba(240, 240, 240, 0.94);
+  border-color: #ffffff;
+  color: #000000;
+}
+.ember-shell.theme-ollama .er .convo .msg.you a {
+  color: #000000;
+}
+/* The scroller in the chosen AI's color (10-27): orange for Claude Code (the default above),
+   blue for Codex, white for Ollama. */
+.ember-shell.theme-codex,
+.ember-shell.theme-codex * {
+  scrollbar-color: rgba(47, 139, 255, 0.7) transparent;
+}
+.ember-shell.theme-codex *:hover {
+  scrollbar-color: rgba(79, 216, 255, 0.95) transparent;
+}
+.ember-shell.theme-ollama,
+.ember-shell.theme-ollama * {
+  scrollbar-color: rgba(255, 255, 255, 0.6) transparent;
+}
+.ember-shell.theme-ollama *:hover {
+  scrollbar-color: rgba(255, 255, 255, 0.95) transparent;
+}
+
+/* The Lair tab (10-30): the Lair's own conversation fills the middle. The War Room's orb,
+   chat, terminal and message bar, and the project's files and task queue, step aside. */
+.er .ptab-lair .lair-icon {
+  width: 15px;
+  height: 15px;
+  color: var(--color-tint-teal, #2dd4bf);
+}
+.er .ptab-lair .lair-pin {
+  width: 12px;
+  height: 12px;
+  opacity: 0.55;
+}
+.er .pmenu-pc-head .lair-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--color-tint-teal, #2dd4bf);
+}
+.ember-shell.lair-on .er .term-wrap {
+  display: none !important;
+}
+.ember-shell.lair-on .er .col.right {
+  display: none;
+}
+@media (min-width: 1200px) {
+  .ember-shell.lair-on .er .grid {
+    grid-template-columns: 320px 1fr;
+  }
+}
+@media (max-width: 1199px) and (min-width: 600px) {
+  .ember-shell.lair-on .er .grid {
+    grid-template-areas: "center center" "left left";
+  }
+}

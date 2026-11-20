@@ -1,0 +1,30 @@
+# The official Hearth bot's relay (docs/design/HEARTH_BOT.md). Deploy: see README.md.
+name = "hearth-bot"
+main = "src/worker.ts"
+compatibility_date = "2026-06-01"
+# Served at hearth-bot.dragonsoath.com. The old workers.dev address stays on until every installed
+# Hearth has updated to a version that uses the new one, then workers_dev = false.
+routes = [{ pattern = "hearth-bot.dragonsoath.com", custom_domain = true }]
+workers_dev = true
+
+[vars]
+APP_ID = "1565247900941033512"
+PUBLIC_KEY = "b2bf341091ef2ff10301b1cdf1c6ea37b436ded6e7fe6029668bf98d131d9fad"
+# Set to the address this Worker is served at, then add BASE_URL/v1/linked as a redirect in
+# Discord (OAuth2, Redirects).
+BASE_URL = "https://hearth-bot.dragonsoath.com"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "hearth-bot"
+database_id = "3bafccdf-d0f1-4fef-a9b9-3a0368a8648f"
+
+[[durable_objects.bindings]]
+name = "HUB"
+class_name = "Hub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Hub"]
+
+# Secrets (never in this file): wrangler secret put BOT_TOKEN / CLIENT_SECRET / STATE_KEY

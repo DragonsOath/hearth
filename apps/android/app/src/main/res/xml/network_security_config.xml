@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Your Hearth on the home network answers on plain http (192.168.x.x); this device's own
+     address (the forwarder) too. Everything else needs https as usual. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

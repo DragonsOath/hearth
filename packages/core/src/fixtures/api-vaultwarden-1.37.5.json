@@ -1,0 +1,29 @@
+{
+  "app": "vaultwarden",
+  "version": "1.37.5",
+  "source": "Vaultwarden 1.37.5 has no API document: these are the calls its own admin page makes (vw_static/admin.js, admin_users.js, admin_settings.js, admin_diagnostics.js, admin_organizations.js), the pages it serves them from, and its health and version calls, from the throwaway vaultwarden/server checked on 2026-11-08. The actions answer only JSON requests.",
+  "endpoints": [
+    "GET /admin/diagnostics",
+    "GET /admin/diagnostics/config",
+    "GET /admin/organizations/overview",
+    "GET /admin/users",
+    "GET /admin/users/overview",
+    "GET /alive",
+    "GET /api/version",
+    "POST /admin",
+    "POST /admin/config",
+    "POST /admin/config/backup_db",
+    "POST /admin/config/delete",
+    "POST /admin/invite",
+    "POST /admin/organizations/{id}/delete",
+    "POST /admin/test/smtp",
+    "POST /admin/users/org_type",
+    "POST /admin/users/update_revision",
+    "POST /admin/users/{id}/deauth",
+    "POST /admin/users/{id}/delete",
+    "POST /admin/users/{id}/disable",
+    "POST /admin/users/{id}/enable",
+    "POST /admin/users/{id}/invite/resend",
+    "POST /admin/users/{id}/remove-2fa"
+  ]
+}

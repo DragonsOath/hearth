@@ -1,0 +1,1 @@
+ALTER TABLE `app_health` ADD `details` text;

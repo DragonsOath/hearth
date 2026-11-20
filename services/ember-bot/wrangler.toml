@@ -1,0 +1,38 @@
+# Ember Bot, the community bot for the public Hearth Discord server. Deployed by
+# .github/workflows/ember-bot.yml; see README.md. Everything here is public; the bot token is a secret.
+name = "ember-bot"
+main = "src/worker.ts"
+routes = [{ pattern = "ember-bot.dragonsoath.com", custom_domain = true }]
+workers_dev = true
+compatibility_date = "2026-06-01"
+# Served at ember-bot.dragonsoath.com (Discord's Interactions Endpoint URL points here). The old
+# workers.dev address stays on only until Discord's endpoint is switched, then workers_dev = false.
+routes = [{ pattern = "ember-bot.dragonsoath.com", custom_domain = true }]
+workers_dev = true
+
+[vars]
+APP_ID = "1569152534923182121"
+PUBLIC_KEY = "25ee97c8316c464e66f0a8f244184d40ad97f62742b9356a2182d8409c2fc109"
+GUILD_ID = "1569095537272295595"
+# around-the-fire, the forum Ember cheers on.
+FORUM_ID = "1569127294042116246"
+# The Founder offer (11-20): #general gets the announcement and the countdown; #founder-queue
+# (private to the owner and Ember) gets a line per new screenshot and the 18:00 UTC reminder.
+# Empty: that part is skipped.
+GENERAL_ID = "1569095538664800268"
+QUEUE_ID = "1573248898372214924"
+SHOWCASE_URL = "https://dragonsoath.github.io/hearth-showcase/"
+PANEL_REQUESTS_URL = "https://github.com/DragonsOath/hearth/discussions/categories/panel-requests"
+
+# Every five minutes: cheer on new around-the-fire posts (and, once an hour, refresh the commands).
+[triggers]
+crons = ["*/5 * * * *"]
+
+# Secret (never in this file): BOT_TOKEN, set by the deploy workflow from the GitHub secret
+# DISCORD_BOT_TOKEN.
+
+# The Founder offer's record (the licence service's FounderDesk; a service binding, never the internet).
+[[services]]
+binding = "LICENCE"
+service = "hearth-licence"
+entrypoint = "FounderDesk"

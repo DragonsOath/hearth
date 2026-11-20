@@ -1,0 +1,28 @@
+{
+  "app": "sabnzbd",
+  "version": "5.1.3",
+  "source": "SABnzbd's API documentation (one /api endpoint, the call chosen by mode and name), each call answered by the disposable test SABnzbd 5.1.3 on 2026-11-01; adding (addurl, addfile), a job's files (get_files) and clearing warnings on 2026-11-02",
+  "endpoints": [
+    "GET /api mode=version",
+    "GET /api mode=queue",
+    "GET /api mode=history",
+    "GET /api mode=warnings",
+    "GET /api mode=get_cats",
+    "GET /api mode=pause",
+    "GET /api mode=resume",
+    "GET /api mode=queue name=pause",
+    "GET /api mode=queue name=resume",
+    "GET /api mode=queue name=delete",
+    "GET /api mode=queue name=priority",
+    "GET /api mode=retry",
+    "GET /api mode=history name=delete",
+    "GET /api mode=config name=speedlimit",
+    "GET /api mode=config name=set_pause",
+    "GET /api mode=switch",
+    "GET /api mode=change_cat",
+    "GET /api mode=addurl",
+    "POST /api mode=addfile",
+    "GET /api mode=get_files",
+    "GET /api mode=warnings name=clear"
+  ]
+}

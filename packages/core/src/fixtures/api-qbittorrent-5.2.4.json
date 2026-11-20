@@ -1,0 +1,33 @@
+{
+  "app": "qbittorrent",
+  "version": "5.2.4",
+  "source": "qBittorrent's WebUI API documentation (Web API 2.15.1), each endpoint answered by the disposable test qBittorrent 5.2.4 (settings 2026-11-01; torrents, files, peers, categories and uploads 2026-11-02)",
+  "endpoints": [
+    "GET /api/v2/app/preferences",
+    "GET /api/v2/app/version",
+    "GET /api/v2/app/webapiVersion",
+    "GET /api/v2/sync/maindata",
+    "GET /api/v2/sync/torrentPeers",
+    "GET /api/v2/torrents/categories",
+    "GET /api/v2/torrents/files",
+    "GET /api/v2/torrents/info",
+    "GET /api/v2/torrents/properties",
+    "GET /api/v2/torrents/tags",
+    "GET /api/v2/torrents/trackers",
+    "GET /api/v2/transfer/info",
+    "GET /api/v2/transfer/speedLimitsMode",
+    "POST /api/v2/app/setPreferences",
+    "POST /api/v2/torrents/add",
+    "POST /api/v2/torrents/addTags",
+    "POST /api/v2/torrents/createCategory",
+    "POST /api/v2/torrents/delete",
+    "POST /api/v2/torrents/filePrio",
+    "POST /api/v2/torrents/recheck",
+    "POST /api/v2/torrents/removeCategories",
+    "POST /api/v2/torrents/removeTags",
+    "POST /api/v2/torrents/setCategory",
+    "POST /api/v2/torrents/setForceStart",
+    "POST /api/v2/torrents/start",
+    "POST /api/v2/torrents/stop"
+  ]
+}

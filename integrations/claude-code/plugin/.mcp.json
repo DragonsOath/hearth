@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "dragon-control": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/companion/companion.mjs", "serve"]
+    }
+  }
+}

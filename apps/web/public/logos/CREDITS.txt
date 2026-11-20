@@ -1,0 +1,15 @@
+Service logos from Dashboard Icons (https://github.com/homarr-labs/dashboard-icons),
+licensed under the Apache License 2.0. Each logo is a trademark of its project or owner
+and is used here only to identify that service.
+
+nextcloud.svg, paperless.png and vaultwarden.png come from the projects' own container images
+(Nextcloud's core/img/logo/logo.svg, recoloured to its brand blue; Paperless-ngx's icon-192.png;
+Vaultwarden's vaultwarden-icon.png, recoloured blue), used the same way: only to identify the
+service. tailscale.svg is Tailscale's nine-dot mark, redrawn in grey for the same purpose. wg-easy.png
+is wg-easy's own favicon, from its image; navidrome.png is Navidrome's own app icon;
+komga.png is Komga's own app icon, from its image; gitea.svg is Gitea's own logo,
+from its image (public/assets/img/logo.svg); forgejo.svg is Forgejo's own logo, from its
+image, the same way; mealie.png is Mealie's own app icon, from its image; actual.png is
+Actual Budget's own app icon, from its image; authentik.svg is Authentik's own icon, from its
+image; frigate.svg is Frigate's own icon, from its image, recoloured blue so it shows on dark themes; authelia.png is Authelia's own favicon, from its
+image, enlarged.

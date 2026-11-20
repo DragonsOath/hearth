@@ -1,0 +1,1 @@
+ALTER TABLE `vault_secrets` ADD `last_failure_kind` text;

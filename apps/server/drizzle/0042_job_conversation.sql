@@ -1,0 +1,1 @@
+ALTER TABLE `jobs` ADD `conversation_id` text;

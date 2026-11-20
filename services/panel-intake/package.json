@@ -1,0 +1,12 @@
+{
+  "name": "@dragon-control/panel-intake",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@dragon-control/core": "workspace:*"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}

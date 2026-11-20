@@ -1,0 +1,16 @@
+node_modules
+dist
+dist-elevated
+data
+pnpm-lock.yaml
+apps/server/drizzle
+test-results
+playwright-report
+*.md
+integrations/claude-code/plugin/companion/
+
+# The Android app's build output and Gradle files (apps/android) are not Prettier's.
+apps/android/build
+apps/android/app/build
+apps/android/.gradle
+apps/server/voice-pack/package-lock.json

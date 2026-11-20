@@ -1,0 +1,131 @@
+# A Hearth release archive, built the same way every time and attached to a draft release.
+# Run it from the Actions tab (Run workflow) with a version, or by pushing a tag like v0.1.0.
+# The release stays a draft until the owner publishes it.
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version, like 0.1.0"
+        required: true
+      android:
+        description: "Build the Android app even if it has not changed"
+        type: boolean
+        default: false
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      # No typecheck or tests here: a release is cut from main, and every change reached main through
+      # a pull request whose check passed on the same code (11-05: Actions minutes). The archive
+      # is still started below to prove it runs.
+      - run: pnpm install --frozen-lockfile
+      - name: Pack
+        id: pack
+        run: |
+          version="${{ inputs.version }}"
+          version="${version:-${GITHUB_REF_NAME#v}}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          bash scripts/pack-release.sh "$version"
+      - name: Check the archive installs as a release
+        run: |
+          v="${{ steps.pack.outputs.version }}"
+          mkdir -p /tmp/check && tar -C /tmp/check -xzf "hearth-$v-linux.tar.gz"
+          cd "/tmp/check/hearth-$v-linux"
+          test -f RELEASE && test -f apps/server/dist/index.js && test -f apps/server/dist-elevated/hearth-elevated.js && test -f apps/web/dist/index.html
+          DC_DATA_DIR=/tmp/check/data DC_PORT=7999 timeout 20 node apps/server/dist/index.js > /tmp/check/run.log 2>&1 &
+          for i in $(seq 1 15); do sleep 1; curl -sf http://127.0.0.1:7999/api/health && break; done
+          curl -sf http://127.0.0.1:7999/api/health || { echo "It did not start:"; cat /tmp/check/run.log; ls apps/server/node_modules | head -30; exit 1; }
+      # A short-lived copy for looking into a failed run. The release itself holds the files, so a
+      # full artifact store never stops a release.
+      - name: Keep the archive with this run
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: hearth-${{ steps.pack.outputs.version }}-linux
+          path: hearth-*-linux.tar.gz*
+          if-no-files-found: ignore
+          retention-days: 3
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="${{ steps.pack.outputs.version }}"
+          gh release create "v$v" "hearth-$v-linux.tar.gz" "hearth-$v-linux.tar.gz.sha256" \
+            --draft --prerelease --target "$GITHUB_SHA" --title "Hearth $v" \
+            --notes "Fixes and improvements."
+
+  # The Hearth app for Android (apps/android), signed with the release key from the repository's
+  # secrets, attached to the same draft release. Only when the app changed since the last release
+  # (or when asked): it is a small wrapper that rarely changes, and the Gradle build is slow.
+  android:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Has the app changed?
+        id: changed
+        env:
+          HAS_KEY: ${{ secrets.HEARTH_KEYSTORE_B64 != '' }}
+        run: |
+          prev="$(git describe --tags --abbrev=0 --match 'v*' "$GITHUB_SHA^" 2>/dev/null || true)"
+          # Without the signing key the app can't be signed as an update to the installed one, so
+          # it is left out (the release itself still ships) until the key is in the repo's secrets.
+          if [ "$HAS_KEY" != "true" ]; then
+            echo "::notice::HEARTH_KEYSTORE_B64 is not set, so the Android app was not built."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          elif [ "${{ inputs.android }}" = "true" ] || [ -z "$prev" ] || ! git diff --quiet "$prev" "$GITHUB_SHA" -- apps/android; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "The Android app is unchanged since $prev: the newest release with an APK still has it."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-java@v4
+        if: steps.changed.outputs.build == 'true'
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Build
+        if: steps.changed.outputs.build == 'true'
+        working-directory: apps/android
+        env:
+          HEARTH_KEYSTORE_B64: ${{ secrets.HEARTH_KEYSTORE_B64 }}
+          HEARTH_KEYSTORE_PASSWORD: ${{ secrets.HEARTH_KEYSTORE_PASSWORD }}
+          HEARTH_KEY_ALIAS: ${{ secrets.HEARTH_KEY_ALIAS }}
+          HEARTH_KEY_PASSWORD: ${{ secrets.HEARTH_KEY_PASSWORD }}
+        run: |
+          v="${{ inputs.version }}"
+          v="${v:-${GITHUB_REF_NAME#v}}"
+          echo "$HEARTH_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/hearth.jks"
+          export HEARTH_KEYSTORE="$RUNNER_TEMP/hearth.jks"
+          export HEARTH_VERSION="$v"
+          # Each release a higher number, so Android installs it as an update.
+          export HEARTH_VERSION_CODE="$(echo "$v" | awk -F. '{ printf "%d", $1 * 1000000 + $2 * 1000 + $3 }')"
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon -q
+          cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/hearth-$v-android.apk"
+          rm -f "$RUNNER_TEMP/hearth.jks"
+      - name: Attach to the release
+        if: steps.changed.outputs.build == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="${{ inputs.version }}"
+          v="${v:-${GITHUB_REF_NAME#v}}"
+          gh release upload "v$v" "hearth-$v-android.apk" --clobber

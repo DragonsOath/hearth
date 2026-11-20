@@ -13,3 +13,15 @@ export function pieces(text: string, max = 280): string[] {
   if (cur.trim()) out.push(cur.trim());
   return out;
 }
+
+/**
+ * Fixes to the phonemes Kokoro is handed. Kokoro learned its words from one phoneme style and the
+ * phonemizer writes some differently; these words then sound stretched or odd. Each pair is what
+ * the phonemizer writes and what Kokoro learned.
+ * - "movie", "movies", "move", "moving": mˈuːv as mˈuv (11-20, the owner: "she says movies weird").
+ */
+const PHONEME_FIXES: [RegExp, string][] = [[/mˈuːv/g, "mˈuv"]];
+
+export function fixPhonemes(phonemes: string): string {
+  return PHONEME_FIXES.reduce((p, [from, to]) => p.replace(from, to), phonemes);
+}

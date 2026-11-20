@@ -5,7 +5,7 @@ import { SERVER_ROOT } from "../config";
 import { openDatabase, runMigrations, type DbHandle } from "../db/client";
 import { InvalidRequestError } from "../store/errors";
 import { FakeVoicePack, type VoicePackApi } from "./pack";
-import { pieces } from "./pieces";
+import { fixPhonemes, pieces } from "./pieces";
 import { Voice } from "./service";
 
 /** Standard voice: built into Hearth, nothing to set up (the owner, 2026-10-26). */
@@ -79,6 +79,13 @@ describe("Standard voice", () => {
 });
 
 describe("splitting text for the voice", () => {
+  it("says movie the way Kokoro learned it", () => {
+    expect(fixPhonemes("tˈaɪɚd ʌv ˈeɪɾi ɡˈɪɡ mˈuːvɪz? pˈɪk ɐ mˈuːvi.")).toBe(
+      "tˈaɪɚd ʌv ˈeɪɾi ɡˈɪɡ mˈuvɪz? pˈɪk ɐ mˈuvi.",
+    );
+    expect(fixPhonemes("ðɪs ɪz fˈaɪn")).toBe("ðɪs ɪz fˈaɪn");
+  });
+
   it("keeps sentences whole and pieces short", () => {
     const text = "One. Two is longer! Three? " + "Four ".repeat(80) + "end.";
     const out = pieces(text, 60);

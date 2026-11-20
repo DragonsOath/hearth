@@ -12,7 +12,7 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { pieces } from "./pieces";
+import { fixPhonemes, pieces } from "./pieces";
 
 export const KOKORO_MODEL = "onnx-community/Kokoro-82M-v1.0-ONNX";
 export const KOKORO_REVISION = "1939ad2a8e416c0acfeecc08a694d14ef25f2231";
@@ -92,6 +92,17 @@ async function setup(online: boolean, progress?: Progress) {
     revision: KOKORO_REVISION,
     progress_callback,
   });
+  // Kokoro reads phonemes, not text: its own phonemizer runs first, and generate() hands the
+  // result to the tokenizer. Fixed there, so every word Kokoro says wrong is fixed in one place.
+  if (speaker && !(speaker as { phonemesFixed?: boolean }).phonemesFixed) {
+    const s = speaker as unknown as {
+      tokenizer: (p: string, o: unknown) => unknown;
+      phonemesFixed?: boolean;
+    };
+    const tokenize = s.tokenizer;
+    s.tokenizer = (p, o) => tokenize(fixPhonemes(p), o);
+    s.phonemesFixed = true;
+  }
   listener ??= await t.pipeline("automatic-speech-recognition", WHISPER_MODEL, {
     dtype: "q8",
     device: "cpu",

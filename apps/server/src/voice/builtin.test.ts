@@ -81,7 +81,7 @@ describe("Standard voice", () => {
 describe("splitting text for the voice", () => {
   it("says movie the way Kokoro learned it", () => {
     expect(fixPhonemes("tˈaɪɚd ʌv ˈeɪɾi ɡˈɪɡ mˈuːvɪz? pˈɪk ɐ mˈuːvi.")).toBe(
-      "tˈaɪɚd ʌv ˈeɪɾi ɡˈɪɡ mˈuvɪz? pˈɪk ɐ mˈuvi.",
+      "tˈaɪɚd ʌv ˈeɪɾi ɡˈɪɡ mˈuviz? pˈɪk ɐ mˈuvi.",
     );
     expect(fixPhonemes("ðɪs ɪz fˈaɪn")).toBe("ðɪs ɪz fˈaɪn");
   });

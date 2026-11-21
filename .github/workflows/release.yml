@@ -65,6 +65,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           v="${{ steps.pack.outputs.version }}"
+          # Run again for a release that is already out (to add the Android app to it): the
+          # release and its Linux archive stay exactly as published.
+          if gh release view "v$v" >/dev/null 2>&1; then
+            echo "v$v is already released: it stays as it is."
+            exit 0
+          fi
           gh release create "v$v" "hearth-$v-linux.tar.gz" "hearth-$v-linux.tar.gz.sha256" \
             --draft --prerelease --target "$GITHUB_SHA" --title "Hearth $v" \
             --notes "Fixes and improvements."

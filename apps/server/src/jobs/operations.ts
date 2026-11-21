@@ -1,6 +1,7 @@
 import {
   ACTIONS,
   APP_ACTIONS,
+  BUILD_ACTIONS,
   CONFIG_ACTIONS,
   FILE_ACTIONS,
   MEMORY_ACTIONS,
@@ -81,6 +82,14 @@ export interface JobOperations {
 }
 
 export const VERIFY_TEXT: Record<ActionKind, string> = {
+  "build-docker":
+    "Docker must answer Hearth afterwards (Hearth lists its containers), with Compose available.",
+  "build-tailscale":
+    "Tailscale's service must be running; Hearth then gives you its sign-in link, and the step is done once Tailscale says this computer is connected.",
+  "build-app":
+    "Every container of the app must be running, the app must answer on its address, and its account must sign in with the details saved in Secure Vault.",
+  "build-connect":
+    "Each connection is read back from the app it was added to (Seerr lists Jellyfin, Radarr and Sonarr; Radarr and Sonarr list qBittorrent; Prowlarr lists Radarr and Sonarr).",
   "run-check": "Passes when Hearth's health check finds it working.",
   "test-endpoint": "Passes when its web address answers.",
   "inspect-logs": "Passes when its recent logs can be read.",
@@ -277,6 +286,14 @@ export const VERIFY_TEXT: Record<ActionKind, string> = {
 };
 
 export const ROLLBACK_TEXT: Record<ActionKind, string> = {
+  "build-docker":
+    "Not removed automatically: Docker stays installed (removing it would stop every app). Nothing of yours is moved or deleted.",
+  "build-tailscale":
+    "Not removed automatically: Tailscale stays installed, and you can sign it out or remove it at any time. Nothing of yours is moved or deleted.",
+  "build-app":
+    "If it does not start cleanly, its containers are removed again; its settings folder is kept. Your media files are never moved, renamed or deleted.",
+  "build-connect":
+    "Not undone automatically: each connection can be removed in the app's own settings. Nothing is deleted.",
   "lab-transfer": "Nothing to undo: Hearth Transfer was removed.",
   "free-memory":
     "Nothing to put back: open the app again yourself; the voice starts again when used.",
@@ -488,9 +505,16 @@ export function runnerOperations(
   hearth?: HearthSelf,
   memory?: MemoryOperations,
   browser?: ReturnType<typeof import("../browser/staged").browserChangeOperations>,
+  /** Building the homelab plan (build/service.ts), once it is set up. */
+  build?: { current?: import("../build/service").HomelabBuilder },
 ): JobOperations {
   return {
     async plan(step, requestedBy) {
+      if (BUILD_ACTIONS.includes(step.kind)) {
+        if (!build?.current)
+          return refusedPlan(step, "Building the homelab plan is not available here.");
+        return build.current.planStep(step);
+      }
       if (TRANSFER_ACTIONS.includes(step.kind)) {
         return refusedPlan(step, "Hearth Transfer was removed from Hearth.");
       }
@@ -563,6 +587,11 @@ export function runnerOperations(
     },
 
     async run(step) {
+      if (BUILD_ACTIONS.includes(step.kind)) {
+        if (!build?.current)
+          return { ok: false, result: "Building the homelab plan is not available here." };
+        return build.current.runStep(step);
+      }
       if (TRANSFER_ACTIONS.includes(step.kind)) {
         return { ok: false, result: "Hearth Transfer was removed from Hearth." };
       }

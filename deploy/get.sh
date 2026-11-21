@@ -17,7 +17,9 @@
 #
 # Settings (all optional): HEARTH_HOME, HEARTH_VERSION (like 0.29.0; default the newest),
 # HEARTH_NETWORK=yes|no (open it to other devices on your home network), HEARTH_PORT (7600),
-# HEARTH_SERVICE (the service's name, default hearth), HEARTH_JOIN (a join link).
+# HEARTH_SERVICE (the service's name, default hearth), HEARTH_JOIN (a join link),
+# HEARTH_HELPER=yes|no (set up the small admin helper that lets Hearth's AI install Docker and
+# Tailscale for your homelab plan, each time you approve; asked when not set).
 set -euo pipefail
 
 REPO="DragonsOath/hearth"
@@ -269,6 +271,30 @@ if ! curl -sf "http://127.0.0.1:$port/api/health" >/dev/null; then
   fail "Hearth did not start. The messages above say why."
 fi
 rm -rf "$home/app.previous"
+
+# --- The admin helper: lets Ember install Docker and Tailscale for your plan, each time you approve.
+# Hearth itself never runs as root; the helper does one approved, fixed task at a time
+# (docs/ELEVATED_EXECUTOR.md). Asked once; run this installer again to be asked again.
+helper_cfg=/etc/hearth/elevation.json
+if [[ -z "$dry_run" && -z "${HEARTH_JOIN:-}" ]] && ! grep -qs '"docker.install"' "$helper_cfg"; then
+  want="${HEARTH_HELPER:-}"
+  if [[ -z "$want" ]]; then
+    echo
+    echo "Hearth's AI can install Docker and Tailscale for your homelab plan, asking you each time."
+    echo "That needs a small admin helper, set up now with your password (once)."
+    if { true </dev/tty; } 2>/dev/null; then want="$(ask "Set up the admin helper? [Y/n]" yes)"
+    else want=skip; fi
+  fi
+  case "$want" in
+    [Yy]*|"")
+      if [[ -f "$helper_cfg" ]]; then helper_args=(--add-operation build)
+      else helper_args=(--operations docker.install,tailscale.install); fi
+      sudo bash "$app/deploy/linux/install-elevation.sh" --service "$service" --user-service "${helper_args[@]}"         || echo "The admin helper was not set up. Hearth works without it; its plan page shows how to add it later."
+      ;;
+    skip) echo "Skipped the admin helper (no terminal to ask in). Hearth's plan page shows how to add it." ;;
+    *) echo "Skipped the admin helper. Hearth's plan page shows how to add it later." ;;
+  esac
+fi
 if ! id -nG | grep -qw docker && command -v docker >/dev/null; then
   echo "Note: your account is not in the docker group, so Hearth can't see your containers yet."
   echo "To let it: sudo usermod -aG docker $USER, then sign out and back in, then: systemctl --user restart $service"

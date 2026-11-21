@@ -73,6 +73,9 @@ import {
   isClockTime,
   voiceLevel,
   BUILD_QUESTIONS,
+  HOMELAB_STEP_IDS,
+  VPN_PROVIDERS,
+  type HomelabStepId,
   recommendBuild,
   type BuildAnswers,
   type HostScan,
@@ -245,6 +248,7 @@ import { runnerOperations } from "./jobs/operations";
 import { createAdmin, registerAdminRoutes, type Admin } from "./admin";
 import { GapError } from "./admin/scope";
 import { realRun } from "./admin/host";
+import { HomelabBuilder, defaultAppsRoot, installInfo } from "./build/service";
 import { StagedChanges, browserChangeOperations } from "./browser/staged";
 import { signIn as appSignIn, signInAppOf } from "./browser/signin";
 import { isProtectedContainer, containerOf } from "./admin/scope";
@@ -372,6 +376,8 @@ export interface AppDeps {
   memoryOps?: MemoryOperations;
   /** Approved changes from Ember's browser, shared with the jobs that grant them. */
   stagedChanges?: StagedChanges;
+  /** Where the homelab plan's build steps go (shared with a Jobs made outside buildApp). */
+  homelabSteps?: { current?: HomelabBuilder };
 }
 
 const autonomyLevel = z.enum(AUTONOMY_LEVELS as [string, ...string[]]);
@@ -757,6 +763,7 @@ export async function buildApp({
   hearthSelf = new HearthSelf(),
   memoryOps = memoryOperations(handle),
   stagedChanges = new StagedChanges(),
+  homelabSteps = {} as { current?: HomelabBuilder },
   jobs = new Jobs(
     handle,
     runnerOperations(
@@ -771,6 +778,7 @@ export async function buildApp({
       hearthSelf,
       memoryOps,
       browserChangeOperations(handle, stagedChanges),
+      homelabSteps,
     ),
   ),
   apps = new AppWatcher(handle, vault),
@@ -1614,6 +1622,106 @@ export async function buildApp({
       priorities: z.array(oneOf("wants")).max(12).optional(),
     })
     .strict();
+  /* ---------- Build my plan: the saved plan, built one approved step at a time ---------- */
+  const homelab = new HomelabBuilder({
+    handle,
+    vault,
+    elevation: admin.elevation,
+    run: realRun,
+    jobs: () => jobs,
+    appsRoot: defaultAppsRoot(),
+    install: installInfo(config.dataDir ?? config.keyDir, path.resolve(SERVER_ROOT, "../..")),
+    // Hearth watches the apps it built: a scan, adopting them beside what it already watches.
+    adopt: async (containers) => {
+      const report = await runDiscovery(probes);
+      const kept = new Set(
+        (await db.select({ t: tables.services.checkTarget }).from(tables.services)).map((r) => r.t),
+      );
+      const pick = report.findings.filter(
+        (f) => kept.has(f.key) || (f.source === "container" && containers.includes(f.sourceName)),
+      );
+      const named = new Map(
+        (await db.select().from(tables.services)).map((r) => [r.checkTarget, r.name] as const),
+      );
+      await findings.exclusive(() =>
+        adoptDiscovery(
+          handle,
+          report,
+          pick.map((f) => ({ key: f.key, name: named.get(f.key) ?? f.name })),
+        ),
+      );
+      const rows = await db.select().from(tables.services);
+      return Object.fromEntries(
+        containers.flatMap((c) => {
+          const row = rows.find((r) => r.checkTarget === `container:${c}`);
+          return row ? [[c, row.id] as const] : [];
+        }),
+      );
+    },
+    ...(process.env.DC_BUILD_TEST_NO_VPN === "1" ? { noVpnForTests: true } : {}),
+  });
+  homelabSteps.current = homelab;
+  if (agents.cave) agents.cave.homelab = homelab;
+  app.get("/api/plan/build", async (request) => {
+    planOwner(request);
+    return homelab.status();
+  });
+  app.post("/api/plan/build/propose", async (request) => {
+    planOwner(request);
+    const body = z
+      .object({ step: z.enum(HOMELAB_STEP_IDS as [string, ...string[]]).optional() })
+      .strict()
+      .parse(request.body ?? {});
+    return homelab
+      .propose(body.step as HomelabStepId | undefined, {
+        requestedBy: "you",
+        conversationId: await homelab.conversation(),
+      })
+      .catch((e: unknown) => {
+        throw new ConflictError(e instanceof Error ? e.message : String(e));
+      });
+  });
+  // The VPN login for qBittorrent's VPN: straight into Secure Vault, never returned.
+  app.put("/api/plan/build/vpn", async (request) => {
+    planOwner(request);
+    const body = z
+      .object({
+        provider: z.enum(Object.keys(VPN_PROVIDERS) as [string, ...string[]]),
+        type: z.enum(["openvpn", "wireguard"]),
+        username: z.string().trim().max(200).optional(),
+        password: z.string().max(500).optional(),
+        privateKey: z.string().trim().max(200).optional(),
+        addresses: z.string().trim().max(200).optional(),
+      })
+      .strict()
+      .parse(request.body);
+    return homelab.saveVpn(body as Parameters<HomelabBuilder["saveVpn"]>[0]).catch((e: unknown) => {
+      throw new InvalidRequestError(e instanceof Error ? e.message : String(e));
+    });
+  });
+  // A fresh Tailscale sign-in link (the last one expired or was used).
+  app.post("/api/plan/build/tailscale-link", async (request) => {
+    planOwner(request);
+    return { url: (await homelab.tailscaleLoginUrl()) ?? null };
+  });
+  // The hand-off: Ember greets the owner and starts building the plan with them.
+  app.post("/api/plan/build/start", async (request) => {
+    if (!request.session) throw new ForbiddenAuthError("Only you can start this, signed in.");
+    const name = aiDisplayName(await getSetting(db, "ai_name"));
+    if (!(await agents.operator()))
+      throw new ConflictError(
+        `Connect an AI service first (AI Agent page), so ${name} can build your plan with you.`,
+      );
+    const r = await agents.converse({
+      text: "Let's build my homelab plan.",
+      source: "app",
+      waitMs: 1000,
+      build: true,
+    });
+    await homelab.setConversation(r.conversationId);
+    return r;
+  });
+
   // The plan and, once allowed, the look at this machine. Nothing is scanned until asked.
   app.get("/api/plan", async (request) => {
     planOwner(request);

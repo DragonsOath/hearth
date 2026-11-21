@@ -270,6 +270,23 @@ export interface SettingValues {
     secretId?: string;
     savedAt: string;
   };
+  /** "Build my plan": each step's plan, the vault ids of what it made, and the VPN login's ids. */
+  homelab_build: {
+    steps: Partial<
+      Record<
+        import("@dragon-control/core").HomelabStepId,
+        { jobId?: string; done?: string; detail?: string }
+      >
+    >;
+    secrets: Partial<Record<string, { login?: string; key?: string }>>;
+    vpn?: {
+      provider: import("@dragon-control/core").VpnProvider;
+      type: "openvpn" | "wireguard";
+      ids: Record<string, string>;
+    };
+    tailscaleUrl?: string;
+    conversationId?: string;
+  };
   homelab_plan: {
     answers: import("@dragon-control/core").BuildAnswers;
     /** The look at the machine, once the owner allowed it. */

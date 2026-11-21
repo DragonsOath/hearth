@@ -1,0 +1,38 @@
+name: build-apps
+
+# Build my plan on the real apps: every recipe (Jellyfin, Seerr, Radarr, Sonarr, Prowlarr,
+# qBittorrent) started in Docker, each account made through the app's own API, and the apps
+# connected, read back from the apps (apps/server/src/build/apps.docker.test.ts). Only when the
+# recipes or their setup change, or by hand from the Actions tab.
+on:
+  pull_request:
+    paths:
+      - "apps/server/src/build/**"
+      - ".github/workflows/build-apps.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-apps-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-apps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.15.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: The real apps
+        env:
+          DC_BUILD_DOCKER_TEST: "1"
+        run: pnpm vitest run apps/server/src/build/apps.docker.test.ts

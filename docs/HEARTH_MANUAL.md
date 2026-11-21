@@ -150,8 +150,47 @@ what this computer can run (**How much memory does this computer have?**) and bu
   or **Left out**, with **Why**, **Cost**, **Memory** and **Installed with**.
 - **Recommended for you** explains each choice. **Leave it out anyway**, **Include it anyway**,
   **Save for later**, **Bring it back** and **Undo my choice** let you shape it.
-- **Your app accounts**: the usernames and passwords Hearth will create when building arrives.
+- **Your app accounts**: the email, username and passwords Hearth gives each app it sets up.
 - **Start over** clears it.
+
+<!-- feature: build-homelab -->
+### Build my plan
+
+After **Save my account details**, press **Build it with Ember**. Ember greets you, has your plan,
+and builds it with you one step at a time. Nothing happens until you approve each step, the
+same way as every other plan. **Building your homelab** on the plan page shows every step:
+**Done**, **Under way**, **Waiting for your OK**, **Needs you**, **Next** or **Later**. No AI
+connected? **Next step** there proposes the next step for you to approve yourself.
+
+The steps, in order (only the ones in your plan):
+
+1. **Docker**, from Docker's own repository. It needs Hearth's admin helper, a small program
+   that does one approved step at a time. The Linux installer offers to set it up. If you said
+   no, the step shows the one command to paste in a terminal (**Copy the command**). Installing
+   Docker is a protected step: approving it asks you to confirm it's you, because using Docker
+   is close to administrator access.
+2. **Jellyfin**, with your drive shared read only, so your files are never moved, renamed or
+   deleted. Hearth makes your account, finds your Movies and Shows folders by name (or makes
+   empty ones), and adds them as libraries.
+3. **Seerr**, signed in with your Jellyfin account.
+4. **Radarr** and **Sonarr**, with your sign-in and their library folders on your drive.
+5. **Prowlarr**, with your sign-in. It starts with no indexers (sites that list what's
+   available to download). You add the ones you choose, and Hearth never suggests any.
+6. **qBittorrent with your VPN**: every download goes through your VPN, and downloading stops if
+   the VPN drops. Add your VPN login under that step (**Save my VPN login**). It goes straight
+   into Secure Vault. This is a protected step.
+7. **Connect the apps**: Seerr to Radarr and Sonarr, Radarr and Sonarr to qBittorrent, and
+   Prowlarr to Radarr and Sonarr. Then Hearth starts watching them on its dashboard.
+8. **Tailscale**, from its own repository (protected). Then **Sign in to Tailscale** with a free
+   account to reach your apps from anywhere.
+
+Each app gets its own folder in `hearth-apps` in your home folder, and runs on your home network
+at its usual port (Jellyfin on 8096, Seerr on 5055). Every login and API key Hearth makes goes
+into Secure Vault: Ember never sees them. Each recipe is fixed and reviewed: Ember picks the next
+step, Hearth fills in every detail, and the approval card shows the exact file it will use.
+
+Not built yet: Plex, the shared folder, backups and the other apps in a plan (the list says
+which), and building on Windows (Hearth plans it there).
 
 <!-- feature: discovery -->
 ### Find what I already run (Discovery)

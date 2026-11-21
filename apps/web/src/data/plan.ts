@@ -1,5 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { BuildAnswers, GoalChoice, GoalDecisions, HostScan } from "@dragon-control/core";
+import type {
+  BuildAnswers,
+  GoalChoice,
+  GoalDecisions,
+  HomelabBuild,
+  HomelabStepId,
+  HostScan,
+  Job,
+  VpnProvider,
+} from "@dragon-control/core";
 import { api } from "./api";
 
 /** A saved "Help me build" plan: the answers, the look at the machine, choices, removals. */
@@ -87,5 +96,65 @@ export function useSavePlanAccounts() {
     mutationFn: (a: PlanAccounts & { password?: string }) =>
       api<PlanAccounts>("PUT", "/api/plan/accounts", a),
     onSuccess: (a) => qc.setQueryData(["plan-accounts"], a),
+  });
+}
+
+/* ---------- Build my plan ---------- */
+
+/** Where building the plan stands: every step, what it needs, and the next one. */
+export function useHomelabBuild(enabled = true) {
+  return useQuery({
+    queryKey: ["plan-build"],
+    enabled,
+    queryFn: () => api<HomelabBuild>("GET", "/api/plan/build"),
+    // While a step waits or runs, the list keeps up on its own.
+    refetchInterval: (q) =>
+      q.state.data?.steps.some((s) => s.status === "running" || s.status === "awaiting-approval")
+        ? 4_000
+        : 20_000,
+  });
+}
+
+/** Makes the next step (or a named one) a plan to approve. */
+export function useProposeBuildStep() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (step?: HomelabStepId) =>
+      api<Job>("POST", "/api/plan/build/propose", step ? { step } : {}),
+    onSettled: () => void qc.invalidateQueries({ queryKey: ["plan-build"] }),
+  });
+}
+
+/** The VPN login for downloads: straight into Secure Vault, never shown back. */
+export function useSaveBuildVpn() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (b: {
+      provider: VpnProvider;
+      type: "openvpn" | "wireguard";
+      username?: string;
+      password?: string;
+      privateKey?: string;
+      addresses?: string;
+    }) => api<{ provider: VpnProvider; type: string }>("PUT", "/api/plan/build/vpn", b),
+    onSettled: () => void qc.invalidateQueries({ queryKey: ["plan-build"] }),
+  });
+}
+
+/** The hand-off: Ember greets the owner and starts building, in a conversation. */
+export function useStartBuild() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api<{ conversationId: string }>("POST", "/api/plan/build/start", {}),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: ["plan-build"] });
+      void qc.invalidateQueries({ queryKey: ["conversations"] });
+    },
+  });
+}
+
+export function useTailscaleLink() {
+  return useMutation({
+    mutationFn: () => api<{ url: string | null }>("POST", "/api/plan/build/tailscale-link", {}),
   });
 }

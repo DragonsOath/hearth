@@ -131,6 +131,19 @@ const SYSTEM = (instance: string, sample: boolean, personality?: CavePersonality
  * and three recommendations it may only offer to save: the to-do rules decide, from the owner's
  * own next message, whether anything is saved.
  */
+/**
+ * "Build my plan" (from Your homelab, after the owner saved their account details): Ember greets
+ * them and builds the saved plan with them, one approved step at a time, through homelab_build.
+ */
+export const buildText = (name: string, owner?: string) =>
+  [
+    `The owner just finished planning their homelab in Hearth and pressed "Build it with ${name}". You build it with them now.`,
+    `1. Call homelab_build (action status) first. Then greet them warmly and briefly${owner ? `, by name (${owner})` : ""}, in your own words, like: "Hey${owner ? ` ${owner}` : ""}, let's build this! I've got your game plan. First up is <the first step>. Want to follow along?" Name the first step that is not done in plain words, and say they can watch the progress list on the plan page.`,
+    "2. Then propose that first step with homelab_build (action propose). Its approval card appears here: tell them in one sentence what it does and that nothing happens until they approve it. Propose one step at a time, never several.",
+    "3. If a step needs them first (the admin helper's one command, their VPN login, a Tailscale sign-in), say exactly what to do in plain words and where (the plan page shows it under that step), and do not propose that step until it is done.",
+    "Never invent a step, a Compose file, an indexer, a download site or a source: Hearth's recipes decide every detail, and the owner brings their own indexers. Logins and keys stay in Secure Vault; you never ask for or see a password.",
+  ].join("\n");
+
 export const meetText = (name: string) =>
   [
     `This is the owner's first proper conversation with you ("Meet ${name}"). Do three things, in order.`,
@@ -195,6 +208,10 @@ export const CAVE_SYSTEM = (o: {
   todo?: Set<TodoCommand>;
   /** Meet Ember: the owner's first proper conversation, an introduction and a read-only check-up. */
   meet?: boolean;
+  /** Build my plan: greet the owner and build their saved homelab plan with them (buildText). */
+  build?: boolean;
+  /** The owner's name, for the build greeting. */
+  ownerName?: string;
   /** Full access is on: the full Claude Code, not only Hearth's tools. */
   full?: boolean;
   /** An incident Hearth handed over: Hearth's tools only, unless Full access is on. */
@@ -273,7 +290,11 @@ ${o.ownerRules.trim()}
     "Findings: Hearth keeps one list of what is wrong or worth knowing across the homelab (its analyzers watch monitoring, the apps' own health, Docker, storage, the machines, backups, and security posture), and the owner's dashboard is built from it. For any assessment or 'what is wrong' question, start with list_findings, then investigate the ones that matter with get_finding and your other tools, most important first. When your investigation establishes something from evidence (a cause, a risk, an improvement), record it with record_finding (problem only when confirmed; suspected when likely; observation or recommendation otherwise) so it reaches the dashboard and is followed up; mark a finding you are working on with update_finding (investigating), and add what you learn as notes. Propose fixes for problems as plans linked to the finding (propose_job findingNumber); never propose a plan for an observation or recommendation unless the owner asks. Hearth's own findings resolve when its recheck shows the condition is gone; yours, when you verified it (say how) or a linked plan's checks pass. Areas Hearth cannot see are listed with the findings: a gap is not a clean bill of health. Keep certainty honest: a configuration risk (nature risk) is not an outage, one sighting is not a pattern, and when the evidence is not enough, say what is uncertain and what would settle it. A finding the owner accepted stays as they decided unless it changed. A finding that came back after a repair (returned-after-repair) means the fix did not hold: find the underlying cause before proposing the same fix again.",
     "Be observant. If, while working, you notice a separate problem, risk, maintenance need, or worthwhile improvement that genuinely matters (not minor warnings, one-off blips, or anything already on the to-do list), record it with note_finding and mention it in one short sentence at the end, offering to add it to the list. Do not investigate it or let it take over the answer unless the owner asks; at most two per answer.",
     'The to-do list (issues, tasks, ideas) is shared with the owner and its items have stable numbers (#12). When the owner asks to add something, keep it for later, put it on the back burner, drop it, or mark it done, do exactly that at once without asking again. Work out what "that", "the one you just mentioned", or "the second one" means from the items listed for this conversation; if it is genuinely ambiguous, ask which. Saving an item is never permission to act on it. Before recommending work on an older item, say whether it looks still active, apparently resolved, or unverified from current evidence (check live when you can); never call something resolved on your own, ask the owner. When working on a saved item, pick up from its history and plans, add what you find (update_todo note), and link plans to it (propose_job todoNumber).',
-    o.meet ? meetText(o.aiName ?? DEFAULT_AI_NAME) : modeText(o.intent),
+    o.build
+      ? buildText(o.aiName ?? DEFAULT_AI_NAME, o.ownerName)
+      : o.meet
+        ? meetText(o.aiName ?? DEFAULT_AI_NAME)
+        : modeText(o.intent),
     o.todo?.size ? todoModeText(o.todo) : "",
     o.voice
       ? "Your answer is read aloud: plain spoken sentences, no markdown, symbols, or ids. Give the whole answer the owner asked for (a full list when they ask for one), said naturally."
@@ -446,6 +467,8 @@ export class Agents {
         files?: import("../storage/files").FileManager;
         /** RAID / Arrays (read; changes are storage-raid plans). */
         raid?: import("../storage/raid/service").RaidService;
+        /** Build my plan: the saved homelab plan's steps (build/service.ts). */
+        homelab?: import("../build/service").HomelabBuilder;
         /** Hearth's own API, used by Ember within its rules (agent/hearth-api.ts). */
         hearthApi?: (req: {
           method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -821,6 +844,30 @@ export class Agents {
     });
     this.onReply?.(j.conversationId);
     if (ok) await this.carryOn(j);
+    await this.carryOnBuild(j, ok);
+  }
+
+  /**
+   * Build my plan: when one of its steps ends, Ember says how it went and proposes the next step
+   * (each still waits for the owner's approval), or says what they need to do first.
+   */
+  private async carryOnBuild(j: typeof t.jobs.$inferSelect, ok: boolean) {
+    const steps = (
+      await this.db.select().from(t.jobSteps).where(eq(t.jobSteps.jobId, j.id))
+    ).filter((s) => s.kind.startsWith("build-"));
+    if (!steps.length || !j.conversationId) return;
+    const what = steps.map((s) => (s.result ?? s.label).replace(/[.\s]+$/, "")).join("; ");
+    void this.track(
+      this.converse({
+        text: ok
+          ? `The homelab step "${j.title}" finished: ${what}. Tell the owner in one or two plain lines (with the app's address if there is one), then call homelab_build (action status) and propose the next step with homelab_build (action propose), or say exactly what they need to do first. If every step is done, congratulate them and tell them what to try first.`
+          : `The homelab step "${j.title}" did not finish: ${j.summary ?? what}. Explain plainly what happened and what would fix it. Propose it again with homelab_build only if trying again makes sense.`,
+        conversationId: j.conversationId,
+        source: "app",
+        waitMs: 0,
+        carryOn: true,
+      }).catch(() => undefined),
+    );
   }
 
   /**
@@ -1680,6 +1727,8 @@ export class Agents {
     followUp?: boolean;
     /** Meet Ember: introduce yourself and run a read-only check-up (see meetText). */
     meet?: boolean;
+    /** Build my plan: greet the owner and build their saved plan with them (see buildText). */
+    build?: boolean;
     /** A new conversation's Thread Look: its picture, and its default name (THREAD_LOOKS). */
     look?: string;
     /** A new conversation's own name, given when it was started (else the look's name). */
@@ -2108,6 +2157,8 @@ export class Agents {
           style: cave ? await conversationStyle(cave.memory) : [],
           todo: commands,
           meet: input.meet,
+          build: input.build,
+          ownerName: (await getSetting(this.db, "owner_name")) || undefined,
           // A look-only message runs without the shell, so its instructions do not offer one.
           full: this.full().on && workIntent !== "look",
           ...(this.full().ask ? { ask: this.full().ask } : {}),
@@ -2120,6 +2171,7 @@ export class Agents {
         // turns into real work the agent says so and the same message runs again in full mode.
         let lean =
           !input.meet &&
+          !input.build &&
           !input.carryOn &&
           !input.followUp &&
           !images.length &&

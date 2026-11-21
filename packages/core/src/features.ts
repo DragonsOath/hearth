@@ -217,7 +217,7 @@ export const FEATURES: Feature[] = [
     labels: ["Build my setup", "Recommended for you", "Start over"],
     status: "partial",
     statusNote:
-      "The plan is built; Hearth does not install the apps yet. Building them is planned (see build-homelab).",
+      "The plan is built here; Ember then builds it with you, step by step (see build-homelab), on Linux for now.",
     evidence: [
       {
         file: E2E("plan.spec.ts"),
@@ -238,11 +238,32 @@ export const FEATURES: Feature[] = [
       "install and configure my entire homelab",
       "set up my whole homelab",
     ],
-    where: { path: "Not available yet" },
-    labels: [],
-    status: "planned",
-    statusNote: "Planned. Today the owner installs apps; Hearth discovers and looks after them.",
-    evidence: [],
+    where: {
+      route: "/plan",
+      path: "Plan, Your homelab: save your account details, then Build it with Ember",
+    },
+    labels: ["Build it with", "Building your homelab", "Save my VPN login", "Copy the command"],
+    status: "partial",
+    statusNote:
+      "Linux (Ubuntu, Debian, Fedora and their relatives) with Hearth's admin helper: Docker, Jellyfin, Seerr, Radarr, Sonarr, Prowlarr, qBittorrent through the VPN, the connections between them, and Tailscale. Plex, the shared folder, backups and the other apps are not built yet, and Windows plans only.",
+    evidence: [
+      {
+        file: "apps/server/src/build/service.test.ts",
+        test: "makes the next step a plan to approve, with the details from Hearth, not the AI",
+      },
+      {
+        file: "apps/server/src/build/apps.docker.test.ts",
+        test: "connects the apps, each read back from the app it was added to",
+      },
+    ],
+    ember: {
+      prepare: READS("See where building the plan stands", ["homelab_build"]),
+      execute: {
+        what: "Propose the next step of the plan",
+        tools: ["homelab_build"],
+        approval: "plan",
+      },
+    },
   },
   {
     id: "discovery",

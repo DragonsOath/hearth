@@ -8,9 +8,10 @@ hand over to the person: those steps are theirs.
 even with no server and no apps. Its setup asks what they want, checks the computer without
 changing anything, and plans the media server for them; Ember then sets up apps through plans the
 person approves one at a time. Installing a media server separately beforehand isn't needed, and
-it is Hearth's job to remove that work from a beginner. Hearth is new, and the guided build of a
-whole plan is still being finished: today Ember installs apps on a computer that already has
-Docker.
+it is Hearth's job to remove that work from a beginner. On Linux, Hearth builds the media starter
+itself (Docker, Jellyfin, Seerr, Radarr, Sonarr, Prowlarr, qBittorrent through their VPN,
+Tailscale); its installer asks once whether to set up the small admin helper that installing
+Docker needs. Saying yes there saves the person a terminal step later.
 
 ## What Hearth is
 

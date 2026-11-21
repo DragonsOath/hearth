@@ -118,7 +118,11 @@ export type ActionKind =
   | "hearth-api-call"
   | "free-memory"
   | "browser-change"
-  | "lab-transfer";
+  | "lab-transfer"
+  | "build-docker"
+  | "build-tailscale"
+  | "build-app"
+  | "build-connect";
 
 export const ACTION_KINDS: readonly ActionKind[] = [
   "run-check",
@@ -229,6 +233,10 @@ export const ACTION_KINDS: readonly ActionKind[] = [
   "hearth-api-call",
   "free-memory",
   "browser-change",
+  "build-docker",
+  "build-tailscale",
+  "build-app",
+  "build-connect",
 ];
 
 /**
@@ -456,6 +464,20 @@ export const RAID_ACTIONS: readonly ActionKind[] = ["storage-raid"];
  * job history still read; nothing offers it, and the plan engine refuses it.
  */
 export const TRANSFER_ACTIONS: readonly ActionKind[] = ["lab-transfer"];
+
+/**
+ * Building a beginner's homelab plan (docs/design/BUILDER.md): install Docker or Tailscale through
+ * the admin helper, install one app from Hearth's reviewed recipe and make its account, and connect
+ * the apps to each other. Always plan steps the owner approves; the parameters come from Hearth's
+ * own recipes and the saved plan, never from the AI. Docker, Tailscale and the VPN are protected:
+ * approving asks the owner to confirm it's them.
+ */
+export const BUILD_ACTIONS: readonly ActionKind[] = [
+  "build-docker",
+  "build-tailscale",
+  "build-app",
+  "build-connect",
+];
 
 /** The service id a step uses when it acts on the machine rather than an existing service. */
 export const THIS_HOST = "this-host";
@@ -1063,6 +1085,30 @@ export const ACTIONS: Record<ActionKind, ActionDefinition> = {
   "lab-transfer": {
     kind: "lab-transfer",
     describe: () => "Hearth Transfer (removed from Hearth)",
+    changes: true,
+    guardrail: true,
+  },
+  "build-docker": {
+    kind: "build-docker",
+    describe: () => "Install Docker on this computer",
+    changes: true,
+    guardrail: true,
+  },
+  "build-tailscale": {
+    kind: "build-tailscale",
+    describe: () => "Install Tailscale on this computer",
+    changes: true,
+    guardrail: true,
+  },
+  "build-app": {
+    kind: "build-app",
+    describe: (name) => `Set up ${name} from Hearth's recipe`,
+    changes: true,
+    guardrail: true,
+  },
+  "build-connect": {
+    kind: "build-connect",
+    describe: () => "Connect your new apps to each other",
     changes: true,
     guardrail: true,
   },

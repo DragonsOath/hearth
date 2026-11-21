@@ -61,6 +61,7 @@ export * from "./watches";
 export * from "./voice";
 export * from "./voice-machine";
 export * from "./build-plan";
+export * from "./homelab-build";
 export * from "./profile";
 export * from "./work";
 export * from "./getting-started";

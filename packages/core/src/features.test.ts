@@ -116,9 +116,9 @@ describe("whether a feature is set up here", () => {
   it("says unknown when it cannot tell, and never calls a planned feature available", () => {
     expect(featureAvailability(nights).state).toBe("unknown");
     expect(featureAvailability(nights, { apps: ["plex"], facts: {} }).state).toBe("unknown");
-    expect(featureAvailability(featureById("build-homelab")!, { apps: [], facts: {} }).state).toBe(
-      "not-built",
-    );
+    expect(
+      featureAvailability(featureById("openai-compatible")!, { apps: [], facts: {} }).state,
+    ).toBe("not-built");
   });
 });
 
@@ -173,7 +173,7 @@ describe("opening a feature for the owner (42.2)", () => {
     expect(featureOpen(featureById("wizarr")!)).toEqual({ app: ["wizarr"] });
     expect(featureOpen(featureById("voice")!)).toEqual({ page: "/settings#cave" });
     // Not built yet: nowhere to go.
-    expect(featureOpen(featureById("build-homelab")!)).toBeUndefined();
+    expect(featureOpen(featureById("openai-compatible")!)).toBeUndefined();
     // Every page link is inside Hearth.
     for (const f of FEATURES) {
       const o = featureOpen(f);

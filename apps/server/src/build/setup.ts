@@ -116,14 +116,14 @@ export async function setupJellyfin(
     (
       await call(deps, `${base}/Users/AuthenticateByName`, {
         method: "POST",
-        headers: { "X-Emby-Authorization": JF_AUTH },
+        headers: { Authorization: JF_AUTH },
         json: { Username: account.username, Pw: account.password },
       })
     ).text,
   );
   if (!auth?.AccessToken)
     throw new SetupError("Jellyfin did not accept the account it was just set up with.");
-  const h = { "X-Emby-Authorization": `${JF_AUTH}, Token="${auth.AccessToken}"` };
+  const h = { Authorization: `${JF_AUTH}, Token="${auth.AccessToken}"` };
   const keys = async () =>
     parse<{ Items: { AccessToken: string; AppName: string }[] }>(
       (await call(deps, `${base}/Auth/Keys`, { headers: h })).text,
@@ -239,7 +239,7 @@ async function qbtLogin(base: string, username: string, password: string, deps: 
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded", Referer: base },
     body: new URLSearchParams({ username, password }).toString(),
-    ok: [200, 403],
+    ok: [200, 401, 403],
   });
   const sid = /SID=([^;]+)/.exec(r.headers.get("set-cookie") ?? "")?.[1];
   return r.text.trim() === "Ok." && sid ? sid : undefined;
@@ -319,10 +319,8 @@ export async function setupSeerr(
     json: {
       username: jellyfin.username,
       password: jellyfin.password,
-      hostname: jellyfin.host,
-      port: jellyfin.port,
-      useSsl: false,
-      urlBase: "",
+      // Seerr v3: the whole address of the Jellyfin server.
+      hostname: `http://${jellyfin.host}:${jellyfin.port}`,
       email: jellyfin.email,
       serverType: 2,
     },
@@ -330,15 +328,22 @@ export async function setupSeerr(
   const cookie = /connect\.sid=([^;]+)/.exec(login.headers.get("set-cookie") ?? "")?.[1];
   if (!cookie) throw new SetupError("Seerr did not sign in with the Jellyfin account.");
   const h = { Cookie: `connect.sid=${cookie}` };
+  // Seerr reads Jellyfin's libraries, then each is switched on (Movies and Shows).
   const libs = parse<{ id: string; enabled: boolean }[]>(
-    (await call(deps, `${base}/api/v1/settings/jellyfin/library?sync=true`, { headers: h })).text,
+    (
+      await call(deps, `${base}/api/v1/settings/jellyfin/library/sync`, {
+        method: "POST",
+        headers: h,
+        ok: [200, 404],
+      })
+    ).text,
   );
-  if (libs.length)
-    await call(
-      deps,
-      `${base}/api/v1/settings/jellyfin/library?enable=${encodeURIComponent(libs.map((l) => l.id).join(","))}`,
-      { headers: h },
-    );
+  for (const lib of Array.isArray(libs) ? libs : [])
+    await call(deps, `${base}/api/v1/settings/jellyfin/library/${encodeURIComponent(lib.id)}`, {
+      method: "PUT",
+      headers: h,
+      json: { enabled: true },
+    });
   const main = parse<{ apiKey: string; initialized?: boolean }>(
     (await call(deps, `${base}/api/v1/settings/main`, { headers: h })).text,
   );
@@ -486,15 +491,13 @@ export async function connectSeerrArr(
     isDefault: true,
     syncEnabled: false,
     preventSearch: false,
-    enableSeasonFolders: true,
     ...(target.kind === "radarr" ? { minimumAvailability: "released" } : {}),
     ...(target.kind === "sonarr"
       ? {
           activeAnimeProfileId: profile.id,
           activeAnimeProfileName: profile.name,
           activeAnimeDirectory: roots[0].path,
-          seriesType: "standard",
-          animeSeriesType: "anime",
+          enableSeasonFolders: true,
         }
       : {}),
   };

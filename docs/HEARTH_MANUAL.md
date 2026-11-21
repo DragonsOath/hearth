@@ -133,8 +133,9 @@ A new Hearth opens with setup, one step at a time (you can stop and pick up late
    (monitoring, known fixes and notifications keep working).
 3. **Make it yours**: your name and picture, **This PC** (its name and icon), your AI's name,
    its look, its voice, its personality, and your **Theme**.
-4. **Finish**: three ways in: **Enter Hearth**, **Plan my first homelab**, or **Find what I
-   already run**.
+4. **Finish**: three ways in. Someone starting from nothing gets **Build my setup** as the main
+   button, with **Enter Hearth** beside it; someone who already runs apps gets **Enter Hearth**
+   and **Find what I already run**.
 
 Run it again any time: Settings, General, **First-run setup**, **Run the setup again**.
 

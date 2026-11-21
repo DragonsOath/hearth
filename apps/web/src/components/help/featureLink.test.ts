@@ -41,7 +41,7 @@ describe("where a feature opens", () => {
 
   it("gives nothing for unknown or unbuilt features", () => {
     expect(featureLink("not-a-feature", services, panelHref)).toBeUndefined();
-    expect(featureLink("build-homelab", services, panelHref)).toBeUndefined();
+    expect(featureLink("openai-compatible", services, panelHref)).toBeUndefined();
   });
 });
 

@@ -2094,8 +2094,6 @@ export const ALWAYS_LOADED = new Set([
   "read_logs",
   "propose_job",
   "open_panel",
-  // Build my plan: a beginner's first conversation, on any model.
-  "homelab_build",
   // Show & Tell (45): a local model never searches for tools, and the owner is watching.
   "show",
 ]);

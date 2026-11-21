@@ -2191,9 +2191,11 @@ export class Agents {
               // Meeting the owner is read only: nothing is planned or changed in that answer.
               quiet: input.meet
                 ? "chat"
-                : workIntent === "chat" || workIntent === "brainstorm" || workIntent === "look"
-                  ? workIntent
-                  : undefined,
+                : input.build
+                  ? undefined
+                  : workIntent === "chat" || workIntent === "brainstorm" || workIntent === "look"
+                    ? workIntent
+                    : undefined,
               todo: { grants: [...commands], noticed: 0 },
             },
             {

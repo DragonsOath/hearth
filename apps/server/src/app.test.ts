@@ -9054,6 +9054,7 @@ describe("the AI operator", () => {
         "backup_status",
         "browser",
         "hearth_help",
+        "homelab_build",
         "open_panel",
         "get_incident",
         "get_overview",

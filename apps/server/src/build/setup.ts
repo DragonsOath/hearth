@@ -242,7 +242,7 @@ async function qbtLogin(base: string, username: string, password: string, deps: 
     ok: [200, 204, 401, 403],
   });
   // The session cookie: SID in qBittorrent 4, QBT_SID_<port> in 5. Sent back as it came.
-  const m = /((?:QBT_)?SID(?:_\d+)?)=([^;]+)/.exec(r.headers.get("set-cookie") ?? "");
+  const m = /(?:^|[\s,;])((?:QBT_)?SID(?:_\d+)?)=([^;]+)/.exec(r.headers.get("set-cookie") ?? "");
   const sid = m ? `${m[1]}=${m[2]}` : undefined;
   // qBittorrent 4 answers "Ok."; 5 answers 204 with no body. Either way, with a session.
   return (r.status === 204 || r.text.trim() === "Ok.") && sid ? sid : undefined;

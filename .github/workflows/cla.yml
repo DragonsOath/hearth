@@ -1,5 +1,6 @@
 # Contributor License Agreement (CLA.md): every outside pull request waits until its author has
-# signed, by posting the sentence below as a comment on the pull request. Signatures are kept in
+# signed, by posting the sentence below as a comment on the pull request (the project's own
+# account, dragonsoath-dev, is the project itself and is not asked). Signatures are kept in
 # the cla-signatures branch of this repository. Pinned to an exact release commit (v2.6.1).
 name: CLA
 
@@ -31,7 +32,7 @@ jobs:
           path-to-signatures: signatures/version1/cla.json
           path-to-document: https://github.com/DragonsOath/hearth/blob/main/CLA.md
           branch: cla-signatures
-          allowlist: dependabot[bot],github-actions[bot],claude[bot]
+          allowlist: dependabot[bot],github-actions[bot],claude[bot],dragonsoath-dev
           custom-notsigned-prcomment: >-
             Thanks for the pull request! Before it can be merged, please read the
             [Contributor License Agreement](https://github.com/DragonsOath/hearth/blob/main/CLA.md)

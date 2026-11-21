@@ -14035,6 +14035,66 @@ describe("one account: a PC joins your Hearth and is used through it", () => {
   );
 });
 
+describe("Premium: one purchase covers every linked Hearth (the owner, 11-20)", () => {
+  withPremiumPackage(
+    "a PC linked to a Premium Hearth gets Premium with no code of its own, and loses it when removed",
+    async () => {
+      // Your Hearth has Premium (one purchase); the PC has none of its own.
+      const hub = await makeApp({ signedIn: false, listen: true, premium: true });
+      const owner = hub.cookieOf(
+        await hub.send("POST", "/api/auth/setup", {
+          code: (await hub.auth.setupCode())!,
+          password: TEST_PASSWORD,
+        }),
+      )!;
+      const hubUrl = `http://127.0.0.1:${(hub.app.server.address() as AddressInfo).port}`;
+      const pc = await makeApp({ signedIn: false, listen: true, premium: false });
+      const pcOwner = pc.cookieOf(
+        await pc.send("POST", "/api/auth/setup", {
+          code: (await pc.auth.setupCode())!,
+          password: TEST_PASSWORD,
+        }),
+      )!;
+      const has = async (a: typeof hub, who: string) =>
+        (await a.send("GET", "/api/premium", undefined, who))
+          .json<{ features: { feature: string; state: string }[] }>()
+          .features.find((f) => f.feature === "ember_show_and_tell")?.state === "active";
+      expect(await has(hub, owner)).toBe(true);
+      expect(await has(pc, pcOwner)).toBe(false);
+
+      const made = (await hub.send("POST", "/api/pcs/codes", {}, owner)).json<{ code: string }>();
+      const joined = await pc.send(
+        "POST",
+        "/api/pcs/join-hub",
+        { link: `${hubUrl}/join?code=${made.code}`, name: "Second-PC" },
+        pcOwner,
+      );
+      expect(joined.statusCode, joined.body).toBe(200);
+      const list = async () =>
+        (await hub.send("GET", "/api/pcs", undefined, owner)).json<{
+          pcs: { id: string; online: boolean }[];
+        }>().pcs;
+      const until = async (ok: () => Promise<boolean>) => {
+        const end = Date.now() + 10_000;
+        while (!(await ok())) {
+          if (Date.now() > end) throw new Error("timed out");
+          await new Promise((r) => setTimeout(r, 50));
+        }
+      };
+      await until(async () => (await list())[0]?.online === true);
+      // The link carried your Hearth's licence down: Premium on the PC, nothing redeemed there.
+      await until(() => has(pc, pcOwner));
+
+      // Removed from your Hearth: the PC goes back to free.
+      const id = (await list())[0]!.id;
+      expect((await hub.send("DELETE", `/api/pcs/${id}`, undefined, owner)).statusCode).toBe(204);
+      await until(async () => !(await has(pc, pcOwner)));
+      expect(await has(hub, owner)).toBe(true);
+    },
+    30_000,
+  );
+});
+
 describe("one account: a PC set up on its own first joins later", () => {
   withPremiumPackage(
     "its signed-in owner joins it (no setup code), it keeps its account, and gets it back when removed",

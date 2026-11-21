@@ -1017,6 +1017,20 @@ export async function buildApp({
     Date.now,
     () => premiumEnforced,
   );
+  // One Premium purchase covers every linked Hearth (the owner, 11-20): a PC sends its own
+  // licences up, your Hearth keeps them and passes every licence it counts down to all its PCs.
+  pcs.licences = () => entitlements.shareable();
+  pcs.onLicences = async (pcId, tokens) => {
+    if (await entitlements.setLinked(`pc:${pcId}`, tokens)) await pcs.shareLicences();
+  };
+  member.licences = () => entitlements.own();
+  member.onLicences = async (tokens) => {
+    await entitlements.setLinked("hub", tokens);
+  };
+  entitlements.onChange = () => {
+    void pcs.shareLicences();
+    void member.shareLicences();
+  };
 
   // Hearth Transfer was removed (11-11): its settings go, so nothing of it is left behind. Saves
   // already in a save folder stay where they are; Hearth never deletes the owner's files.

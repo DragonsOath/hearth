@@ -45,6 +45,8 @@ export class PcLink {
   private readonly streams = new Map<number, WebSocket>();
   hello: Extract<FromPc, { t: "hello" }> | null = null;
   onUninstalling?: (ok: boolean, message: string) => void;
+  /** The PC's own Premium licences, from its hello and whenever they change. */
+  onLicences?: (tokens: string[]) => void;
 
   constructor(
     readonly pcId: string,
@@ -62,6 +64,9 @@ export class PcLink {
       if (m.t === "hello") {
         this.hello = m;
         onHello(m);
+        if (Array.isArray(m.licences)) this.onLicences?.(m.licences);
+      } else if (m.t === "licences") {
+        if (Array.isArray(m.tokens)) this.onLicences?.(m.tokens);
       } else if (m.t === "res") {
         const p = this.pending.get(m.id);
         if (!p) return;
@@ -173,6 +178,10 @@ export class Pcs {
   onChange?: () => void;
   /** Told each time a PC connects (it said hello), to bring it up to date. */
   onHello?: (pcId: string) => void;
+  /** Told what Premium licences a PC holds (an empty list when it is removed). */
+  onLicences?: (pcId: string, tokens: string[]) => Promise<void> | void;
+  /** The licences to share with every PC (this Hearth's and its PCs'). */
+  licences?: () => Promise<string[]>;
 
   constructor(
     private readonly handle: DbHandle,
@@ -271,6 +280,7 @@ export class Pcs {
           // Hearth is shutting down (its database already closed): nothing to record.
           .catch(() => undefined);
         this.onHello?.(pcId);
+        void this.shareLicences(pcId);
       },
       () => {
         if (this.links.get(pcId) === link) this.links.delete(pcId);
@@ -283,6 +293,7 @@ export class Pcs {
           .catch(() => undefined);
       },
     );
+    link.onLicences = (tokens) => void this.onLicences?.(pcId, tokens);
     this.links.set(pcId, link);
     this.onChange?.();
     return link;
@@ -352,9 +363,18 @@ export class Pcs {
     return null;
   }
 
+  /** Sends the licences this Hearth counts to one PC, or to every PC that is online. */
+  async shareLicences(pcId?: string) {
+    if (!this.licences) return;
+    const tokens = await this.licences().catch(() => []);
+    for (const [id, l] of this.links)
+      if ((!pcId || id === pcId) && l.open) l.send({ t: "licences", tokens });
+  }
+
   /** Takes a PC out of your Hearth: its link is cut and it forgets your Hearth. */
   async remove(id: string) {
     const row = await this.get(id);
+    await this.onLicences?.(id, []);
     const link = this.link(id);
     link?.send({ t: "removed" });
     await this.db.delete(t.pcs).where(eq(t.pcs.id, id));

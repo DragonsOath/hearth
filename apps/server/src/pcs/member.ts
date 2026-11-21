@@ -73,6 +73,11 @@ export function parseJoinLink(link: string): { hubUrl: string; code: string } {
 }
 
 export class HubMember {
+  /** This PC's own Premium licences, sent up so your Hearth and its other PCs count them too. */
+  licences?: () => Promise<string[]>;
+  /** The licences your Hearth counts (an empty list when this PC leaves it). */
+  onLicences?: (tokens: string[]) => Promise<void> | void;
+
   private ws: WebSocket | null = null;
   private retry = 1000;
   private timer: NodeJS.Timeout | undefined;
@@ -200,7 +205,14 @@ export class HubMember {
     if (await getSetting(this.d.handle.db, "pc_kept_own_account"))
       await deleteSetting(this.d.handle.db, "pc_kept_own_account");
     else await resetOwner(this.d.handle);
+    // No longer linked: your Hearth's licences stop counting here.
+    await this.onLicences?.([]);
     this.online = false;
+  }
+
+  /** This PC's own licences changed: tells your Hearth, which passes them to its other PCs. */
+  async shareLicences() {
+    if (this.licences) this.send({ t: "licences", tokens: await this.licences().catch(() => []) });
   }
 
   private connect() {
@@ -217,13 +229,17 @@ export class HubMember {
       ws.on("open", () => {
         this.online = true;
         this.retry = 1000;
-        this.send({
-          t: "hello",
-          name: hostname(),
-          os: osName(),
-          version: this.d.version,
-          install: this.d.install(),
-        });
+        void (async () => {
+          const licences = this.licences ? await this.licences().catch(() => []) : undefined;
+          this.send({
+            t: "hello",
+            name: hostname(),
+            os: osName(),
+            version: this.d.version,
+            install: this.d.install(),
+            ...(licences ? { licences } : {}),
+          });
+        })();
       });
       ws.on("message", (raw) => {
         let m: ToPc;
@@ -280,6 +296,9 @@ export class HubMember {
         return;
       case "removed":
         return this.forget();
+      case "licences":
+        if (Array.isArray(m.tokens)) await this.onLicences?.(m.tokens);
+        return;
       case "uninstall": {
         const answer = this.d.uninstall
           ? await this.d.uninstall(m.deleteData).catch((e: Error) => ({

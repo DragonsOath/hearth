@@ -52,6 +52,12 @@ export interface PremiumState {
   highWater?: string;
   /** When the issuer was last asked about revocations. */
   checkedAt?: string;
+  /**
+   * Licences shared by the Hearths this one is linked to, by where they came from ("hub", or
+   * "pc:<id>"). Premium is bought once per person (the owner, 11-20: "pay premium once and
+   * connect all three"), so a licence on any linked Hearth counts on all of them.
+   */
+  linked?: Record<string, string[]>;
 }
 
 /** How far behind the clock may be before dated licences wait (time zones, small drift). */
@@ -93,21 +99,79 @@ export class Entitlements {
     await setSetting(this.handle.db, "premium", s);
   }
 
-  /** The licences here that are genuine and for this installation. */
+  /** Told when this Hearth's own licences change, so linked Hearths can be brought up to date. */
+  onChange?: () => void;
+
+  /** The licences here that are genuine: this installation's own, then the linked Hearths'. */
   private async valid(): Promise<LicensePayload[]> {
     const s = await this.state();
     const keys = await this.trusted();
     const install = await this.installId();
     const out: LicensePayload[] = [];
-    for (const token of s.licenses) {
+    const seen = new Set<string>();
+    const take = (token: string, own: boolean) => {
       try {
         const p = readLicense(token, keys);
-        if (p.install === install) out.push(p);
+        if (own && p.install !== install) return;
+        if (seen.has(p.id)) return;
+        seen.add(p.id);
+        out.push(p);
       } catch {
         // A licence that no longer checks out (a key Hearth stopped trusting) counts for nothing.
       }
-    }
+    };
+    for (const token of s.licenses) take(token, true);
+    // A linked Hearth's licence is genuine (signed) and bound to that Hearth: it counts here too.
+    for (const tokens of Object.values(s.linked ?? {}))
+      for (const token of tokens) take(token, false);
     return out;
+  }
+
+  /** This installation's own genuine licence keys (what it shares with the Hearths it links to). */
+  async own(): Promise<string[]> {
+    const s = await this.state();
+    const keys = await this.trusted();
+    const install = await this.installId();
+    return s.licenses.filter((token) => {
+      try {
+        return readLicense(token, keys).install === install;
+      } catch {
+        return false;
+      }
+    });
+  }
+
+  /** Every genuine licence key this Hearth counts, its own and its linked Hearths' (shared down). */
+  async shareable(): Promise<string[]> {
+    const s = await this.state();
+    const all = [...(await this.own()), ...Object.values(s.linked ?? {}).flat()];
+    const keys = await this.trusted();
+    const out = new Map<string, string>();
+    for (const token of all) {
+      try {
+        const id = readLicense(token, keys).id;
+        if (!out.has(id)) out.set(id, token);
+      } catch {
+        // Not one this Hearth trusts: not passed on.
+      }
+    }
+    return [...out.values()].slice(0, 40);
+  }
+
+  /** Keeps what a linked Hearth shared (an empty list forgets it: unlinked, or none left). */
+  async setLinked(source: string, tokens: string[]) {
+    const s = await this.state();
+    const linked = { ...(s.linked ?? {}) };
+    const clean = tokens
+      .filter((t) => typeof t === "string" && t.length < 4000)
+      .map((t) => t.trim())
+      .slice(0, 40);
+    if (clean.length) linked[source] = clean;
+    else delete linked[source];
+    const before = JSON.stringify(s.linked ?? {});
+    if (JSON.stringify(linked) === before) return false;
+    await this.save({ ...s, linked });
+    return true;
   }
 
   /** Moves the clock's high-water mark on (at most once a minute is written). */
@@ -221,6 +285,7 @@ export class Entitlements {
     const s = await this.state();
     const others = s.licenses.filter((t) => peekId(t) !== p.id);
     await this.save({ ...s, licenses: [...others, token.trim()].slice(-20) });
+    this.onChange?.();
     return p;
   }
 
@@ -236,7 +301,11 @@ export class Entitlements {
    */
   async syncRevoked(ids: string[], at = new Date(this.clock()).toISOString()) {
     const s = await this.state();
-    const here = new Set(s.licenses.map((t) => peekId(t)).filter(Boolean));
+    const here = new Set(
+      [...s.licenses, ...Object.values(s.linked ?? {}).flat()]
+        .map((t) => peekId(t))
+        .filter(Boolean),
+    );
     await this.save({ ...s, revoked: ids.filter((id) => here.has(id)), checkedAt: at });
   }
 

@@ -440,17 +440,25 @@ function Finished({
           : `When you're ready, ${name} finds what already runs on this computer${connected ? ", or introduces itself and checks up on your server" : ""}.`}
       </Lead>
       <div className="flex flex-wrap items-start gap-3" data-testid="welcome-paths">
-        <Button tone="primary" disabled={busy} onClick={() => onOpen()}>
-          Enter Hearth
-        </Button>
+        {/* A beginner came to build: that is the bright button (11-20 blind test). */}
         {building ? (
-          <Button tone="outline" disabled={busy} onClick={() => onOpen("/plan")}>
-            Plan my first homelab
-          </Button>
+          <>
+            <Button tone="primary" disabled={busy} onClick={() => onOpen("/plan")}>
+              Build my setup
+            </Button>
+            <Button tone="outline" disabled={busy} onClick={() => onOpen()}>
+              Enter Hearth
+            </Button>
+          </>
         ) : (
-          <Button tone="outline" disabled={busy} onClick={() => onOpen("/discover")}>
-            Find what I already run
-          </Button>
+          <>
+            <Button tone="primary" disabled={busy} onClick={() => onOpen()}>
+              Enter Hearth
+            </Button>
+            <Button tone="outline" disabled={busy} onClick={() => onOpen("/discover")}>
+              Find what I already run
+            </Button>
+          </>
         )}
         {connected && <MeetButton before={beforeMeet} tone="outline" />}
       </div>
@@ -462,7 +470,7 @@ function Finished({
           disabled={busy}
           onClick={() => onOpen(building ? "/discover" : "/plan")}
         >
-          {building ? "Find what I already run" : "Plan my first homelab"}
+          {building ? "Find what I already run" : "Build my setup"}
         </button>
       </p>
     </>

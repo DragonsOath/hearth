@@ -2,6 +2,12 @@
 
 A self-hosted control plane for your homelab, with an AI administrator that works for you.
 
+**New to all this?** Hearth is the place to start, even with nothing set up yet. It asks what you
+want in plain words, looks at your computer (changing nothing), and plans a media server that
+suits it. Ember, its AI, sets the apps up with you, asking before every step. The guided build of
+the whole plan is still being finished: today Ember can set up apps on a computer that already
+has Docker. If an AI assistant is helping you install, point it at [AI_README.md](AI_README.md).
+
 ## Install
 
 Pick one. Each ends by opening Hearth's setup page in your browser, where you choose your
@@ -55,8 +61,8 @@ Prefer to do every step yourself? See [Manual install](#manual-install) below.
 It does two things. It can **manage a homelab you already have**: watch it, explain what is wrong,
 and fix it through plans you approve. And it is growing a way to **help you build one from
 nothing**: you say what you want in your own words, and its AI plans the setup with you and
-installs each piece with your approval. Managing works today; building is in design (see
-[`docs/design/BUILDER.md`](docs/design/BUILDER.md)).
+installs each piece with your approval. Managing and planning work today; the guided build is
+being finished (see [`docs/design/BUILDER.md`](docs/design/BUILDER.md)).
 
 Hearth finds the machines, containers, and apps you run, watches them, and shows what
 each one is actually doing: Radarr's queue, qBittorrent's stalled torrents, who is watching Plex.

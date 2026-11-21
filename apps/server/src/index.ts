@@ -81,7 +81,12 @@ async function main() {
   await runMigrations(handle, config.migrationsDir);
   const identity = await ensureInstallIdentity(handle.db);
 
-  await ensureInitialEnvironment(handle, config);
+  // The installers set DC_FIRST_START=empty: an installed Hearth starts on the owner's own
+  // computer, not on sample data (11-20 blind test: "SAMPLE DATA" on a fresh install). Sample
+  // data stays a choice in Settings; development and the tests still start on it.
+  await ensureInitialEnvironment(handle, {
+    demo: config.demo && process.env.DC_FIRST_START !== "empty",
+  });
 
   const fake = process.env.DC_FAKE_DISCOVERY === "1";
   const monitorProbes = fake ? fakeMonitorProbes : realMonitorProbes;

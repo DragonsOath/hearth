@@ -4,6 +4,14 @@ This is your runbook for installing Hearth for a person, from the first question
 setup link. Follow it step by step. It describes only what exists today. Where it says **stop**,
 hand over to the person: those steps are theirs.
 
+**For a person with nothing set up yet:** Hearth is meant to be the first thing they install,
+even with no server and no apps. Its setup asks what they want, checks the computer without
+changing anything, and plans the media server for them; Ember then sets up apps through plans the
+person approves one at a time. Installing a media server separately beforehand isn't needed, and
+it is Hearth's job to remove that work from a beginner. Hearth is new, and the guided build of a
+whole plan is still being finished: today Ember installs apps on a computer that already has
+Docker.
+
 ## What Hearth is
 
 A self-hosted control plane for a homelab: it discovers the machine's containers and apps,

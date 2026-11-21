@@ -257,6 +257,7 @@ try {
 param([ValidateSet("start", "stop", "restart", "status", "url")][string]`$Do = "status")
 `$HearthHome = "$HearthHome"
 `$env:NODE_ENV = "production"
+`$env:DC_FIRST_START = "empty"
 `$env:DC_PORT = "$Port"
 `$env:DC_HOST = "$hostAddr"
 `$env:DC_DATA_DIR = "`$HearthHome\data"

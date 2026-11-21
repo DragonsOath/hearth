@@ -231,7 +231,7 @@ export const BUILD_QUESTIONS = {
   },
   existingVpn: {
     question: "Do you already pay for a VPN?",
-    help: "If yours allows P2P, the plan uses it instead of asking you to buy another.",
+    help: "Downloads use P2P (peer-to-peer, like torrenting: you download pieces from other people's computers), and not every VPN allows it. If yours does, the plan uses it instead of asking you to buy another.",
     options: [
       ["proton", "Proton VPN"],
       ["nord", "NordVPN"],
@@ -498,7 +498,9 @@ const APPS: Record<
     id: "prowlarr",
     name: "Prowlarr",
     what: "Keeps the list of places Radarr and Sonarr search, in one spot.",
-    needs: ["One or more download sources (indexers)"],
+    needs: [
+      "An indexer or two: a site that lists what's available to download, which Radarr and Sonarr search. You choose and add your own; Hearth never suggests any",
+    ],
     cost: "Free",
     memoryGb: 0.2,
     native: true,

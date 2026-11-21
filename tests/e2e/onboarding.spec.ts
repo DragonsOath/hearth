@@ -374,7 +374,7 @@ test("walks all seven steps, saving each one as it goes", async () => {
   const paths = page.getByTestId("welcome-paths");
   await expect(paths.getByRole("button", { name: "Meet Ember" })).toHaveCount(0);
   // The beginner's plan stays one click away.
-  await expect(paths.getByRole("button", { name: "Plan my first homelab" })).toBeVisible();
+  await expect(paths.getByRole("button", { name: "Build my setup" })).toBeVisible();
   expect(await seriousViolations(page)).toEqual([]);
   await shot("7-done");
   await page.getByRole("button", { name: "Enter Hearth" }).click();

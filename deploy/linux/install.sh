@@ -490,6 +490,7 @@ Type=simple
 User=$user
 WorkingDirectory=$app_dir
 Environment=NODE_ENV=production
+Environment=DC_FIRST_START=empty
 Environment=DC_PORT=$port
 Environment=DC_HOST=$host
 Environment="DC_DATA_DIR=$data_dir"

@@ -241,7 +241,9 @@ async function qbtLogin(base: string, username: string, password: string, deps: 
     body: new URLSearchParams({ username, password }).toString(),
     ok: [200, 204, 401, 403],
   });
-  const sid = /SID=([^;]+)/.exec(r.headers.get("set-cookie") ?? "")?.[1];
+  // The session cookie: SID in qBittorrent 4, QBT_SID_<port> in 5. Sent back as it came.
+  const m = /((?:QBT_)?SID(?:_\d+)?)=([^;]+)/.exec(r.headers.get("set-cookie") ?? "");
+  const sid = m ? `${m[1]}=${m[2]}` : undefined;
   // qBittorrent 4 answers "Ok."; 5 answers 204 with no body. Either way, with a session.
   return (r.status === 204 || r.text.trim() === "Ok.") && sid ? sid : undefined;
 }
@@ -276,7 +278,7 @@ export async function setupQbittorrent(
       method: "POST",
       headers: {
         "content-type": "application/x-www-form-urlencoded",
-        Cookie: `SID=${sid}`,
+        Cookie: sid,
         Referer: base,
       },
       body: new URLSearchParams({
@@ -294,7 +296,7 @@ export async function setupQbittorrent(
   const prefs = parse<{ save_path?: string }>(
     (
       await call(deps, `${base}/api/v2/app/preferences`, {
-        headers: { Cookie: `SID=${sid}`, Referer: base },
+        headers: { Cookie: sid, Referer: base },
       })
     ).text,
   );

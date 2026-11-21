@@ -213,8 +213,8 @@ export const FEATURES: Feature[] = [
       "help me build",
       "create a homelab",
     ],
-    where: { route: "/plan", path: "Plan my first homelab (from setup's finish, or Home)" },
-    labels: ["Plan my first homelab", "Recommended for you", "Start over"],
+    where: { route: "/plan", path: "Build my setup (from setup's finish, or Home)" },
+    labels: ["Build my setup", "Recommended for you", "Start over"],
     status: "partial",
     statusNote:
       "The plan is built; Hearth does not install the apps yet. Building them is planned (see build-homelab).",

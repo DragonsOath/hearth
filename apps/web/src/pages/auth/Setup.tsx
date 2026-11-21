@@ -67,7 +67,7 @@ export function SetupPage() {
     return (
       <AuthFrame eyebrow="Welcome" title="Welcome to Hearth" stage="account">
         <p className="mb-6 text-[0.95rem] leading-relaxed text-ink">
-          Do you already have a Hearth account on another PC?
+          Have you set up Hearth on another PC before?
         </p>
         <div className="space-y-3">
           <Button
@@ -88,8 +88,7 @@ export function SetupPage() {
           </Button>
         </div>
         <p className="mt-5 text-[0.8rem] leading-relaxed text-faint">
-          Linking needs your Hearth API key, from the Secure Vault on your Hearth. This PC then
-          shows up there, and its projects run here with its own Claude Code or Codex.
+          First time? Pick No. Nothing online is created: Hearth lives on this computer.
         </p>
       </AuthFrame>
     );

@@ -200,6 +200,7 @@ if [[ -z "$update" || ! -f "$envfile" ]]; then
   [[ -z "$claude_path" && -x "$HOME/.local/bin/claude" ]] && claude_path="$HOME/.local/bin/claude"
   cat >"$envfile" <<ENV
 NODE_ENV=production
+DC_FIRST_START=empty
 DC_HOST=$host
 DC_PORT=$port
 DC_DATA_DIR=$home/data

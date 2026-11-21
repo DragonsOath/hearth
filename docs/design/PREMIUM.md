@@ -100,6 +100,16 @@ The core's tests run without it and, with `DC_TEST_ADDONS_DIR` / `DC_E2E_ADDONS_
 - **Waiting for the owner**: the `dragonsoath-dev` token, creating the private repository, the
   Worker deploy (KV namespace, receipt key, `LICENCE_KEYS` once the signing key exists).
 
+## One purchase covers every linked Hearth (the owner, 11-20)
+
+Premium is bought once per person, not per machine: "I can pay premium once and connect all
+three". A licence on any Hearth in a linked group counts on all of them. Over the link a PC sends
+its own licences up in its hello (and again when one is redeemed there), and your Hearth sends
+every licence it counts down to each PC (`pcs/link.ts` `licences`). Each side keeps them apart
+from its own (`premium` setting, `linked`, by source), still checks the signature, expiry and
+revocation of each, and forgets them when the PC is removed or leaves. Licence keys stay bound to
+one installation; only their reach changed.
+
 ## When a licence ends or is taken back
 
 New premium actions stop. Nothing else changes: links stay recorded and their live connection

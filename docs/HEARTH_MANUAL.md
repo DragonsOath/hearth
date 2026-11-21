@@ -2553,7 +2553,9 @@ Tabs: **General**, **PCs and devices**, **Ember**, **Security**, **Backups**, **
 <!-- feature: pcs-and-devices -->
 ## 15. More than one PC, phones and the app
 
-- Linking PCs is **Hearth Connected** (Premium, Settings, Premium). Every Hearth works fully on
+- Linking PCs is **Hearth Connected** (Premium, Settings, Premium). You pay once: Premium on one
+  Hearth covers every Hearth linked to it, with no code of its own (a PC linked to it shows its
+  Premium features as **Included**; unlinked, it goes back to free). Every Hearth works fully on
   its own, free, on as many PCs as you like; reaching apps, Docker or a NAS on another machine is
   free too. Without it, **Link another Hearth** says so, and points to the free option: watching
   another machine's apps, Docker or a NAS is **Add a system** on the Services page. PCs already

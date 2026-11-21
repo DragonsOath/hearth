@@ -31,11 +31,23 @@ export type ToPc =
   | { t: "ws-close"; sid: number }
   | { t: "removed" }
   | { t: "uninstall"; deleteData: boolean }
+  /** Every Premium licence your Hearth counts (its own and its other PCs'): one purchase covers all. */
+  | { t: "licences"; tokens: string[] }
   | { t: "ping" };
 
 /** The PC to your Hearth. */
 export type FromPc =
-  | { t: "hello"; name: string; os: string; version: string; install: InstallInfo | null }
+  | {
+      t: "hello";
+      name: string;
+      os: string;
+      version: string;
+      install: InstallInfo | null;
+      /** This PC's own Premium licences (older PCs send none). */
+      licences?: string[];
+    }
+  /** This PC's own licences changed (one was redeemed here). */
+  | { t: "licences"; tokens: string[] }
   | {
       t: "res";
       id: number;

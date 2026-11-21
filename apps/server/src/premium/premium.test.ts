@@ -197,6 +197,47 @@ describe("this installation's entitlements", () => {
     expect(await issuerSaid.has("ember_show_and_tell")).toBe(false);
   });
 
+  it("one purchase covers every linked Hearth (11-20): a linked Hearth's licence counts here too", async () => {
+    const now = Date.parse("2026-11-10T00:00:00Z");
+    const e = await make(() => now);
+    const onHub = licence({ id: "lic-hub", install: "the-hub-install" });
+    expect(await e.has("ember_show_and_tell")).toBe(false);
+    // Your Hearth shared its licence over the link: Premium here, with nothing redeemed here.
+    expect(await e.setLinked("hub", [onHub])).toBe(true);
+    expect(await e.has("ember_show_and_tell")).toBe(true);
+    // Not this Hearth's own, so it isn't sent back up as if it were.
+    expect(await e.own()).toEqual([]);
+    expect(await e.shareable()).toEqual([onHub]);
+    // The same list again changes nothing (no endless re-sharing).
+    expect(await e.setLinked("hub", [onHub])).toBe(false);
+    // A forged or untrusted licence counts for nothing, linked or not.
+    const forged = licence({ id: "lic-forged" }, newSigningKey().privatePem);
+    await e.setLinked("pc:abc", [forged]);
+    expect(await e.shareable()).toEqual([onHub]);
+    // Taken back by the issuer: it stops counting on the linked Hearths too.
+    await e.syncRevoked(["lic-hub"]);
+    expect(await e.has("ember_show_and_tell")).toBe(false);
+    await e.syncRevoked([]);
+    expect(await e.has("ember_show_and_tell")).toBe(true);
+    // Unlinked: it stops counting here.
+    await e.setLinked("hub", []);
+    expect(await e.has("ember_show_and_tell")).toBe(false);
+  });
+
+  it("shares this Hearth's own licences, and tells the link when one is redeemed here", async () => {
+    const now = Date.parse("2026-11-10T00:00:00Z");
+    const e = await make(() => now);
+    let told = 0;
+    e.onChange = () => told++;
+    const mine = licence({ id: "lic-mine" });
+    await e.install(mine);
+    expect(told).toBe(1);
+    expect(await e.own()).toEqual([mine]);
+    const fromPc = licence({ id: "lic-pc", install: "a-pc-install" });
+    await e.setLinked("pc:abc", [fromPc]);
+    expect(new Set(await e.shareable())).toEqual(new Set([mine, fromPc]));
+  });
+
   it("works offline, and doesn't let a clock set back stretch a dated licence", async () => {
     let now = Date.parse("2026-11-10T00:00:00Z");
     const e = await make(() => now);

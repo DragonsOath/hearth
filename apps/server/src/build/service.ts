@@ -46,6 +46,7 @@ import {
   setupArr,
   setupJellyfin,
   setupQbittorrent,
+  setupPlexLibraries,
   setupSeerr,
   type SetupDeps,
 } from "./setup";
@@ -65,6 +66,7 @@ const SETTING = "homelab_build" as const;
 const STEP_INFO: Record<HomelabStepId, { name: string; what: string }> = {
   docker: { name: "Docker", what: "The engine every app runs in." },
   jellyfin: { name: "Jellyfin", what: "Your movies and shows, on every screen." },
+  plex: { name: "Plex", what: "Your movies and shows, on every screen, with your Plex account." },
   seerr: { name: "Seerr", what: "Browse and request movies and shows." },
   radarr: { name: "Radarr", what: "Fetches the movies you ask for." },
   sonarr: { name: "Sonarr", what: "Fetches the shows you ask for." },
@@ -115,8 +117,6 @@ export interface HomelabBuildDeps {
   adopt?: (containers: string[]) => Promise<Record<string, string>>;
   setup?: SetupDeps;
   platform?: NodeJS.Platform;
-  /** Tests only: qBittorrent without a VPN (CI has no VPN account). */
-  noVpnForTests?: boolean;
   wait?: (ms: number) => Promise<void>;
 }
 
@@ -128,21 +128,35 @@ const exists = (p: string) =>
   );
 
 /** The plan's starter apps, as the plan page shows them in "Your homelab". */
-export function starterApps(saved: SavedPlan): { id: string; name: string; installed: boolean }[] {
-  if (!saved.scan) return [];
-  const plan = recommendBuild(
-    saved.answers,
-    saved.scan,
-    saved.chosen ?? {},
-    saved.removed ?? [],
-    saved.decisions ?? {},
-  );
+export function planOf(saved: SavedPlan) {
+  return saved.scan
+    ? recommendBuild(
+        saved.answers,
+        saved.scan,
+        saved.chosen ?? {},
+        saved.removed ?? [],
+        saved.decisions ?? {},
+      )
+    : undefined;
+}
+
+export function starterApps(
+  saved: SavedPlan,
+  opts: { elsewhere?: boolean } = {},
+): { id: string; name: string; installed: boolean; elsewhere: boolean }[] {
+  const plan = planOf(saved);
+  if (!plan) return [];
   return plan.capabilities
     .filter((c) => c.starter)
     .flatMap((c) => c.apps)
-    .filter((a) => !(saved.removed ?? []).includes(a.id) && !a.elsewhere)
+    .filter((a) => !(saved.removed ?? []).includes(a.id) && (opts.elsewhere || !a.elsewhere))
     .filter((a, i, all) => all.findIndex((b) => b.id === a.id) === i)
-    .map((a) => ({ id: a.id, name: a.name, installed: Boolean(a.installed) }));
+    .map((a) => ({
+      id: a.id,
+      name: a.name,
+      installed: Boolean(a.installed),
+      elsewhere: Boolean(a.elsewhere),
+    }));
 }
 
 /** The drive with their movies and shows: the one with the most videos, never the system drive. */
@@ -285,10 +299,16 @@ export class HomelabBuilder {
     const installed = new Set(apps.filter((a) => a.installed).map((a) => a.id));
     const wanted: HomelabStepId[] = [];
     const recipeApps = RECIPE_IDS.filter((r) => ids.has(r));
-    // Seerr needs Jellyfin in this build to sign in with (Plex is not set up by Hearth yet).
-    const usable = recipeApps.filter((r) => r !== "seerr" || ids.has("jellyfin"));
+    // Seerr signs in with the media server: Jellyfin built here, or Plex (here or elsewhere).
+    const all = saved ? starterApps(saved, { elsewhere: true }) : [];
+    const plexAnywhere = all.some((a) => a.id === "plex");
+    const usable = recipeApps.filter((r) => r !== "seerr" || ids.has("jellyfin") || plexAnywhere);
     if (usable.length) wanted.push("docker", ...usable);
-    if (usable.filter((r) => r !== "jellyfin").length >= 2) wanted.push("connect");
+    if (
+      usable.filter((r) => r !== "jellyfin" && r !== "plex").length >= 2 ||
+      (ids.has("plex") && usable.length >= 1)
+    )
+      wanted.push("connect");
     if (ids.has("tailscale")) wanted.push("tailscale");
     const covered = new Set<string>([...usable, "tailscale"]);
     const notBuilt = apps
@@ -298,7 +318,7 @@ export class HomelabBuilder {
         name: a.name,
         why:
           a.id === "seerr"
-            ? "Needs Jellyfin in this build; Hearth doesn't set Seerr up with Plex yet."
+            ? "Needs a media server to sign in with (Jellyfin or Plex)."
             : "Hearth doesn't set this one up yet. Ask Ember to help you with it.",
       }));
 
@@ -328,7 +348,16 @@ export class HomelabBuilder {
         (id === "docker" && docker) ||
         (id === "tailscale" && ts === "running") ||
         (id !== "docker" && id !== "tailscale" && (Boolean(rec.done) || installed.has(id)));
-      if (done)
+      const signIn =
+        done && !installed.has(id) ? await this.signInNeeded(id, ids.has("jellyfin")) : undefined;
+      if (signIn)
+        step = {
+          ...base,
+          status: "needs-you",
+          detail: signIn.detail,
+          need: { kind: "open-app", url: signIn.url, label: signIn.label },
+        };
+      else if (done)
         step = {
           ...base,
           status: "done",
@@ -357,7 +386,7 @@ export class HomelabBuilder {
           },
         };
       else if (blocker) step = { ...base, status: "waiting", detail: blocker };
-      else if (id === "qbittorrent" && !this.d.noVpnForTests && !ledger.vpn)
+      else if (id === "qbittorrent" && !ledger.vpn)
         step = {
           ...base,
           status: "needs-you",
@@ -393,8 +422,19 @@ export class HomelabBuilder {
     }
     const next = steps.find((s) => s.status === "ready" || s.status === "failed")?.id;
     const drive = saved?.scan ? mediaDrive(saved.scan) : undefined;
+    // Why downloading is or isn't set up, from the saved plan (Ember explains it when asked).
+    const plan = saved ? planOf(saved) : undefined;
+    const request = plan?.requirements.find((r) => r.id === "want:request");
+    const downloads = {
+      setUp: ids.has("qbittorrent"),
+      wanted: Boolean(request),
+      ...(request && !ids.has("qbittorrent") ? { why: request.reason } : {}),
+      vpn: saved?.answers.existingVpn ?? "not asked",
+      keepItFree: saved?.answers.budget === "free",
+    };
     return {
       steps,
+      downloads,
       ...(next ? { next } : {}),
       notBuilt,
       appsFolder: this.d.appsRoot,
@@ -403,6 +443,71 @@ export class HomelabBuilder {
       ...(ledger.conversationId ? { conversationId: ledger.conversationId } : {}),
       done: steps.length > 0 && steps.every((s) => s.status === "done"),
     };
+  }
+
+  /** Plex's own token, once the owner signed in to the server Hearth set up (Preferences.xml). */
+  async plexToken(): Promise<string | undefined> {
+    const prefs = path.join(
+      this.d.appsRoot,
+      "plex",
+      "config",
+      "Library",
+      "Application Support",
+      "Plex Media Server",
+      "Preferences.xml",
+    );
+    const xml = await fs.readFile(prefs, "utf8").catch(() => "");
+    return /PlexOnlineToken="([^"]+)"/.exec(xml)?.[1];
+  }
+
+  /** Seerr's own settings: its API key, and whether the owner finished its first page. */
+  private async seerrSettings() {
+    const raw = await fs
+      .readFile(path.join(this.d.appsRoot, "seerr", "config", "settings.json"), "utf8")
+      .catch(() => "");
+    try {
+      const j = JSON.parse(raw) as {
+        main?: { apiKey?: string };
+        public?: { initialized?: boolean };
+      };
+      return { apiKey: j.main?.apiKey, initialized: Boolean(j.public?.initialized) };
+    } catch {
+      return { apiKey: undefined, initialized: false };
+    }
+  }
+
+  /** A step that runs but waits for the owner to sign in on the app's own page. */
+  private async signInNeeded(id: HomelabStepId, jellyfin: boolean) {
+    if (id === "plex" && !(await this.plexToken()))
+      return {
+        detail:
+          "Running. Open Plex and sign in with your Plex account: that makes this server yours. Then come back.",
+        url: `http://${os.hostname()}:32400/web`,
+        label: "Sign in to Plex",
+      };
+    if (id === "seerr" && !jellyfin && !(await this.seerrSettings()).initialized)
+      return {
+        detail:
+          "Running. Open Seerr and choose Sign in with Plex, then pick your Plex server and its libraries. Then come back.",
+        url: `http://${os.hostname()}:5055`,
+        label: "Sign in to Seerr with Plex",
+      };
+    return undefined;
+  }
+
+  /**
+   * The owner said yes to downloads after all (they'll get a VPN): the saved plan now includes
+   * them, so the request apps join the build, and qBittorrent still waits for the VPN login.
+   */
+  async addDownloads() {
+    const saved = (await getSetting(this.db, "homelab_plan")) as
+      (SavedPlan & Record<string, unknown>) | undefined;
+    if (!saved) throw new SetupError("There is no saved plan yet.");
+    await setSetting(this.db, "homelab_plan", {
+      ...saved,
+      chosen: { ...(saved.chosen ?? {}), downloads: "yes", "vpn-needed": "get" },
+    } as never);
+    return this.status();
   }
 
   /** Proposes one step as a plan the owner approves (the next one unless another is named). */
@@ -499,7 +604,7 @@ export class HomelabBuilder {
 
   /* ---------- the steps, for the job engine ---------- */
 
-  private async context(app?: RecipeId): Promise<RecipeContext> {
+  private async context(_app?: RecipeId): Promise<RecipeContext> {
     const saved = await this.plan();
     const l = await this.ledger();
     const me = os.userInfo();
@@ -509,7 +614,6 @@ export class HomelabBuilder {
       tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
       drive: mediaDrive(saved?.scan),
       ...(l.vpn ? { vpn: { provider: l.vpn.provider, type: l.vpn.type } } : {}),
-      ...(this.d.noVpnForTests && app === "qbittorrent" ? { noVpnForTests: true } : {}),
     };
   }
 
@@ -583,8 +687,7 @@ export class HomelabBuilder {
       const accounts = await this.accounts();
       if (!accounts) return refuse("Save your account details first.");
       const ctx = await this.context(app);
-      if (app === "qbittorrent" && !ctx.noVpnForTests && !ctx.vpn)
-        return refuse("Add your VPN login first.");
+      if (app === "qbittorrent" && !ctx.vpn) return refuse("Add your VPN login first.");
       const dir = path.join(this.d.appsRoot, app);
       const file = path.join(dir, "compose.yaml");
       const compose = recipe.compose(ctx);
@@ -610,7 +713,7 @@ export class HomelabBuilder {
         );
       if (app === "qbittorrent")
         where.push(
-          `Downloads go to ${folders.downloads} (a new folder). ${ctx.noVpnForTests ? "" : `Every download goes through your VPN (${VPN_PROVIDERS[ctx.vpn!.provider].name}); if the VPN drops, downloading stops.`}`,
+          `Downloads go to ${folders.downloads} (a new folder). Every download goes through your VPN (${VPN_PROVIDERS[ctx.vpn!.provider].name}), with a kill switch: if the VPN drops, downloading stops.`,
         );
       const change: StepChange = {
         summary: `Set up ${recipe.name} from Hearth's recipe`,
@@ -886,7 +989,8 @@ export class HomelabBuilder {
     const folders = await mediaFolders(ctx.drive);
     await fs.mkdir(ctx.drive, { recursive: true }).catch(() => undefined);
     if (app === "radarr") await fs.mkdir(folders.movies, { recursive: true });
-    if (app === "sonarr" || app === "jellyfin") await fs.mkdir(folders.shows, { recursive: true });
+    if (app === "sonarr" || app === "jellyfin" || app === "plex")
+      await fs.mkdir(folders.shows, { recursive: true });
     if (app === "qbittorrent") await fs.mkdir(folders.downloads, { recursive: true });
     const net = await this.d.run("docker", ["network", "inspect", NETWORK], 20_000);
     if (net.code !== 0) {
@@ -951,14 +1055,20 @@ export class HomelabBuilder {
       );
       await this.keep(app, cred);
       note = ` Downloads go to ${folders.downloads}.`;
+    } else if (app === "plex") {
+      note =
+        " Open it and sign in with your Plex account to make the server yours; then Hearth adds your Movies and Shows libraries.";
+    } else if (app === "seerr" && !(await this.secret("jellyfin", "login"))) {
+      // With Plex, the owner signs in on Seerr's own page; its API key is in its settings.
+      let key: string | undefined;
+      for (let i = 0; i < 40 && !key; i++) {
+        key = (await this.seerrSettings()).apiKey;
+        if (!key) await (this.d.wait ?? ((ms) => new Promise((r) => setTimeout(r, ms))))(3_000);
+      }
+      if (key) await this.keep(app, undefined, key);
+      note = " Open it and choose Sign in with Plex, then pick your Plex server.";
     } else if (app === "seerr") {
-      const jf = await this.secret("jellyfin", "login");
-      if (!jf)
-        return {
-          ok: false,
-          result:
-            "Seerr signs in with your Jellyfin account, which isn't in Secure Vault: set up Jellyfin first.",
-        };
+      const jf = (await this.secret("jellyfin", "login"))!;
       const a = (await this.accounts())!;
       const r = await setupSeerr(
         recipe.local,
@@ -974,7 +1084,10 @@ export class HomelabBuilder {
     });
     return {
       ok: true,
-      result: `${recipe.name} is set up and running at http://${os.hostname()}:${recipe.port}, with your account in it (saved in Secure Vault).${note}`,
+      result:
+        app === "plex" || (app === "seerr" && !(await this.secret("jellyfin", "login")))
+          ? `${recipe.name} is running at http://${os.hostname()}:${recipe.port}.${note}`
+          : `${recipe.name} is set up and running at http://${os.hostname()}:${recipe.port}, with your account in it (saved in Secure Vault).${note}`,
     };
   }
 
@@ -985,6 +1098,28 @@ export class HomelabBuilder {
     const deps: SetupDeps = { ...this.d.setup, ...(this.d.wait ? { wait: this.d.wait } : {}) };
     const lines: string[] = [];
     const key = (app: RecipeId) => this.secret(app, "key");
+    if (have("plex")) {
+      const token = await this.plexToken();
+      if (token) {
+        const folders = await mediaFolders(ctx.drive);
+        const rel = (p: string) =>
+          path.posix.join("/media", path.relative(ctx.drive, p).split(path.sep).join("/"));
+        const r = await setupPlexLibraries(
+          RECIPES.plex.local,
+          token,
+          [
+            {
+              name: "Movies",
+              type: "movie",
+              path: folders.foundMovies ? rel(folders.movies) : "/media",
+            },
+            { name: "TV Shows", type: "show", path: rel(folders.shows) },
+          ],
+          deps,
+        );
+        lines.push(`Plex has your libraries: ${r.join(", ")}.`);
+      }
+    }
     const qbtLogin = have("qbittorrent")
       ? {
           username: (await this.accounts())!.username,

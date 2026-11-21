@@ -15,6 +15,7 @@ import { HomelabBuilder, mediaDrive, mediaFolders, starterApps } from "./service
 import { RECIPES } from "./recipes";
 
 const handles: DbHandle[] = [];
+const handlesLast = () => handles[handles.length - 1]!;
 afterEach(() => {
   for (const h of handles.splice(0)) h.close();
 });
@@ -85,7 +86,9 @@ function fakeJobs() {
   return jobs;
 }
 
-async function setup(opts: { docker?: boolean; helper?: string[]; accounts?: boolean } = {}) {
+async function setup(
+  opts: { docker?: boolean; helper?: string[]; accounts?: boolean; answers?: BuildAnswers } = {},
+) {
   const handle = openDatabase(":memory:");
   await runMigrations(handle, path.join(SERVER_ROOT, "drizzle"));
   handles.push(handle);
@@ -103,7 +106,7 @@ async function setup(opts: { docker?: boolean; helper?: string[]; accounts?: boo
     },
   ];
   await setSetting(handle.db, "homelab_plan", {
-    answers: ANSWERS,
+    answers: opts.answers ?? ANSWERS,
     scan,
     chosen: {},
     removed: [],
@@ -273,5 +276,75 @@ describe("Build my plan", () => {
     void handle;
     const apps = starterApps({ answers: ANSWERS, scan: fakeHostScan([]), chosen: {}, removed: [] });
     expect(apps.map((a) => a.id)).toContain("jellyfin");
+  });
+
+  it("the VPN rule: no VPN, keep it free: no download app, and Ember can say why", async () => {
+    const { builder } = await setup({
+      docker: true,
+      helper: ["docker.install"],
+      answers: { ...ANSWERS, existingVpn: "none" },
+    });
+    const st = await builder.status();
+    expect(st.steps.map((s) => s.id)).not.toContain("qbittorrent");
+    expect(st.downloads).toMatchObject({ setUp: false, wanted: true, keepItFree: true });
+    expect(st.downloads!.why).toMatch(/VPN that allows P2P/);
+    // They say yes: downloading joins the plan, and still waits for their VPN login.
+    const after = await builder.addDownloads();
+    const qb = after.steps.find((s) => s.id === "qbittorrent")!;
+    expect(qb.status).toBe("needs-you");
+    expect(qb.need).toMatchObject({ kind: "vpn-login" });
+    const refused = await builder.planStep({
+      kind: "build-app",
+      serviceId: "this-host",
+      params: { app: "qbittorrent" },
+    });
+    expect(refused.policy).toBe("refuse");
+  });
+
+  it("a Plex account with no server: Plex is built here, and waits for the owner to sign in", async () => {
+    const { builder, root } = await setup({
+      docker: true,
+      helper: ["docker.install"],
+      answers: {
+        ...ANSWERS,
+        existingServer: "plex",
+        plexServer: "account-only",
+        plexPass: "lifetime",
+        media: "external",
+      },
+    });
+    expect((await builder.status()).steps.map((s) => s.id)).toContain("plex");
+    const p = await builder.planStep({
+      kind: "build-app",
+      serviceId: "this-host",
+      params: { app: "plex" },
+    });
+    expect(p.policy).toBe("approve-first");
+    expect(p.change!.settings.find((r) => r.name === "compose.yaml")!.after).toContain(
+      "network_mode: host",
+    );
+    // Built, but not signed in yet: the owner signs in on Plex's own page.
+    await setSetting(handlesLast().db, "homelab_build", {
+      steps: { docker: { done: "x" }, plex: { done: "x" } },
+      secrets: {},
+    });
+    const plex = (await builder.status()).steps.find((s) => s.id === "plex")!;
+    expect(plex.status).toBe("needs-you");
+    expect(plex.need).toMatchObject({ kind: "open-app", label: "Sign in to Plex" });
+    // Signed in: Plex wrote its token, and the step is done.
+    const prefs = path.join(
+      root,
+      "plex",
+      "config",
+      "Library",
+      "Application Support",
+      "Plex Media Server",
+    );
+    await fs.mkdir(prefs, { recursive: true });
+    await fs.writeFile(
+      path.join(prefs, "Preferences.xml"),
+      '<Preferences PlexOnlineToken="tok123"/>',
+    );
+    expect((await builder.status()).steps.find((s) => s.id === "plex")!.status).toBe("done");
   });
 });

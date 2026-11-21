@@ -247,6 +247,16 @@ export function BuildProgress({ aiName }: { aiName: string }) {
               {s.status === "needs-you" && s.need?.kind === "vpn-login" && (
                 <VpnNeed {...(s.need.provider ? { provider: s.need.provider } : {})} />
               )}
+              {s.status === "needs-you" && s.need?.kind === "open-app" && (
+                <a
+                  href={s.need.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-flex min-h-11 items-center rounded-lg bg-gold px-4 text-[0.88rem] text-bg hover:bg-gold-bright"
+                >
+                  {s.need.label}
+                </a>
+              )}
               {s.status === "needs-you" && s.need?.kind === "tailscale-login" && (
                 <TailscaleNeed {...(s.need.url ? { url: s.need.url } : {})} />
               )}

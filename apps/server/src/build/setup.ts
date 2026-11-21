@@ -239,10 +239,11 @@ async function qbtLogin(base: string, username: string, password: string, deps: 
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded", Referer: base },
     body: new URLSearchParams({ username, password }).toString(),
-    ok: [200, 401, 403],
+    ok: [200, 204, 401, 403],
   });
   const sid = /SID=([^;]+)/.exec(r.headers.get("set-cookie") ?? "")?.[1];
-  return r.text.trim() === "Ok." && sid ? sid : undefined;
+  // qBittorrent 4 answers "Ok."; 5 answers 204 with no body. Either way, with a session.
+  return (r.status === 204 || r.text.trim() === "Ok.") && sid ? sid : undefined;
 }
 
 /**
@@ -319,8 +320,10 @@ export async function setupSeerr(
     json: {
       username: jellyfin.username,
       password: jellyfin.password,
-      // Seerr v3: the whole address of the Jellyfin server.
-      hostname: `http://${jellyfin.host}:${jellyfin.port}`,
+      hostname: jellyfin.host,
+      port: jellyfin.port,
+      useSsl: false,
+      urlBase: "",
       email: jellyfin.email,
       serverType: 2,
     },
@@ -512,4 +515,44 @@ export async function connectSeerrArr(
   );
   if (!after.length) throw new SetupError(`Seerr does not list ${target.kind} after adding it.`);
   return "added";
+}
+
+/* ---------- Plex ---------- */
+
+/**
+ * Plex's libraries, once the owner signed in to the server (its own token, from Preferences.xml):
+ * Movies and TV Shows pointed at the drive, read back from Plex. One already there is kept.
+ */
+export async function setupPlexLibraries(
+  base: string,
+  token: string,
+  libraries: { name: string; type: "movie" | "show"; path: string }[],
+  deps: SetupDeps = {},
+): Promise<string[]> {
+  const h = { "X-Plex-Token": token, Accept: "application/json" };
+  const list = async () =>
+    (
+      parse<{
+        MediaContainer?: { Directory?: { title: string; Location?: { path: string }[] }[] };
+      }>((await call(deps, `${base}/library/sections`, { headers: h })).text).MediaContainer
+        ?.Directory ?? []
+    ).map((d) => ({ title: d.title, paths: (d.Location ?? []).map((l) => l.path) }));
+  const have = await list();
+  for (const lib of libraries) {
+    if (have.some((d) => d.title === lib.name || d.paths.includes(lib.path))) continue;
+    const qs = new URLSearchParams({
+      name: lib.name,
+      type: lib.type,
+      agent: lib.type === "movie" ? "tv.plex.agents.movie" : "tv.plex.agents.series",
+      scanner: lib.type === "movie" ? "Plex Movie" : "Plex TV Series",
+      language: "en-US",
+      location: lib.path,
+    });
+    await call(deps, `${base}/library/sections?${qs}`, { method: "POST", headers: h });
+  }
+  const after = await list();
+  for (const lib of libraries)
+    if (!after.some((d) => d.title === lib.name || d.paths.includes(lib.path)))
+      throw new SetupError(`Plex does not list the ${lib.name} library after adding it.`);
+  return after.map((d) => d.title);
 }

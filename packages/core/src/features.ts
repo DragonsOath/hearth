@@ -245,7 +245,7 @@ export const FEATURES: Feature[] = [
     labels: ["Build it with", "Building your homelab", "Save my VPN login", "Copy the command"],
     status: "partial",
     statusNote:
-      "Linux (Ubuntu, Debian, Fedora and their relatives) with Hearth's admin helper: Docker, Jellyfin, Seerr, Radarr, Sonarr, Prowlarr, qBittorrent through the VPN, the connections between them, and Tailscale. Plex, the shared folder, backups and the other apps are not built yet, and Windows plans only.",
+      "Linux (Ubuntu, Debian, Fedora and their relatives) with Hearth's admin helper: Docker, Jellyfin, Seerr, Radarr, Sonarr, Prowlarr, qBittorrent through the VPN, the connections between them, and Tailscale. Plex is set up too (the owner signs in on its page). Downloading is only ever set up with a VPN that allows P2P. The shared folder, backups and the other apps are not built yet, and Windows plans only.",
     evidence: [
       {
         file: "apps/server/src/build/service.test.ts",

@@ -13,10 +13,12 @@ import type { VpnProvider } from "@dragon-control/core";
  * or deleted by setting these up.
  */
 
-export type RecipeId = "jellyfin" | "seerr" | "radarr" | "sonarr" | "prowlarr" | "qbittorrent";
+export type RecipeId =
+  "jellyfin" | "plex" | "seerr" | "radarr" | "sonarr" | "prowlarr" | "qbittorrent";
 
 export const RECIPE_IDS: readonly RecipeId[] = [
   "jellyfin",
+  "plex",
   "seerr",
   "radarr",
   "sonarr",
@@ -75,6 +77,7 @@ export const WIREGUARD_ONLY: readonly VpnProvider[] = ["airvpn"];
 
 const IMAGES = {
   jellyfin: "jellyfin/jellyfin:12.4",
+  plex: "lscr.io/linuxserver/plex:1.43.5",
   seerr: "ghcr.io/seerr-team/seerr:v3.5.2",
   radarr: "lscr.io/linuxserver/radarr:7.0.3",
   sonarr: "lscr.io/linuxserver/sonarr:4.0.20",
@@ -143,6 +146,32 @@ export const RECIPES: Record<RecipeId, Recipe> = {
       - ${q(`${ctx.drive}:/media:ro`)}
 ${network}`,
   },
+  plex: {
+    id: "plex",
+    name: "Plex",
+    port: 32400,
+    containers: ["plex"],
+    local: "http://127.0.0.1:32400",
+    images: { plex: IMAGES.plex },
+    // The host's network, as Plex recommends, so TVs and phones on the home network find it.
+    // The owner signs in on its own page, which makes the server theirs.
+    compose: (ctx) => `${header("plex")}services:
+  plex:
+    image: ${IMAGES.plex}
+    container_name: plex
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      PUID: ${q(String(ctx.uid))}
+      PGID: ${q(String(ctx.gid))}
+      TZ: ${q(ctx.tz)}
+      VERSION: docker
+    volumes:
+      - ./config:/config
+      # Your drive, read only: Plex plays your movies and shows, never changes them.
+      - ${q(`${ctx.drive}:/media:ro`)}
+`,
+  },
   seerr: {
     id: "seerr",
     name: "Seerr",
@@ -160,6 +189,9 @@ ${network}`,
     environment:
       TZ: ${q(ctx.tz)}
       LOG_LEVEL: info
+    # Plex runs on the computer's own network: Seerr reaches it as host.docker.internal.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "5055:5055"
     volumes:

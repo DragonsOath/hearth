@@ -132,6 +132,10 @@ function HelloStep({ onPick }: { onPick: (journey: "build" | "existing") => void
         )}
       </div>
       <p className="mt-4 text-[0.8rem] text-faint">
+        Hearth is free. You bring your own AI (Ollama is free and runs at home) and, for automatic
+        downloads, your own VPN.
+      </p>
+      <p className="mt-2 text-[0.8rem] text-faint">
         Either way, you can stop any time and pick up where you left off.
       </p>
     </>

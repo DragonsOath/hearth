@@ -8,6 +8,7 @@ import type { VpnProvider } from "./build-plan";
 export type HomelabStepId =
   | "docker"
   | "jellyfin"
+  | "plex"
   | "seerr"
   | "radarr"
   | "sonarr"
@@ -31,7 +32,9 @@ export type HomelabStepStatus =
 export type HomelabNeed =
   | { kind: "helper"; command: string }
   | { kind: "vpn-login"; provider?: VpnProvider }
-  | { kind: "tailscale-login"; url?: string };
+  | { kind: "tailscale-login"; url?: string }
+  /** Sign in on the app's own page (Plex, Seerr with Plex): the owner's account, never Hearth's. */
+  | { kind: "open-app"; url: string; label: string };
 
 export interface HomelabStep {
   id: HomelabStepId;
@@ -57,12 +60,21 @@ export interface HomelabBuild {
   blocker?: string;
   /** The conversation the build is talked through in. */
   conversationId?: string;
+  /** Whether downloading is set up, and why not, from the saved plan (the VPN rule). */
+  downloads?: {
+    setUp: boolean;
+    wanted: boolean;
+    why?: string;
+    vpn: string;
+    keepItFree: boolean;
+  };
   done: boolean;
 }
 
 export const HOMELAB_STEP_IDS: readonly HomelabStepId[] = [
   "docker",
   "jellyfin",
+  "plex",
   "seerr",
   "radarr",
   "sonarr",

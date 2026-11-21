@@ -126,7 +126,9 @@ describe("the beginner's plan", () => {
   });
 
   it("brings the download tools with a request wish, with the P2P VPN said up front and approved", () => {
-    const plan = recommendBuild(answers({ wants: ["request"], budget: "low" }), scan());
+    const plan = recommendBuild(answers({ wants: ["request"], budget: "low" }), scan(), {
+      "vpn-needed": "get",
+    });
     expect(apps(plan)).toEqual(
       expect.arrayContaining(["jellyfin", "seerr", "radarr", "sonarr", "prowlarr", "qbittorrent"]),
     );
@@ -143,6 +145,7 @@ describe("the beginner's plan", () => {
     const plan = recommendBuild(
       answers({ wants: ["explore"], away: "away", budget: "unsure" }),
       scan(),
+      { "vpn-needed": "get" },
     );
     expect(apps(plan)).toEqual([
       "jellyfin",
@@ -153,16 +156,18 @@ describe("the beginner's plan", () => {
       "qbittorrent",
       "tailscale",
     ]);
-    expect(plan.choices.map((c) => c.id)).toEqual(["media-app", "downloads", "vpn"]);
+    expect(plan.choices.map((c) => c.id)).toEqual(["media-app", "downloads", "vpn-needed", "vpn"]);
     expect(plan.choices[1]!.recommended).toBe("yes");
-    expect(plan.choices[2]).toMatchObject({ recommended: "proton" });
-    expect(plan.choices[2]!.options.map((o) => o.id)).toEqual(["proton", "airvpn", "mullvad"]);
+    expect(plan.choices[3]).toMatchObject({ recommended: "proton" });
+    expect(plan.choices[3]!.options.map((o) => o.id)).toEqual(["proton", "airvpn", "mullvad"]);
     const q = plan.capabilities.flatMap((c) => c.apps).find((x) => x.id === "qbittorrent")!;
     expect(q.why).toMatch(/only ever through Proton VPN,/);
     // A free budget is told plainly there is no good free option; Proton stays the best value.
-    const free = recommendBuild(answers({ wants: ["explore"], budget: "free" }), scan());
-    expect(free.choices[2]).toMatchObject({ recommended: "proton" });
-    expect(free.choices[2]!.why).toMatch(/no good free option/);
+    const free = recommendBuild(answers({ wants: ["explore"], budget: "free" }), scan(), {
+      "vpn-needed": "get",
+    });
+    expect(free.choices[3]).toMatchObject({ recommended: "proton" });
+    expect(free.choices[3]!.why).toMatch(/no free VPN Hearth will use/);
     // Saying no to downloads leaves just the media server.
     expect(
       apps(recommendBuild(answers({ wants: ["explore"] }), scan(), { downloads: "no" })),

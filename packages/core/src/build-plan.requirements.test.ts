@@ -33,6 +33,8 @@ const scan = (over: Partial<HostScan> = {}): HostScan => ({
   network: "wired",
   docker: true,
   running: [],
+  // A VPN found on this computer, so download goals can be met (the VPN rule has its own tests).
+  vpns: ["proton"],
   ...over,
 });
 const answers = (over: Partial<BuildAnswers> = {}): BuildAnswers => ({
@@ -205,8 +207,12 @@ describe("every goal is traced to the plan", () => {
     expect(req(other, "existing:vpn")).toMatchObject({ status: "partial" });
     expect(req(other, "existing:vpn")!.reason).toMatch(/tell Ember which one/);
 
-    // "Keep it free" with downloads: the one thing that costs money is named.
-    const free = recommendBuild(answers({ wants: ["request"], budget: "free" }), scan());
+    // "Keep it free" with downloads and a VPN still to get: the one thing that costs money is named.
+    const free = recommendBuild(
+      answers({ wants: ["request"], budget: "free", existingVpn: "none" }),
+      scan({ vpns: [] }),
+      { "vpn-needed": "get" },
+    );
     expect(req(free, "budget:free")).toMatchObject({ status: "partial" });
     expect(req(free, "budget:free")!.reason).toMatch(/except a VPN that allows P2P/);
     const ownVpn = recommendBuild(
@@ -710,5 +716,91 @@ describe("the planning assumptions are labelled as assumptions", () => {
         /working assumptions, still being checked on real computers, not guarantees/,
       );
     }
+  });
+});
+
+describe("the VPN rule: downloading only ever through a VPN that allows P2P", () => {
+  const noVpn = answers({ wants: ["watch", "request"], budget: "free", existingVpn: "none" });
+  const noScanVpn = scan({ vpns: [] });
+  const starter = (plan: BuildPlan) =>
+    plan.capabilities.filter((c) => c.starter).flatMap((c) => c.apps.map((x) => x.id));
+
+  it("keep it free, no VPN, wants downloads: the warning is shown and qBittorrent is left out", () => {
+    const plan = recommendBuild(noVpn, noScanVpn);
+    const c = plan.choices.find((x) => x.id === "vpn-needed")!;
+    expect(c.mustPick).toBe(true);
+    expect(c.notice!.join(" ")).toMatch(/Free VPNs almost never allow it/);
+    expect(c.notice!.join(" ")).toMatch(/Hearth will not set up downloading without a VPN/);
+    expect(c.options.map((o) => o.name)).toEqual([
+      "I'll get a VPN (about $2 to $5 a month)",
+      "Skip automatic downloads for now (just play my own files, free)",
+    ]);
+    expect(c.recommended).toBe("skip");
+    expect(starter(plan)).not.toContain("qbittorrent");
+    // Nothing quietly added, nothing quietly dropped: the wish says why it waits.
+    expect(req(plan, "want:request")!.reason).toMatch(/never sets them up without one/);
+    expect(req(plan, "budget:free")).toMatchObject({ status: "included" });
+    // Skipping keeps it free and says what adding it later costs.
+    const skip = recommendBuild(noVpn, noScanVpn, { "vpn-needed": "skip" });
+    expect(starter(skip)).not.toContain("qbittorrent");
+    expect(req(skip, "want:request")!.reason).toMatch(/about \$2 to \$5 a month/);
+    // Only choosing to get a VPN brings the download tools, and never a free VPN.
+    const get = recommendBuild(noVpn, noScanVpn, { "vpn-needed": "get" });
+    expect(starter(get)).toContain("qbittorrent");
+    expect(get.choices.find((x) => x.id === "vpn")!.recommended).toBe("proton");
+  });
+
+  it("a budget for it still has to choose: getting a VPN is recommended, not assumed", () => {
+    const plan = recommendBuild({ ...noVpn, budget: "low" }, noScanVpn);
+    expect(plan.choices.find((x) => x.id === "vpn-needed")!.recommended).toBe("get");
+    expect(starter(plan)).not.toContain("qbittorrent");
+  });
+
+  it("Bob: Plex lifetime, a VPN, keep it free: Plex is recommended and his VPN reused", () => {
+    const bob = answers({
+      wants: ["watch", "request"],
+      budget: "free",
+      existingServer: "plex",
+      plexPass: "lifetime",
+      plexServer: "running",
+      existingVpn: "nord",
+      downloadSites: "yes",
+      media: "external",
+      devices: ["smart-tv"],
+    });
+    const plan = recommendBuild(bob, scan({ vpns: [] }), { "media-where": "here" });
+    const media = plan.choices.find((x) => x.id === "media-app")!;
+    expect(media.recommended).toBe("plex");
+    expect(media.why).toBe(
+      "You already pay for Plex Pass, so you get its best features at no extra cost.",
+    );
+    expect(plan.choices.find((x) => x.id === "vpn-needed")).toBeUndefined();
+    expect(plan.choices.find((x) => x.id === "vpn")!.recommended).toBe("have-nord");
+    expect(starter(plan)).toEqual(expect.arrayContaining(["plex", "qbittorrent", "prowlarr"]));
+    // What he already pays for counts as free.
+    expect(req(plan, "budget:free")).toMatchObject({ status: "included" });
+    const prowlarr = plan.capabilities.flatMap((c) => c.apps).find((x) => x.id === "prowlarr")!;
+    expect(prowlarr.why).toMatch(/Ember helps you add them here later/);
+    expect(prowlarr.why).toMatch(/Hearth never names or suggests any/);
+    // Away from home with Plex Pass already paid: nothing to buy.
+    const away = recommendBuild({ ...bob, away: "away" }, scan({ vpns: [] }));
+    expect(req(away, "budget:free")!.reason ?? "").not.toMatch(/Plex Pass/);
+  });
+
+  it("a Plex account with no server yet: Plex is set up here with their account", () => {
+    const plan = recommendBuild(
+      answers({
+        wants: ["watch"],
+        existingServer: "plex",
+        plexServer: "account-only",
+        plexPass: "free",
+        media: "external",
+      }),
+      scan(),
+    );
+    expect(plan.choices.find((x) => x.id === "media-where")).toBeUndefined();
+    const plex = plan.capabilities.flatMap((c) => c.apps).find((x) => x.id === "plex")!;
+    expect(plex.elsewhere).toBeUndefined();
+    expect(plex.why).toMatch(/sets one up here, signed in to your account/);
   });
 });

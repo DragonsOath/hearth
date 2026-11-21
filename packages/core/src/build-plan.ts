@@ -36,6 +36,12 @@ export interface BuildAnswers {
   /** Where their movies, music, or files are now. */
   media?: "this-computer" | "external" | "several" | "none" | Unsure;
   existingServer?: "plex" | "jellyfin" | "emby" | "none" | Unsure;
+  /** With Plex: whether they pay for Plex Pass. What they already pay for counts as free. */
+  plexPass?: "free" | "subscription" | "lifetime" | Unsure;
+  /** With Plex: a Plex server already running somewhere, or only the account. */
+  plexServer?: "running" | "account-only" | Unsure;
+  /** Sites they already download from (never named or suggested by Hearth). */
+  downloadSites?: "yes" | "no" | Unsure;
   importance?: "replaceable" | "some" | "irreplaceable" | Unsure;
   /** Where they will enjoy it (several). */
   devices: BuildDevice[];
@@ -176,6 +182,33 @@ export const BUILD_QUESTIONS = {
       ["jellyfin", "Jellyfin"],
       ["emby", "Emby"],
       ["none", "No"],
+      ["unsure", "I'm not sure"],
+    ],
+  },
+  plexPass: {
+    question: "Do you pay for Plex Pass?",
+    help: "Not sure? Sign in at plex.tv and open your account: it says Plex Pass there if you have it.",
+    options: [
+      ["free", "No, free account"],
+      ["subscription", "Yes, monthly or yearly"],
+      ["lifetime", "Yes, lifetime"],
+      ["unsure", "I'm not sure"],
+    ],
+  },
+  plexServer: {
+    question: "Is your Plex server already set up on a computer?",
+    help: "Only a Plex account (you watch other people's servers, or never set one up)? Hearth sets one up here with your account.",
+    options: [
+      ["running", "Yes, it runs on a computer already"],
+      ["account-only", "No, I just have the account"],
+      ["unsure", "I'm not sure"],
+    ],
+  },
+  downloadSites: {
+    question: "Do you already download movies or shows from somewhere?",
+    options: [
+      ["yes", "Yes, I have sites I use"],
+      ["no", "No"],
       ["unsure", "I'm not sure"],
     ],
   },
@@ -323,6 +356,10 @@ export interface BuildChoice {
   options: { id: string; name: string; summary: string; cost: string }[];
   recommended: string;
   why: string;
+  /** Said plainly before they pick (the VPN rule's warning), one paragraph each. */
+  notice?: string[];
+  /** Nothing is assumed: until they pick, the plan leaves this out. */
+  mustPick?: boolean;
 }
 
 export interface BuildCapability {
@@ -605,7 +642,11 @@ function mediaChoice(a: BuildAnswers): BuildChoice {
   const tvApps = has(a.devices, "smart-tv", "roku", "console", "apple-tv");
   let recommended: "plex" | "jellyfin";
   let why: string;
-  if (a.existingServer === "plex" || a.existingServer === "jellyfin") {
+  if (a.existingServer === "plex" && (a.plexPass === "subscription" || a.plexPass === "lifetime")) {
+    // What they already pay for counts as free ("Keep it free" means no new spending).
+    recommended = "plex";
+    why = "You already pay for Plex Pass, so you get its best features at no extra cost.";
+  } else if (a.existingServer === "plex" || a.existingServer === "jellyfin") {
     recommended = a.existingServer;
     why = `You already use ${a.existingServer === "plex" ? "Plex" : "Jellyfin"}, so your library and habits carry straight over.`;
   } else if (a.budget === "free" || a.budget === undefined || a.budget === "unsure") {
@@ -738,7 +779,7 @@ export function recommendBuild(
             : "You said you'd watch your own movies, so you don't need it to start. It's easy to add later.",
       }
     : undefined;
-  const downloads = downloadsChoice
+  const wantsDownloads = downloadsChoice
     ? (chosen["downloads"] ?? downloadsChoice.recommended) === "yes"
     : false;
   // A VPN they already have (said, or found installed) is reused before anything is bought.
@@ -746,6 +787,46 @@ export function recommendBuild(
     a.existingVpn && a.existingVpn in VPN_PROVIDERS
       ? (a.existingVpn as VpnProvider)
       : scan.vpns?.[0];
+  // The VPN rule: downloading is never set up without a VPN that allows P2P, whatever the budget.
+  // Someone without one is told so plainly and picks: get one, or skip downloads for now. Until
+  // they pick, nothing is assumed and nothing costs money.
+  const hasVpn = !!have || a.existingVpn === "other";
+  const vpnNeededChoice: BuildChoice | undefined =
+    wantsDownloads && !hasVpn
+      ? {
+          id: "vpn-needed",
+          question: "Automatic downloads need a VPN",
+          notice: [
+            "Automatic downloads need a VPN that allows P2P (torrenting). Free VPNs almost never allow it. Hearth is free, but you bring your own VPN, the same way you bring your own AI.",
+            "Without a VPN, your internet provider can see your downloads and may warn you, slow you down, or cut off your service.",
+            "What you download is your responsibility. Hearth will not set up downloading without a VPN.",
+          ],
+          mustPick: true,
+          options: [
+            {
+              id: "get",
+              name: "I'll get a VPN (about $2 to $5 a month)",
+              summary:
+                "Hearth sets up downloading only through it, with a kill switch: if the VPN drops, downloading stops.",
+              cost: "About $2 to $5 a month for the VPN",
+            },
+            {
+              id: "skip",
+              name: "Skip automatic downloads for now (just play my own files, free)",
+              summary:
+                "Your media server plays what you put on the drive. Add downloads any time later.",
+              cost: "Free",
+            },
+          ],
+          recommended: a.budget === "free" ? "skip" : "get",
+          why:
+            a.budget === "free"
+              ? "You asked to keep it free, and a VPN that allows downloading costs money. Adding downloads later costs about $2 to $5 a month for the VPN."
+              : "It fits the budget you chose, and it's the only safe way to download.",
+        }
+      : undefined;
+  const vpnPicked = vpnNeededChoice ? chosen["vpn-needed"] : undefined;
+  const downloads = wantsDownloads && (hasVpn || vpnPicked === "get");
   const vpnOption = (id: VpnProvider) => ({
     id,
     name: VPN_PROVIDERS[id].name,
@@ -774,7 +855,7 @@ export function recommendBuild(
         recommended: have ? `have-${have}` : "proton",
         why: have
           ? `No need to pay twice: ${VPN_PROVIDERS[have].name} already does the job.`
-          : `${a.budget === "free" ? "There's no good free option: free VPNs either don't allow P2P or cap data at about 10 GB a month (one or two movies). " : ""}Proton VPN is the best value overall: a strong privacy reputation, P2P, and port forwarding for faster downloads, for about $4 to $5 a month. AirVPN costs a little less if price matters most. Prices change, so they're checked again before you sign up, and you create the account yourself.`,
+          : `${a.budget === "free" ? "There's no free VPN Hearth will use for this: free ones either don't allow P2P or cap data at about 10 GB a month (one or two movies). " : ""}Proton VPN is the best value overall: a strong privacy reputation, P2P, and port forwarding for faster downloads, for about $4 to $5 a month. AirVPN costs a little less if price matters most. Prices change, so they're checked again before you sign up, and you create the account yourself.`,
       }
     : undefined;
 
@@ -783,8 +864,11 @@ export function recommendBuild(
   const existingHere =
     (a.existingServer === "plex" || a.existingServer === "jellyfin") &&
     scan.running.some((r) => r.toLowerCase().includes(a.existingServer!));
+  // A Plex account but no Plex server yet: one is set up here, signed in to their account.
+  const plexAccountOnly = a.existingServer === "plex" && a.plexServer === "account-only";
   const whereChoice: BuildChoice | undefined =
     (a.existingServer === "plex" || a.existingServer === "jellyfin") &&
+    !plexAccountOnly &&
     !existingHere &&
     mediaApp === a.existingServer &&
     (wants.includes("watch") || wants.includes("request") || wants.includes("music"))
@@ -846,7 +930,12 @@ export function recommendBuild(
   const caps: BuildCapability[] = [];
   const addCap = (id: BuildCapability["id"], title: string, apps: BuildApp[]) =>
     caps.push({ id, title, apps, starter: true });
-  const mediaWhy = media.recommended === mediaApp ? media.why : "You chose it.";
+  const mediaWhy =
+    media.recommended === mediaApp
+      ? plexAccountOnly && mediaApp === "plex"
+        ? `${media.why} You have a Plex account but no server yet, so Hearth sets one up here, signed in to your account.`
+        : media.why
+      : "You chose it.";
   if (watching)
     addCap("watch", "Watch your movies and shows on your TV and phone", [
       app(mediaApp, exploring ? `Most people start here. ${mediaWhy}` : mediaWhy),
@@ -908,7 +997,9 @@ export function recommendBuild(
       app("sonarr", "It does the same for shows, and grabs new episodes as they air."),
       app(
         "prowlarr",
-        "Radarr and Sonarr need somewhere to look; this keeps that list in one place.",
+        a.downloadSites === "yes"
+          ? "Radarr and Sonarr need somewhere to look. You said you already have sites you use: Ember helps you add them here later. Hearth never names or suggests any."
+          : "Radarr and Sonarr need somewhere to look; this keeps that list in one place. You add the sites you choose; Hearth never suggests any.",
       ),
       app(
         "qbittorrent",
@@ -1125,6 +1216,7 @@ export function recommendBuild(
   else if (musicServer) choices.push({ ...media, question: "Which app plays your music?" });
   if (whereChoice) choices.push(whereChoice);
   if (downloadsChoice) choices.push(downloadsChoice);
+  if (vpnNeededChoice) choices.push(vpnNeededChoice);
   if (vpnChoice) choices.push(vpnChoice);
   if (windowsOrMac)
     choices.push({
@@ -1182,6 +1274,8 @@ export function recommendBuild(
     mediaApp,
     downloads,
     downloadsAsked: !!downloadsChoice,
+    vpnHeld: wantsDownloads && !downloads,
+    vpnPicked,
     vpnId: vpnChoice ? (chosen["vpn"] ?? vpnChoice.recommended) : undefined,
     gpu: !!gpu,
     elsewhere,
@@ -1243,6 +1337,9 @@ function traceRequirements(p: {
   mediaApp: "plex" | "jellyfin";
   downloads: boolean;
   downloadsAsked: boolean;
+  /** Downloads wanted, but held: no VPN that allows P2P (yet). */
+  vpnHeld?: boolean;
+  vpnPicked?: string;
   vpnId?: string;
   gpu: boolean;
   elsewhere: boolean;
@@ -1330,13 +1427,23 @@ function traceRequirements(p: {
             base,
             `Seerr to ask, Radarr and Sonarr to find, Prowlarr to search, and qBittorrent to download through your VPN, into ${nameOf(mediaApp)}.`,
           )
-        : {
-            ...base,
-            apps: [],
-            status: "declined",
-            reason:
-              "You chose to add your own files instead, so the download tools aren't in the plan. Switch it back any time.",
-          },
+        : p.vpnHeld
+          ? {
+              ...base,
+              apps: [],
+              status: p.vpnPicked === "skip" ? "declined" : "substituted",
+              reason:
+                p.vpnPicked === "skip"
+                  ? `You chose to skip automatic downloads for now: Hearth never sets up downloading without a VPN that allows P2P. Adding them later needs one, about $2 to $5 a month.${a.budget === "free" ? " That keeps everything free." : ""}`
+                  : "Automatic downloads need a VPN that allows P2P, and Hearth never sets them up without one. Pick below: get a VPN (about $2 to $5 a month), or skip downloads for now.",
+            }
+          : {
+              ...base,
+              apps: [],
+              status: "declined",
+              reason:
+                "You chose to add your own files instead, so the download tools aren't in the plan. Switch it back any time.",
+            },
     );
   }
   for (const w of Object.keys(WANT_APPS) as (keyof typeof WANT_APPS)[]) {
@@ -1485,7 +1592,13 @@ function traceRequirements(p: {
     const pays: string[] = [];
     if (p.downloads && !removed.includes("qbittorrent") && !p.vpnId?.startsWith("have-"))
       pays.push("a VPN that allows P2P (about $3 to $5 a month)");
-    if (mediaApp === "plex" && a.away === "away" && !removed.includes("plex"))
+    if (
+      mediaApp === "plex" &&
+      a.away === "away" &&
+      !removed.includes("plex") &&
+      a.plexPass !== "subscription" &&
+      a.plexPass !== "lifetime"
+    )
       pays.push("Plex Pass, which Plex needs for watching away from home");
     out.push({
       id: "budget:free",

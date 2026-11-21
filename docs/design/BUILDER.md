@@ -10,6 +10,16 @@ then looks after what it built.
 The goal: Hearth is the first stop for anyone who wants a home server and does not
 know where to begin.
 
+**Status (2026-11-21): the media starter is built on Linux.** After the plan and the account
+details, **Build it with Ember** hands over to Ember, who builds the plan one approved step at a
+time through `homelab_build` (apps/server/src/build): Docker and Tailscale through the admin
+helper (`docker.install`, `tailscale.install`, protected), then Jellyfin, Seerr, Radarr,
+Sonarr, Prowlarr and qBittorrent behind Gluetun from reviewed recipes (`build/recipes.ts`,
+pinned images), each with the owner's account made through its own API and the login and key
+saved in Secure Vault (`build/setup.ts`), then the connections between them. The plan page shows
+the progress list. The recipes and their setup are checked on the real apps in CI
+(`build-apps.yml`). Not yet: Plex, the shared folder, backups, the other apps, and Windows.
+
 ## The journey
 
 1. **Find it.** The README offers two paths: "Set it up with your AI" (paste one prompt into

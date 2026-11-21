@@ -150,8 +150,61 @@ what this computer can run (**How much memory does this computer have?**) and bu
   or **Left out**, with **Why**, **Cost**, **Memory** and **Installed with**.
 - **Recommended for you** explains each choice. **Leave it out anyway**, **Include it anyway**,
   **Save for later**, **Bring it back** and **Undo my choice** let you shape it.
-- **Your app accounts**: the usernames and passwords Hearth will create when building arrives.
+- Using Plex? It asks **Do you pay for Plex Pass?** and **Is your Plex server already set up on a
+  computer?** What you already pay for counts as free: with Plex Pass, Plex is recommended even
+  with **Keep it free**. A Plex account with no server gets one set up here, with your account.
+- **Do you already download movies or shows from somewhere?** If yes, Ember helps you add the sites
+  you use to Prowlarr later. Hearth never names or suggests any site.
+- **The VPN rule**: Hearth never sets up downloading without a VPN that allows P2P. Without one,
+  the plan says why and you pick **I'll get a VPN (about $2 to $5 a month)** or **Skip automatic
+  downloads for now (just play my own files, free)**. Nothing is assumed until you pick.
+  Hearth is free; you bring your own AI (Ollama is free) and, for downloads, your own VPN.
+- **Your app accounts**: the email, username and passwords Hearth gives each app it sets up.
 - **Start over** clears it.
+
+<!-- feature: build-homelab -->
+### Build my plan
+
+After **Save my account details**, press **Build it with Ember**. Ember greets you, has your plan,
+and builds it with you one step at a time. Nothing happens until you approve each step, the
+same way as every other plan. **Building your homelab** on the plan page shows every step:
+**Done**, **Under way**, **Waiting for your OK**, **Needs you**, **Next** or **Later**. No AI
+connected? **Next step** there proposes the next step for you to approve yourself.
+
+The steps, in order (only the ones in your plan):
+
+1. **Docker**, from Docker's own repository. It needs Hearth's admin helper, a small program
+   that does one approved step at a time. The Linux installer offers to set it up. If you said
+   no, the step shows the one command to paste in a terminal (**Copy the command**). Installing
+   Docker is a protected step: approving it asks you to confirm it's you, because using Docker
+   is close to administrator access.
+2. **Jellyfin** (or **Plex**, if that's your plan: it starts here, and you **Sign in to Plex** on
+   its own page to make it yours; Hearth then adds your libraries). Jellyfin comes with your drive shared read only, so your files are never moved, renamed or
+   deleted. Hearth makes your account, finds your Movies and Shows folders by name (or makes
+   empty ones), and adds them as libraries.
+3. **Seerr**, signed in with your Jellyfin account (with Plex, you **Sign in to Seerr with Plex**
+   on its own page).
+4. **Radarr** and **Sonarr**, with your sign-in and their library folders on your drive.
+5. **Prowlarr**, with your sign-in. It starts with no indexers (sites that list what's
+   available to download). You add the ones you choose, and Hearth never suggests any.
+6. **qBittorrent with your VPN**: every download goes through your VPN, and downloading stops if
+   the VPN drops. Add your VPN login under that step (**Save my VPN login**). It goes straight
+   into Secure Vault. This is a protected step.
+7. **Connect the apps**: Seerr to Radarr and Sonarr, Radarr and Sonarr to qBittorrent, and
+   Prowlarr to Radarr and Sonarr. Then Hearth starts watching them on its dashboard.
+8. **Tailscale**, from its own repository (protected). Then **Sign in to Tailscale** with a free
+   account to reach your apps from anywhere.
+
+Each app gets its own folder in `hearth-apps` in your home folder, and runs on your home network
+at its usual port (Jellyfin on 8096, Seerr on 5055). Every login and API key Hearth makes goes
+into Secure Vault: Ember never sees them. Each recipe is fixed and reviewed: Ember picks the next
+step, Hearth fills in every detail, and the approval card shows the exact file it will use.
+
+If you skipped downloads and later want them, ask Ember: she explains why they need a VPN, helps
+you pick one, and adds downloading to your plan.
+
+Not built yet: the shared folder, backups and the other apps in a plan (the list says
+which), and building on Windows (Hearth plans it there).
 
 <!-- feature: discovery -->
 ### Find what I already run (Discovery)

@@ -9054,6 +9054,7 @@ describe("the AI operator", () => {
         "backup_status",
         "browser",
         "hearth_help",
+        "homelab_build",
         "open_panel",
         "get_incident",
         "get_overview",
@@ -13513,6 +13514,8 @@ describe("help me build: the homelab plan", () => {
         experience: "new",
         budget: "free",
         existingServer: "plex",
+        // A VPN, so the download tools are in the plan (the VPN rule has its own tests).
+        existingVpn: "proton",
       },
       scan: fakeHostScan([]),
       chosen: { "media-app": "plex" },

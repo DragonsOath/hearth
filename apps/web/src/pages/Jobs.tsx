@@ -63,6 +63,10 @@ export const WHO: Record<Job["requestedBy"], string> = {
 };
 
 const STEP_KIND_LABEL: Record<ActionKind, string> = {
+  "build-docker": "Install Docker (your homelab plan)",
+  "build-tailscale": "Install Tailscale (your homelab plan)",
+  "build-app": "Set up an app (your homelab plan)",
+  "build-connect": "Connect your apps (your homelab plan)",
   "run-check": "Run the health check",
   "test-endpoint": "Test the web address",
   "inspect-logs": "Read recent logs",

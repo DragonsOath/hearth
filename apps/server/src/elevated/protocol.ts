@@ -51,7 +51,9 @@ export type OperationName =
   | "spaces.repair"
   | "spaces.grow"
   | "spaces.create"
-  | "storage.read";
+  | "storage.read"
+  | "docker.install"
+  | "tailscale.install";
 
 export const OPERATION_NAMES: readonly OperationName[] = [
   "file.write",
@@ -88,7 +90,16 @@ export const OPERATION_NAMES: readonly OperationName[] = [
   "spaces.grow",
   "spaces.create",
   "storage.read",
+  "docker.install",
+  "tailscale.install",
 ];
+
+/**
+ * Installing software a beginner's homelab plan needs (switched on together with
+ * "--add-operation build"): Docker and Tailscale, each from its vendor's own repository, for the
+ * scope's serviceUser only. Protected steps: approving one asks the owner to confirm it's them.
+ */
+export const BUILD_OPERATIONS: readonly OperationName[] = ["docker.install", "tailscale.install"];
 
 /** Linux software RAID (mdadm). */
 export const MDADM_OPERATIONS: readonly OperationName[] = [

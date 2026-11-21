@@ -349,6 +349,8 @@ async function main() {
   // Freeing memory on this machine (the stand-in machine in tests).
   const memoryOps = memoryOperations(handle);
   const stagedChanges = new StagedChanges();
+  // The homelab plan's build steps: buildApp sets up the builder, the jobs below share it.
+  const homelabSteps: { current?: import("./build/service").HomelabBuilder } = {};
   const app = await buildApp({
     handle,
     config,
@@ -402,11 +404,13 @@ async function main() {
               undefined,
               memoryOps,
               browserChangeOperations(handle, stagedChanges),
+              homelabSteps,
             ),
           ),
         }
       : {}),
     stagedChanges,
+    homelabSteps,
     memoryOps,
     fileOps,
     raidOps,

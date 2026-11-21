@@ -1,8 +1,11 @@
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import type { BuildApp } from "@dragon-control/core";
-import { usePlanAccounts, useSavePlanAccounts } from "../../data/plan";
-import { Button, Tag, cx } from "../ui";
+import { usePlanAccounts, useSavePlanAccounts, useStartBuild } from "../../data/plan";
+import { useWorkspace } from "../../data/api";
+import { Button, LinkButton, Tag, cx } from "../ui";
 import { FormError } from "../../pages/auth/AuthFrame";
+import { BuildProgress } from "./BuildProgress";
 
 /**
  * After "Next: your apps and accounts": the apps the plan picked, each with its logo, what it does, and why
@@ -55,6 +58,45 @@ const PASSWORD_CHOICES = [
   ],
 ] as const;
 
+/**
+ * The hand-off (11-20 blind test): once the account details are saved, Ember greets the owner and
+ * builds the plan with them in a conversation, one approved step at a time.
+ */
+function StartBuilding({ aiName }: { aiName: string }) {
+  const ws = useWorkspace();
+  const start = useStartBuild();
+  const navigate = useNavigate();
+  if (ws.data && !ws.data.operator.agentId)
+    return (
+      <div className="mt-4" data-testid="build-needs-ai">
+        <p className="mb-2 text-[0.86rem] text-muted">
+          {aiName} needs an AI service connected to build this with you. You can also go step by
+          step with the list below.
+        </p>
+        <LinkButton to="/agent" tone="outline">
+          Connect your AI
+        </LinkButton>
+      </div>
+    );
+  return (
+    <div className="mt-4">
+      <Button
+        tone="primary"
+        disabled={start.isPending}
+        data-testid="build-start"
+        onClick={() =>
+          start.mutate(undefined, {
+            onSuccess: (r) => navigate(`/ask/${encodeURIComponent(r.conversationId)}`),
+          })
+        }
+      >
+        {start.isPending ? "Starting…" : `Build it with ${aiName}`}
+      </Button>
+      <FormError error={start.error} />
+    </div>
+  );
+}
+
 export function YourHomelab({ apps, aiName }: { apps: BuildApp[]; aiName: string }) {
   const saved = usePlanAccounts();
   const save = useSavePlanAccounts();
@@ -79,8 +121,8 @@ export function YourHomelab({ apps, aiName }: { apps: BuildApp[]; aiName: string
     <div data-testid="your-homelab">
       <p className="mb-5 text-[0.95rem] leading-relaxed text-ink">
         Here&apos;s what {aiName} picked for you, each one chosen for what you told it and what this
-        computer can do. Building it for you isn&apos;t ready yet: for now, your plan and account
-        details are kept ready for when it is.
+        computer can do. Save the account details below, then {aiName} builds it with you, one step
+        at a time, and nothing happens until you approve each step.
       </p>
       <ul className="mb-8 grid gap-3 sm:grid-cols-2">
         {apps.map((a) => (
@@ -222,12 +264,17 @@ export function YourHomelab({ apps, aiName }: { apps: BuildApp[]; aiName: string
             {m === "own"
               ? "Your password is in Secure Vault."
               : "A strong password for each app will be made and saved in Secure Vault as it's set up."}{" "}
-            When building arrives, Hearth will create each account with these details and save every
-            login and API key in Secure Vault, asking you first. Building itself isn&apos;t ready
-            yet, so nothing has been installed or created.
+            Hearth creates each app&apos;s account with these details as it sets the app up, and
+            saves every login and API key in Secure Vault. Nothing has been installed yet.
           </p>
         )}
+        {(done || current) && <StartBuilding aiName={aiName} />}
       </form>
+      {(done || current) && (
+        <div className="mt-6">
+          <BuildProgress aiName={aiName} />
+        </div>
+      )}
     </div>
   );
 }

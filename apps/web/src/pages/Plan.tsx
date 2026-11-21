@@ -52,7 +52,16 @@ const SCREENS: { title: string; lead: string; keys: Key[] }[] = [
   {
     title: "What you already have",
     lead: "Anything you have stays exactly where it is. Nothing is moved or deleted.",
-    keys: ["media", "existingServer", "existingVpn", "importance", "dedicated"],
+    keys: [
+      "media",
+      "existingServer",
+      "plexPass",
+      "plexServer",
+      "existingVpn",
+      "downloadSites",
+      "importance",
+      "dedicated",
+    ],
   },
   {
     title: "How you'll enjoy it",
@@ -67,6 +76,9 @@ const HOMELAB_STEP = SCREENS.length + 3;
 /** Whether a question makes sense for the answers so far. */
 function shown(k: Key, a: BuildAnswers): boolean {
   if (k === "existingServer") return a.media !== undefined && a.media !== "none";
+  if (k === "plexPass" || k === "plexServer") return a.existingServer === "plex";
+  if (k === "downloadSites")
+    return !a.wants.length || a.wants.some((w) => w === "request" || w === "explore");
   if (k === "importance")
     return (
       a.wants.includes("photos") ||
@@ -413,6 +425,19 @@ function AppCard({
   );
 }
 
+/** Said plainly, once (VPN rule): what Hearth costs and what the person brings. */
+export function FreeLine() {
+  return (
+    <p
+      className="mb-6 rounded-lg border border-line px-3 py-2 text-[0.84rem] leading-relaxed text-muted"
+      data-testid="hearth-free"
+    >
+      Hearth is free. You bring your own AI (Ollama is free and runs at home) and, for automatic
+      downloads, your own VPN.
+    </p>
+  );
+}
+
 function ChoiceCard({
   choice,
   value,
@@ -428,6 +453,21 @@ function ChoiceCard({
       data-testid={`plan-choice-${choice.id}`}
     >
       <legend className="px-1 text-[1rem] text-ink">{choice.question}</legend>
+      {choice.notice && (
+        <div
+          className="mt-2 space-y-2 rounded-lg border border-gold/40 bg-gold/5 px-3 py-3 text-[0.86rem] leading-relaxed text-ink"
+          data-testid={`plan-notice-${choice.id}`}
+        >
+          {choice.notice.map((n) => (
+            <p key={n}>{n}</p>
+          ))}
+        </div>
+      )}
+      {choice.mustPick && !value && (
+        <p className="mt-2 text-[0.82rem] text-gold" role="status">
+          Pick one to go on: nothing is assumed for you.
+        </p>
+      )}
       <div className="mt-2 grid gap-2">
         {choice.options.map((o) => (
           <label
@@ -876,6 +916,7 @@ export function PlanPage() {
           {step <= SCREENS.length && (
             <>
               <p className="mb-6 text-[0.92rem] text-muted">{SCREENS[step - 1]!.lead}</p>
+              {step === 1 && <FreeLine />}
               {SCREENS[step - 1]!.keys.filter((k) => shown(k, a)).map((k) => (
                 <Question key={k} k={k} answers={a} set={setAnswers} />
               ))}
@@ -941,7 +982,7 @@ export function PlanPage() {
                 <ChoiceCard
                   key={c.id}
                   choice={c}
-                  value={picks[c.id] ?? c.recommended}
+                  value={picks[c.id] ?? (c.mustPick ? "" : c.recommended)}
                   onPick={(v) => {
                     setChosen({ ...picks, [c.id]: v });
                     setChanges(null);

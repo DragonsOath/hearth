@@ -34,6 +34,7 @@ import { snapraidRun } from "./snapraid";
 import { spacesCreate, spacesGrow, spacesMember, spacesRepair } from "./spaces";
 import { storageRead } from "./storage-read";
 import { ancestors, windowsProblems } from "./windows";
+import { InstallFailed, InstallRefused, dockerInstall, tailscaleInstall } from "./install-software";
 
 /**
  * Hearth's elevated executor (private/docs/HEARTH_COMPOSE_ACCESS_PROPOSAL.md). It runs as root,
@@ -70,6 +71,11 @@ export interface ExecutorConfig {
   keyFile: string;
   /** RAID operations may use loop devices: only for throwaway test arrays. */
   raidAllowLoop?: boolean;
+  /**
+   * Hearth's own account (written by root at setup): the only account docker.install and
+   * tailscale.install act for. Never taken from a request.
+   */
+  serviceUser?: string;
   /** Windows: the accounts (SIDs) that may read the key and the log: Hearth's own account. */
   readerSids?: string[];
 }
@@ -142,6 +148,9 @@ export async function loadConfig(file: string): Promise<ExecutorConfig> {
     auditLog: str(raw.auditLog, "auditLog"),
     keyFile: str(raw.keyFile, "keyFile"),
     ...(raw.raidAllowLoop === true ? { raidAllowLoop: true } : {}),
+    ...(typeof raw.serviceUser === "string" && /^[a-z_][a-z0-9_-]{0,31}$/.test(raw.serviceUser)
+      ? { serviceUser: raw.serviceUser }
+      : {}),
     ...(Array.isArray(raw.readerSids)
       ? { readerSids: list(raw.readerSids).filter((s) => /^S-1-[\d-]{1,100}$/.test(s)) }
       : {}),
@@ -1030,6 +1039,11 @@ const OPERATIONS: Record<
   "spaces.grow": (ctx) => raid(ctx, spacesGrow),
   "spaces.create": (ctx) => raid(ctx, spacesCreate),
 
+  /** Installs Docker Engine and Compose from Docker's repository, for the scope's account. */
+  "docker.install": (ctx) => install(ctx, dockerInstall),
+  /** Installs Tailscale from its repository and makes the scope's account its operator. */
+  "tailscale.install": (ctx) => install(ctx, tailscaleInstall),
+
   /** Starts, stops, restarts, reloads, enables, or disables one listed systemd unit. */
   async "unit.control"(ctx) {
     const unit = ctx.params.unit;
@@ -1071,6 +1085,27 @@ const OPERATIONS: Record<
 };
 
 /** A RAID operation (src/elevated/raid.ts), with its refusals and failures in the catalog's terms. */
+async function install(
+  ctx: Ctx,
+  fn: (
+    params: Params,
+    deps: import("./install-software").InstallDeps,
+    user: string | undefined,
+  ) => Promise<{ target: string; result: string; data?: unknown }>,
+): Promise<OpResult> {
+  try {
+    return await fn(
+      ctx.params,
+      { run: (cmd, args, opts) => ctx.deps.run(cmd, args, opts) },
+      ctx.cfg.serviceUser,
+    );
+  } catch (error) {
+    if (error instanceof InstallRefused) throw new Refused(error.message);
+    if (error instanceof InstallFailed) throw new Failed(error.message);
+    throw error;
+  }
+}
+
 async function raid(
   ctx: Ctx,
   fn: (

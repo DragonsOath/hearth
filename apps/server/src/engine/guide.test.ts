@@ -25,8 +25,8 @@ describe("Hearth's guide for the AI", () => {
     const guide = hearthGuide();
     expect(guide).toContain("Free up voice memory");
     expect(guide).toContain("Requires your attention");
-    // It goes to the AI with every message: kept small.
-    expect(guide.length).toBeLessThan(12_000);
+    // It goes to the AI with every message: kept small (the VPN rule added 11-21).
+    expect(guide.length).toBeLessThan(13_000);
     expect(guide).toContain("HEARTH_MANUAL.md");
   });
 

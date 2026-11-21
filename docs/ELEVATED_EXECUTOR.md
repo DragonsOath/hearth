@@ -129,6 +129,30 @@ netlink for udev); Hearth's own account still never opens a drive. Loop devices 
 unless the scope file says `"raidAllowLoop": true` (throwaway test arrays only). CI runs every
 one of these on loop devices: mdadm, ZFS, Btrfs, and SnapRAID.
 
+### Installing Docker and Tailscale (docker.install, tailscale.install)
+
+For a beginner's homelab plan (Build my plan, docs/design/BUILDER.md). Each takes no settings:
+it installs from the vendor's own package repository (download.docker.com, pkgs.tailscale.com,
+never a piped install script) on Ubuntu, Debian, Fedora and the systems built on them, and acts
+only for the scope file's `serviceUser` (Hearth's account, written by root at setup). Docker:
+the Engine and Compose, started at boot, the account added to the docker group and allowed on
+Docker's socket now (an ACL, renewed each time Docker starts) so Hearth needs no sign-out.
+Tailscale: installed, started, and the account made its operator, so Hearth can fetch the
+sign-in link for the owner. Package managers write all over the system, so each runs through
+`systemd-run` outside the executor's sandbox, like the RAID jobs, and the executor reports
+success only on the script's closing line. Both are protected plan steps: approving asks the
+owner to confirm it's them (Docker access is close to administrator access).
+
+Hearth's Linux installer (get.sh) offers to set the executor up with only these two switched
+on. On its own, for a get.sh installation (a user service), no folders needed:
+
+```sh
+sudo bash ~/hearth/app/deploy/linux/install-elevation.sh --service hearth --user-service   --operations docker.install,tailscale.install
+```
+
+Already set up: `--add-operation build` switches both on. When the account's own Node.js is the
+one get.sh brought, the executor gets a root-owned copy of it.
+
 ### Windows (spaces.*)
 
 On Windows the executor is the same program and protocol, run by a startup task as SYSTEM and

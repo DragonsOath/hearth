@@ -93,13 +93,26 @@ choose_channel() {
 }
 
 # Tests read the functions above without running the installer.
+# Where Hearth is. Run from inside an install (its own app/deploy/get.sh, as the goodbye line
+# says), it is that install, never the default one: a second Hearth's --uninstall must not remove
+# the first (11-21).
+install_home() {
+  if [[ -n "${HEARTH_HOME:-}" ]]; then echo "$HEARTH_HOME"; return; fi
+  local src="${BASH_SOURCE[0]:-}" own=""
+  if [[ -f "$src" ]]; then
+    own="$(cd "$(dirname "$(readlink -f "$src")")/../.." 2>/dev/null && pwd)"
+    [[ -f "$own/install.json" ]] && { echo "$own"; return; }
+  fi
+  echo "$HOME/hearth"
+}
+
 [[ -z "${HEARTH_GET_FUNCTIONS_ONLY:-}" ]] || return 0
 
 [[ "$(uname -s)" == Linux ]] || fail "This installer is for Linux. On Windows, use deploy/get.ps1."
 [[ "$(id -u)" != 0 ]] || fail "Run this as your everyday account, not root."
 command -v systemctl >/dev/null || fail "Hearth needs systemd to run as a service, and this machine does not have it."
 
-home="${HEARTH_HOME:-$HOME/hearth}"
+home="$(install_home)"
 app="$home/app"
 units="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
 service="${HEARTH_SERVICE:-}"
@@ -123,7 +136,7 @@ if [[ -n "$uninstall" ]]; then
     echo ""
   fi
   [[ -d "$home" ]] || fail "Hearth is not installed in $home."
-  say "Removing Hearth"
+  say "Removing Hearth ($service, in $home)"
   systemctl --user disable --now "$service" 2>/dev/null || true
   rm -f "$units/$service.service"
   systemctl --user daemon-reload
@@ -389,7 +402,7 @@ Comment=Your homelab, with Ember
 Exec=$home/open-hearth
 Icon=$data_home/icons/$service.png
 Terminal=false
-Categories=System;Network;
+Categories=System;
 StartupWMClass=Hearth
 DESKTOP
 desktop_dir="$(xdg-user-dir DESKTOP 2>/dev/null || echo "$HOME/Desktop")"

@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { SERVER_ROOT } from "../config";
@@ -36,6 +37,26 @@ function choose(fn: string, env: Record<string, string> = {}) {
 }
 
 describe.skipIf(!hasBash)("get.sh with no terminal", () => {
+  it("run from inside an install, it is that install, never the default one (11-21)", () => {
+    // A second Hearth's own get.sh --uninstall removed the first one: the goodbye line's command.
+    const dir = mkdtempSync(path.join(os.tmpdir(), "hearth-second-"));
+    mkdirSync(path.join(dir, "app", "deploy"), { recursive: true });
+    copyFileSync(GET_SH, path.join(dir, "app", "deploy", "get.sh"));
+    writeFileSync(path.join(dir, "install.json"), '{ "service": "hearth-second" }');
+    const run = (sh: string, env: Record<string, string> = {}) =>
+      spawnSync("bash", ["-c", `HEARTH_GET_FUNCTIONS_ONLY=1 source "${sh}" && install_home`], {
+        env: { PATH: process.env.PATH ?? "", HOME: "/home/alex", ...env },
+        encoding: "utf8",
+        windowsHide: true,
+      }).stdout.trim();
+    const sh = path.join(dir, "app", "deploy", "get.sh").replaceAll("\\", "/");
+    // Its own folder (bash may spell it /c/... on Windows: compare the folder's name).
+    expect(run(sh)).toMatch(new RegExp(`${path.basename(dir)}$`));
+    // Downloaded (no install around it): the default folder. HEARTH_HOME always wins.
+    expect(run(GET_SH)).toBe("/home/alex/hearth");
+    expect(run(sh, { HEARTH_HOME: "/srv/h" })).toBe("/srv/h");
+  });
+
   it("keeps Hearth on this computer and says so", () => {
     const r = choose("choose_network");
     expect(r.code).toBe(0);

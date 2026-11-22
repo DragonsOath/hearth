@@ -5109,6 +5109,26 @@ export async function buildApp({
   const webBuild = await readFile(path.join(config.webDir, "index.html"), "utf8")
     .then((html) => /\/assets\/(index-[\w-]+\.js)/.exec(html)?.[1])
     .catch(() => undefined);
+  // Hearth's own app on this PC (11-22, the owner: nothing told a beginner an app landed on their
+  // PC): a browser tab on the PC Hearth runs on, where the installer made the app, offers to open
+  // it. Only for a visit from this PC itself, never one passed on by a proxy (that is someone else).
+  app.get("/api/app-window", async (request) => {
+    if (!request.session) throw new ForbiddenAuthError("Sign in to do this.");
+    const here =
+      /^(127\.|::1$|::ffff:127\.)/.test(request.ip) &&
+      !request.headers["x-forwarded-for"] &&
+      !request.headers.forwarded;
+    const home = config.dataDir ? path.dirname(config.dataDir) : "";
+    return {
+      app:
+        here &&
+        Boolean(home) &&
+        // The installer's own folder: it says how Hearth was installed, beside the app's opener.
+        existsSync(path.join(home, "install.json")) &&
+        (existsSync(path.join(home, "open-hearth")) ||
+          existsSync(path.join(home, "open-hearth.ps1"))),
+    };
+  });
   app.get("/api/health", async (): Promise<HealthReport> => {
     let database: HealthReport["database"];
     try {

@@ -1212,7 +1212,7 @@ Emby to reach the internet.
 The Plex, Jellyfin and Emby panels open on **Home**: the home screen laid out as that server
 shows it. Each row has its name, then a line of posters with the title and year under each, which
 scrolls sideways (drag, or the arrows at the ends). Jellyfin and Emby keep a home screen per
-person: pick whose at the top. Nothing is changed here: **Change rows** opens **Home rows** for
+person: pick whose at the top. Nothing is changed here: **Edit home rows** opens **Home rows** for
 that server. **Refresh** reads it again from the server, so a row you just made or moved in Home
 rows, or a movie or show that just landed in Recently Added, shows at once. **Read just now** (or
 how long ago) says when it was read.
@@ -1255,7 +1255,7 @@ networking settings and anything with a password stay in Plex (shown locked, wit
 
 Build your Plex home screen. Open **Home rows** in the Lair (or **Design it in Home rows** on
 the Plex panel's Manage tab). The **Home** tab of the Plex, Jellyfin and Emby panels shows the
-result as the server lays it out, with **Change rows** to come back here. On a wide Home rows panel you see both halves; on a narrow one they are two
+result as the server lays it out, with **Edit home rows** to come back here. On a wide Home rows panel you see both halves; on a narrow one they are two
 tabs, **Your Home** and **Add a row**.
 
 **Your Home** shows every row in the order Plex shows it, library by library, with posters.

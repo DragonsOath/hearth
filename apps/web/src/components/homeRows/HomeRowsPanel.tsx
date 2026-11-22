@@ -377,13 +377,16 @@ export function ServerHome({
           {busy ? "Reading it now…" : `Read ${agoWords(read)}.`}
         </p>
         {change && (
+          <span className="text-[0.85rem] text-muted">Want to change your home rows?</span>
+        )}
+        {change && (
           <Link
             to={change}
             className="hr-lift inline-flex min-h-10 items-center gap-2 rounded-lg border border-line px-3 text-[0.85rem] font-semibold text-ink hover:border-gold/60 hover:text-gold"
             data-testid="server-home-change"
           >
             <Pencil size={15} aria-hidden />
-            Change rows
+            Edit home rows
           </Link>
         )}
         <button

@@ -271,6 +271,8 @@ export function Message({
       </li>
     );
   }
+  // Hearth's own instruction to the AI (an automatic follow-up): never shown, only Ember's reply.
+  if (m.hidden) return null;
   if (m.role === "note") {
     const q = remoteQuestion(m.text);
     if (q) return <RemoteQuestion q={q} onAnswer={onAnswer} />;

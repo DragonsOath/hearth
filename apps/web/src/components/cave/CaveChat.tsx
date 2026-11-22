@@ -26,7 +26,7 @@ import { useAiUsage, useAsk, useCaveConversation, useSetBudget } from "../../dat
 import { useClaimShow, useResumeShow, useShowSettings, useShowState } from "../../data/show";
 import { isClearStop } from "@dragon-control/core";
 import { Message, Notice, remoteQuestion } from "./Thread";
-import { PlanCards, Progress } from "./Progress";
+import { ConversationPlans, PlanCards, plansIn, Progress } from "./Progress";
 import { Suggestions } from "../desk/Suggestions";
 import { useOpenPanels } from "../desk/useOpenPanels";
 import { CredentialPrompts } from "../credentials/CredentialPrompts";
@@ -177,7 +177,12 @@ export function CaveChat({
   const working = ask.isPending || convo.data?.status === "working";
   const connected = ws.data?.agents.some((a) => a.status === "connected");
   // The message being answered: its steps stay open while the answer is worked on.
-  const lastAsked = messages.map((m) => m.role).lastIndexOf("you");
+  // A turn starts with your question, or with Hearth's hidden follow-up (after a plan ends): its
+  // progress and plans show either way (11-22).
+  const asks = (m: (typeof messages)[number] | undefined) =>
+    Boolean(m && (m.role === "you" || m.hidden));
+  const lastAsked = messages.map((m) => asks(m)).lastIndexOf(true);
+  const drawn = plansIn(messages);
   // The Remote Control question still waiting (nothing said or answered after it): its buttons work.
   const lastQuestion = messages.findLastIndex(
     (m) => m.role === "note" && Boolean(remoteQuestion(m.text)),
@@ -198,6 +203,11 @@ export function CaveChat({
   // Stop (11-07): ends what Ember is working on. A message sent meanwhile adds to the request
   // (11-12): the answer under way ends quietly, and the next one answers both together.
   const qc = useQueryClient();
+  // A new message may come with a new plan (any tool, any agent): read the plans again at once,
+  // so its card shows with the answer instead of on the next check.
+  useEffect(() => {
+    if (messages.length) void qc.invalidateQueries({ queryKey: ["jobs"] });
+  }, [messages.length, qc]);
   const [stopping, setStopping] = useState(false);
   const urgent = useRef<string | null>(null);
   const followUp = useRef(false);
@@ -527,16 +537,16 @@ export function CaveChat({
                 m={m}
                 onAnswer={i === waitingQuestion ? (key) => void send(key) : undefined}
               />
-              {m.role === "you" && m.activity?.length ? (
+              {asks(m) && m.activity?.length ? (
                 <Progress
                   activity={m.activity}
                   live={working && i === lastAsked}
                   plans={messages[i + 1]?.role !== "agent"}
                 />
               ) : null}
-              {m.role === "agent" &&
-                messages[i - 1]?.role === "you" &&
-                messages[i - 1]!.activity && <PlanCards activity={messages[i - 1]!.activity!} />}
+              {m.role === "agent" && asks(messages[i - 1]) && messages[i - 1]!.activity && (
+                <PlanCards activity={messages[i - 1]!.activity!} />
+              )}
               {m.role === "agent" && <TodoPrompts answer={m} />}
               {m.role === "agent" && (
                 <CredentialPrompts
@@ -558,6 +568,7 @@ export function CaveChat({
               )}
             </Fragment>
           ))}
+          {conversationId && <ConversationPlans conversationId={conversationId} drawn={drawn} />}
           {ask.isPending &&
             ask.variables &&
             !messages.some((m) => m.text === ask.variables!.text) && (

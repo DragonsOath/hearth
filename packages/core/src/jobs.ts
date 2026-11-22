@@ -95,6 +95,11 @@ export interface Job {
   incidentId?: string;
   /** The project this job serves, if any. */
   projectId?: string;
+  /**
+   * The conversation it was proposed in: that chat shows its card, whichever turn made it
+   * (11-22: a plan made in an automatic follow-up never showed in the owner's chat).
+   */
+  conversationId?: string;
   status: JobStatus;
   createdAt: IsoTime;
   startedAt?: IsoTime;

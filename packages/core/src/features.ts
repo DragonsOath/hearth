@@ -4258,6 +4258,40 @@ export const FEATURES: Feature[] = [
     },
   },
   {
+    id: "approvals-here",
+    name: "Approvals where you are",
+    summary:
+      "A plan Ember proposes shows its card, with Approve and run and Decline, in the chat it was made in (also from an automatic follow-up, any AI agent); on any other page it slides in as Needs your approval. Hearth's instructions to the AI are never shown.",
+    aliases: [
+      "where do i approve",
+      "approval card",
+      "the approval card is not showing",
+      "needs your approval",
+      "approve in the chat",
+      "approve without leaving the page",
+    ],
+    where: {
+      route: "/ask",
+      path: "In the chat under Ember's answer, or the Needs your approval panel",
+    },
+    labels: ["Approve and run", "Decline", "Needs your approval"],
+    status: "working",
+    evidence: [
+      {
+        file: "tests/e2e/approval-in-lair-chat.spec.ts",
+        test: "an approval proposed in a chat renders in that chat, and the result follows there",
+      },
+      {
+        file: "tests/e2e/approval-in-lair-chat.spec.ts",
+        test: "on any other page, a plan waiting for you slides in with Approve and Decline",
+      },
+      {
+        file: "apps/server/src/app.test.ts",
+        test: "an automatic follow-up is hidden, and the plan it proposes belongs to the owner's chat",
+      },
+    ],
+  },
+  {
     id: "todo",
     name: "To-do",
     summary: "Issues, tasks and ideas, shared with Ember.",

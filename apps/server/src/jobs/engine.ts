@@ -64,6 +64,7 @@ function toJob(row: JobRow, steps: StepRow[]): Job {
     requestedBy: row.requestedBy,
     incidentId: row.incidentId ?? undefined,
     projectId: row.projectId ?? undefined,
+    conversationId: row.conversationId ?? undefined,
     status: row.status,
     createdAt: row.createdAt,
     startedAt: row.startedAt ?? undefined,

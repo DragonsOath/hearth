@@ -11830,6 +11830,40 @@ describe("the AI operator", () => {
     expect(convo.messages.at(-1)!.text).toMatch(/restarted before this answer was ready/);
   });
 
+  it("an automatic follow-up is hidden, and the plan it proposes belongs to the owner's chat", async () => {
+    const app = await connected();
+    agentScript = async () => "Hi.";
+    const first = (
+      await app.call("POST", "/api/agent/conversations", { text: "Let's build my homelab plan." })
+    ).json<{ conversationId: string }>();
+    await app.agents.idle();
+    // Hearth's follow-up (here: the owner gave Ember's browser back) proposes the next plan.
+    agentScript = async ({ call }) => {
+      await call("propose_job", {
+        title: "Check Jellyfin",
+        reason: "Next step",
+        steps: [{ kind: "run-check", serviceId: "jellyfin" }],
+      });
+      return "Next comes Jellyfin. Its approval card is just below.";
+    };
+    app.agents.browserGivenBack(first.conversationId, "sign in");
+    await app.agents.idle();
+    const convo = (await app.call("GET", `/api/agent/conversations/${first.conversationId}`)).json<{
+      messages: CaveMessage[];
+    }>();
+    const note = convo.messages.find((m) => m.text.startsWith("The owner finished in Ember's"))!;
+    // Hearth's words to the AI are never shown; Ember's reply is.
+    expect(note).toMatchObject({ role: "note", hidden: true });
+    expect(convo.messages.at(-1)).toMatchObject({ role: "agent" });
+    expect(convo.messages.at(-1)!.hidden).toBeUndefined();
+    // The plan says which chat it belongs to, and its card is on the follow-up's turn.
+    const job = (await app.call("GET", "/api/jobs"))
+      .json<Job[]>()
+      .find((j) => j.title === "Check Jellyfin")!;
+    expect(job.conversationId).toBe(first.conversationId);
+    expect(note.activity?.some((a) => a.kind === "job" && a.ref === `job:${job.id}`)).toBe(true);
+  });
+
   it("a plan proposed in a conversation posts its result there; a limit-stopped answer states where plans stand", async () => {
     const app = await connected();
     agentScript = async ({ call }) => {

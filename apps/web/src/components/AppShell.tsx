@@ -22,6 +22,7 @@ import { ApprovalDock } from "./jobs/ApprovalDock";
 import { PlanNotices } from "./shell/PlanNotices";
 import { UpdateNotice } from "./shell/UpdateNotice";
 import { OpenInApp } from "./shell/OpenInApp";
+import { BuildFinished } from "./plan/BuildFinished";
 import { useViewingPcName } from "../lib/viewingPc";
 import { useLayoutKeeper } from "../lib/layoutKeeper";
 import { SCREEN_ID, ScreenCapture } from "./shell/ScreenCapture";
@@ -308,6 +309,7 @@ export function AppShell() {
       <ApprovalDock />
       <UpdateNotice />
       <OpenInApp />
+      <BuildFinished />
     </CaveProvider>
   );
 }

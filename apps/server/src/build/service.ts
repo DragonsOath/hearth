@@ -8,6 +8,7 @@ import path from "node:path";
 import {
   ACTIONS,
   VPN_PROVIDERS,
+  buildDoneText,
   recommendBuild,
   type BuildAnswers,
   type GoalDecisions,
@@ -93,6 +94,10 @@ interface Ledger {
   vpn?: { provider: VpnProvider; type: "openvpn" | "wireguard"; ids: Record<string, string> };
   tailscaleUrl?: string;
   conversationId?: string;
+  /** When every step was first done; Ember's congratulations was posted; the owner closed its card. */
+  finishedAt?: string;
+  announced?: boolean;
+  celebrated?: boolean;
 }
 
 interface SavedPlan {
@@ -534,6 +539,19 @@ export class HomelabBuilder {
       vpn: saved?.answers.existingVpn ?? "not asked",
       keepItFree: saved?.answers.budget === "free",
     };
+    const done = steps.length > 0 && steps.every((s) => s.status === "done");
+    // The moment the build is finished, kept: Hearth congratulates them once (11-22).
+    let finishedAt = ledger.finishedAt;
+    if (done && !finishedAt) {
+      // When the last step really finished (a build done long ago is not news), else now.
+      finishedAt =
+        Object.values(ledger.steps)
+          .map((x) => x?.done ?? "")
+          .sort()
+          .at(-1) || new Date().toISOString();
+      const at = finishedAt;
+      await this.save((l) => void (l.finishedAt ??= at));
+    }
     return {
       steps,
       downloads,
@@ -544,8 +562,27 @@ export class HomelabBuilder {
       ...(blocker ? { blocker } : {}),
       ...(ledger.conversationId ? { conversationId: ledger.conversationId } : {}),
       ...(accounts ? { passwords: accounts.passwords, username: accounts.username } : {}),
-      done: steps.length > 0 && steps.every((s) => s.status === "done"),
+      done,
+      ...(done && finishedAt ? { finishedAt } : {}),
+      ...(done && ledger.celebrated ? { celebrated: true } : {}),
     };
+  }
+
+  /**
+   * Every step is done and Ember has not said so yet: marks it said and gives the words, once.
+   * Undefined when the build is not finished or the congratulations was already posted.
+   */
+  async announceDone(): Promise<string | undefined> {
+    const st = await this.status();
+    if (!st.done || (await this.ledger()).announced) return undefined;
+    await this.save((l) => void (l.announced = true));
+    return buildDoneText(st);
+  }
+
+  /** The owner closed the "everything is built" card. */
+  async celebrated() {
+    await this.save((l) => void (l.celebrated = true));
+    return { ok: true };
   }
 
   /** Plex's own token, once the owner signed in to the server Hearth set up (Preferences.xml). */

@@ -1706,6 +1706,11 @@ export async function buildApp({
         throw new ConflictError(e instanceof Error ? e.message : String(e));
       });
   });
+  // The owner closed the "everything is built" card (11-22): it does not come back.
+  app.post("/api/plan/build/celebrated", async (request) => {
+    planOwner(request);
+    return homelab.celebrated();
+  });
   // The owner checked a failed step's app and it works: a plan to mark it done (11-22).
   app.post("/api/plan/build/confirm", async (request) => {
     planOwner(request);

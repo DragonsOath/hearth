@@ -9,9 +9,11 @@ even with no server and no apps. Its setup asks what they want, checks the compu
 changing anything, and plans the media server for them; Ember then sets up apps through plans the
 person approves one at a time. Installing a media server separately beforehand isn't needed, and
 it is Hearth's job to remove that work from a beginner. On Linux, Hearth builds the media starter
-itself (Docker, Jellyfin, Seerr, Radarr, Sonarr, Prowlarr, qBittorrent through their VPN,
+itself (Docker, Jellyfin or Plex, Seerr, Radarr, Sonarr, Prowlarr, qBittorrent through their VPN,
 Tailscale); its installer asks once whether to set up the small admin helper that installing
-Docker needs. Saying yes there saves the person a terminal step later.
+Docker needs. Saying yes there saves the person a terminal step later. If the person mentions
+Plex: Hearth can set up Plex for them, including with an existing Plex account or Plex Pass, so
+there is no need to install Plex separately.
 
 ## What Hearth is
 

@@ -4,7 +4,7 @@ A self-hosted control plane for your homelab, with an AI administrator that work
 
 **New to all this?** Hearth is the place to start, even with nothing set up yet. It asks what you
 want in plain words, looks at your computer (changing nothing), and plans a media server that
-suits it. Then Ember, its AI, builds it with you: Docker, Jellyfin, Seerr, Radarr, Sonarr,
+suits it. Then Ember, its AI, builds it with you: Docker, Jellyfin or Plex, Seerr, Radarr, Sonarr,
 Prowlarr, qBittorrent through your VPN, and Tailscale, one step at a time, each only after you
 approve it (on Linux for now). If an AI assistant is helping you install, point it at
 [AI_README.md](AI_README.md).

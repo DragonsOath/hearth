@@ -542,6 +542,29 @@ export function scriptedProvider(
             durationMs: Date.now() - started,
           };
         }
+        // Approvals where you are (e2e, 11-22): a plan proposed in the chat, card and all.
+        // Stopping and starting a container always wait for the owner's approval, whatever the
+        // settings, and it ends running as before.
+        if (/plan a quick check of my services/i.test(now)) {
+          const list = JSON.parse(await tool("list_services")) as { id: string; name: string }[];
+          const target = list.find((x) => x.name === "Jellyfin") ?? list[0];
+          if (!target)
+            return { text: "There is nothing to check yet. (test agent)", durationMs: 0 };
+          const plan = await tool("propose_job", {
+            title: `Refresh ${target.name}`,
+            reason: "You asked for a quick check.",
+            steps: [
+              { kind: "stop-container", serviceId: target.id },
+              { kind: "start-container", serviceId: target.id },
+            ],
+          });
+          return {
+            text: plan.includes('"jobId"')
+              ? "I've planned stopping and starting it again. Its approval card is just below. (test agent)"
+              : `${plan} (test agent)`,
+            durationMs: Date.now() - started,
+          };
+        }
         // The first administrative workflow (e2e): asked to turn on episode renaming, it reads
         // Sonarr's naming settings, then proposes the one change as a plan for approval.
         if (/turn on episode renaming/i.test(now || task.prompt)) {

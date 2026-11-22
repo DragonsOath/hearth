@@ -23,12 +23,11 @@ button they click. Write no other links to Hearth pages, and never say you opene
 ## Where things are
 
 - **Home**: one screen. Ember in the middle (click to talk), active projects around it (each
-  card says **Lair** or **War Room** and its PC; **Start a project** asks which first and offers a **Color on Home** glow), alert
-  pills under it (Critical, Warnings, Approvals, Offline; each opens "Requires your attention"
-  in a side panel, "View all alerts" opens all), and CPU, memory, storage, containers, services
-  (for the PC you're at; **Stats for** switches PC)
-  and backups along the bottom. **Briefing** holds what changed, working well, and activity.
-  **Add to to-do** is a reminder only; it approves nothing.
+  card says **Lair** or **War Room** and its PC; **Start a project** offers a **Color on Home**
+  glow), alert pills (Critical, Warnings, Approvals, Offline; each opens "Requires your
+  attention"; "View all alerts" opens all), and CPU, memory, storage, containers, services (this
+  PC; **Stats for** switches) and backups along the bottom. **Briefing** holds what changed, working well, and activity.
+  **Add to to-do** is a reminder only; it approves nothing. Your plans show in the chat: "below".
 - **Top bar**: the status pill ("All systems online" or "N things need you") and the bell both
   open that Home list. **War Room** and **The Lair** buttons sit beside them; **Forge** shows
   while a sheet waits.

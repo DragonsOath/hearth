@@ -6,6 +6,7 @@ import type { ActionKind, StepParams } from "@dragon-control/core";
 import { useJob, useJobDecision, usePlanJob } from "../../data/jobs";
 import { Button } from "../ui";
 import { ApprovalError } from "./ApprovalError";
+import { useOnScreen } from "./onScreen";
 
 /**
  * Approve a change where you asked for it: a panel's button plans the change (the same plan,
@@ -127,6 +128,7 @@ export type ApproveHere = ReturnType<typeof useApproveHere>;
 
 export function ApproveDialog({ c }: { c: ApproveHere }) {
   const j = c.job;
+  useOnScreen(j?.id, c.open);
   useEffect(() => {
     if (!c.open) return;
     const onKey = (ev: KeyboardEvent) => {

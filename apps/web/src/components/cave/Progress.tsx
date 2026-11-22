@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router";
 import { Check, ChevronDown, Clock3, Eye, Minus, X } from "lucide-react";
 import type { CaveActivity, Job, JobStep } from "@dragon-control/core";
 import { cx } from "../ui";
-import { useJob, useJobDecision } from "../../data/jobs";
+import { useJob, useJobDecision, useJobs } from "../../data/jobs";
+import { useOnScreen } from "../jobs/onScreen";
 import { useDesk, usePanelHref } from "../desk/links";
 import { askToNotify, markApproved } from "../shell/PlanNotices";
 import { ApprovalError } from "../jobs/ApprovalError";
@@ -129,6 +130,7 @@ export function JobCard({
   fallback,
   beside,
   inRows,
+  dock,
 }: {
   id: string;
   fallback?: CaveActivity;
@@ -136,7 +138,11 @@ export function JobCard({
   beside?: boolean;
   /** Shown inside the Home rows panel itself (no link to it). */
   inRows?: boolean;
+  /** In the approval prompt (ApprovalDock), which shows the plans not on screen elsewhere. */
+  dock?: boolean;
 }) {
+  // This plan's approval is on screen here, so the approval prompt leaves it alone.
+  useOnScreen(id, !dock);
   const job = useJob(id);
   const decide = useJobDecision();
   const j: Job | undefined = job.data;
@@ -448,6 +454,49 @@ export function PlanCards({ activity }: { activity: CaveActivity[] }) {
     <li className="max-w-[96%] space-y-2 pl-11" data-testid="cave-plans">
       {jobs.map((a) => (
         <JobCard key={a.id} id={a.ref!.slice(4)} fallback={a} />
+      ))}
+    </li>
+  );
+}
+
+/** The plans a conversation's turns recorded (their cards are drawn with those turns). */
+export function plansIn(messages: { activity?: CaveActivity[] }[]) {
+  return new Set(
+    messages.flatMap((m) =>
+      (m.activity ?? [])
+        .filter((a) => a.kind === "job" && a.ref?.startsWith("job:"))
+        .map((a) => a.ref!.slice(4)),
+    ),
+  );
+}
+
+/**
+ * Plans proposed in this conversation whose card no turn drew (11-22: the next build step was
+ * planned in an automatic follow-up, so its card attached nowhere the owner could see, and Ember
+ * said "the approval card is just below" over nothing). Any tool, any AI agent: if a plan was
+ * made in this chat and is waiting or running, its card is here, at the end of the chat.
+ */
+export function ConversationPlans({
+  conversationId,
+  drawn,
+}: {
+  conversationId: string;
+  drawn: ReadonlySet<string>;
+}) {
+  const jobs = useJobs();
+  const mine = (jobs.data ?? [])
+    .filter(
+      (j) =>
+        j.conversationId === conversationId &&
+        !drawn.has(j.id) &&
+        (j.status === "awaiting-approval" || j.status === "running"),
+    )
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  if (!mine.length) return null;
+  return (
+    <li className="max-w-[96%] space-y-2 pl-11" data-testid="conversation-plans">
+      {mine.map((j) => (
+        <JobCard key={j.id} id={j.id} />
       ))}
     </li>
   );

@@ -2304,7 +2304,18 @@ every tab to another PC in your Hearth (read only from here; changes are made on
 - **Jobs**: plans of steps Hearth already knows. **New plan** (title, why, steps) then **Review
   the plan**. A job shows each step's **Exact change** (before and after), how it is checked,
   and what happens if a later step fails. **Approve and run** covers exactly that plan, once.
-  **Stop after this step** while running.
+  **Stop after this step** while running. Jobs is the full list and history; it is never the
+  only place to approve.
+<!-- feature: approvals-here -->
+- **Approvals where you are**: a plan Ember proposes in a chat (Ask, the Lair, the build
+  hand-off, with any AI agent) shows its card right there in that chat: the steps, before and
+  after, **Approve and run** and **Decline**. That includes a plan made in an automatic
+  follow-up after a step finishes. A protected step asks you to confirm it's you in the same
+  card. Once approved, the card shows each step as it runs, the result follows in the chat, and
+  while building your plan Ember proposes the next step. On any other page (the War Room too), a
+  plan Ember or Hearth proposed slides in as **Needs your approval** with the same card and
+  buttons; **Later** hides it (it stays in Jobs). Hearth's own instructions to the AI (the
+  automatic follow-ups) never show in the chat: only Ember's reply does.
 <!-- feature: todo -->
 - **To-do**: **To deal with**, **Deferred**, **Resolved**, **Dismissed**. **Add an item** (kind,
   title, details, system, project, priority, for later). Each item: **Mark resolved**, notes,

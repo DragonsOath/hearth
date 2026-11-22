@@ -8,6 +8,7 @@ import { usePanelHref } from "../components/desk/links";
 import { WHO, jobTag } from "./Jobs";
 import { askToNotify, markApproved } from "../components/shell/PlanNotices";
 import { ApprovalError } from "../components/jobs/ApprovalError";
+import { useOnScreen } from "../components/jobs/onScreen";
 
 const STEP_LABEL: Record<JobStepStatus, string> = {
   pending: "Waiting",
@@ -212,6 +213,7 @@ function Decision({ job }: { job: Job }) {
 export function JobDetailPage() {
   const { id } = useParams();
   const job = useJob(id);
+  useOnScreen(id);
   if (job.isLoading) return <PageSkeleton />;
   if (!job.data) {
     return (

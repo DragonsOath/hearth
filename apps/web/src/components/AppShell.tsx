@@ -18,6 +18,7 @@ import { AddonSlot } from "./AddonSlot";
 import "./show/cursor.css";
 import { CaveOverlay } from "./cave/CavePanel";
 import { PhoneLairButton, useOpenEmberChat } from "./shell/LairButton";
+import { ApprovalDock } from "./jobs/ApprovalDock";
 import { PlanNotices } from "./shell/PlanNotices";
 import { UpdateNotice } from "./shell/UpdateNotice";
 import { useViewingPcName } from "../lib/viewingPc";
@@ -303,6 +304,7 @@ export function AppShell() {
     <CaveProvider>
       <Shell />
       <PlanNotices />
+      <ApprovalDock />
       <UpdateNotice />
     </CaveProvider>
   );

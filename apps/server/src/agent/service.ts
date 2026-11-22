@@ -396,6 +396,22 @@ export const isSlashCommand = (words: string) => /^\/[A-Za-z][\w-]*(?:\s|$)/.tes
  * The agent's own steps as live progress (11-12, the owner: "I need an indicator it's still
  * working"): each shows while it runs and is ticked off when it ends.
  */
+/**
+ * Hearth's instructions to the AI in a conversation (the automatic follow-ups after a plan ends,
+ * or after the owner hands Ember's browser back). Marked when saved; older ones by their words.
+ */
+const INSTRUCTION_WORDS = [
+  /^The homelab step "/,
+  /^You approved "/,
+  /^The owner finished in Ember's Browser and gave it back/,
+  /^The owner (allowed|said no to) opening /,
+];
+export function isInstruction(m: { role: string; text: string; meta?: unknown }) {
+  if (m.role !== "note") return false;
+  if ((m.meta as { instruction?: boolean } | null | undefined)?.instruction) return true;
+  return INSTRUCTION_WORDS.some((re) => re.test(m.text));
+}
+
 function liveSteps(progress: { turn: Turn; activity: Activity }) {
   const rows = new Map<string, Promise<number>>();
   return (step: AgentStep) => {
@@ -1879,6 +1895,16 @@ export class Agents {
               role: input.carryOn ? "note" : "you",
               text: words,
               at: now,
+              // An automatic follow-up is Hearth talking to the AI: hidden from the owner.
+              ...(input.carryOn
+                ? {
+                    meta: {
+                      mode: "status",
+                      instruction: true,
+                      reason: "Hearth's instruction to the AI.",
+                    },
+                  }
+                : {}),
             });
             await db
               .update(t.conversations)
@@ -2462,6 +2488,7 @@ export class Agents {
         role: m.role,
         text: m.text,
         at: m.at,
+        ...(isInstruction(m) ? { hidden: true } : {}),
         ...(m.evidence ? { evidence: m.evidence } : {}),
         ...(m.meta ? { meta: m.meta as unknown as CaveAnswerMeta } : {}),
         ...(activity.get(m.id) ? { activity: activity.get(m.id) } : {}),

@@ -113,6 +113,8 @@ export interface CaveAnswerMeta {
    * said in a Remote Control session (/rc), live with the Claude app.
    */
   mode: "ai" | "records" | "refusal" | "status" | "remote";
+  /** Hearth's instruction to the AI, never shown in the chat (an automatic follow-up). */
+  instruction?: boolean;
   /** A page the answer points to, shown as a button (Anthropic's sign-in for /login). */
   link?: { label: string; url: string };
   /** Why records were used instead of the AI, or why it was declined. */
@@ -221,6 +223,11 @@ export interface CaveMessage {
   meta?: CaveAnswerMeta;
   /** On your messages: what was done to answer it, as it happened. */
   activity?: CaveActivity[];
+  /**
+   * Hearth's own instruction to the AI (an automatic follow-up after a plan ends, say): kept for
+   * the AI's history and to carry the turn's progress and plans, but its words are never shown.
+   */
+  hidden?: boolean;
 }
 
 /** One AI run, for usage reporting. */

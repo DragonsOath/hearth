@@ -382,6 +382,18 @@ export function BuildProgress({ aiName }: { aiName: string }) {
               {s.status === "needs-you" && s.need?.kind === "vpn-login" && (
                 <VpnNeed {...(s.need.provider ? { provider: s.need.provider } : {})} />
               )}
+              {/* The VPN turned the login down: the way past is right here, not elsewhere (11-22). */}
+              {s.id === "qbittorrent" &&
+                s.status === "failed" &&
+                /turned down the VPN login|did not accept the WireGuard key/.test(
+                  s.detail ?? "",
+                ) && (
+                  <VpnNeed
+                    {...(b.downloads?.vpn && b.downloads.vpn in VPN_PROVIDERS
+                      ? { provider: b.downloads.vpn as VpnProvider }
+                      : {})}
+                  />
+                )}
               {s.status === "needs-you" && s.need?.kind === "open-app" && (
                 <Button
                   tone="primary"

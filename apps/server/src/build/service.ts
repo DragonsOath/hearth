@@ -19,6 +19,7 @@ import {
   type Requester,
   type StepChange,
   type VpnProvider,
+  VPN_LOGIN_PAGES,
 } from "@dragon-control/core";
 import type { DbHandle } from "../db/client";
 import type { Vault } from "../auth/vault";
@@ -223,6 +224,21 @@ async function answers(url: string, f: typeof fetch = fetch): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Why the VPN did not come up, from Gluetun's own log, in plain words: the provider refused the
+ * login (the usual one: the account sign-in instead of the VPN's own pair), or a WireGuard key it
+ * did not accept. Undefined when the log does not say.
+ */
+export function vpnWhy(log: string, provider?: VpnProvider): string | undefined {
+  const name = provider ? VPN_PROVIDERS[provider].name : "Your VPN";
+  const page = provider ? VPN_LOGIN_PAGES[provider] : undefined;
+  if (/AUTH_FAILED|auth(entication)? failed/i.test(log))
+    return `${name} turned down the VPN login, so qBittorrent was not started (nothing downloads without the VPN). ${name}'s VPN connections use their own username and password, a separate pair from the one you sign in to ${name} with${page ? `: ${page.where} (${page.url})` : ""}. Put that pair in "Your VPN login" on the plan page, and Hearth tries again.`;
+  if (/handshake did not complete|wireguard.*(key|handshake)/i.test(log))
+    return `${name} did not accept the WireGuard key, so qBittorrent was not started (nothing downloads without the VPN). Make a new WireGuard configuration in your ${name} account and put its private key in "Your VPN login" on the plan page.`;
+  return undefined;
 }
 
 export class HomelabBuilder {
@@ -1207,10 +1223,21 @@ export class HomelabBuilder {
     }
     const up = await applyCompose(this.d.run, file, this.d.wait);
     if (!up.ok) {
+      // The VPN's own words first, before its container goes: a refused login is the owner's to
+      // fix and says so plainly, not as Compose's wall of text (11-22, the laptop retest).
+      const vpn =
+        app === "qbittorrent"
+          ? vpnWhy(
+              (await this.d.run("docker", ["logs", "--tail", "300", "gluetun"], 20_000)).out,
+              ctx.vpn?.provider,
+            )
+          : undefined;
       await this.d.run("docker", ["compose", "-f", file, "down"], 120_000).catch(() => undefined);
       return {
         ok: false,
-        result: `${recipe.name} did not start cleanly (${up.detail}). Its containers were removed again; ${dir} stays.`,
+        result:
+          vpn ??
+          `${recipe.name} did not start cleanly (${up.detail}). Its containers were removed again; ${dir} stays.`,
       };
     }
     // Accounts, through the app's own API.

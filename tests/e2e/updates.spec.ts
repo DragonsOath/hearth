@@ -32,7 +32,7 @@ test("a new Hearth: Update in the top bar, on the bell, and in Settings; Update 
   const button = page.getByTestId("update-button");
   await expect(button).toBeVisible();
   // The bell counts it too, and its page shows it first.
-  await expect(page.getByRole("link", { name: /need you/ })).toBeVisible();
+  await expect(page.getByTestId("bell")).toHaveAccessibleName(/need you/);
   await page.goto("/incidents");
   await expect(page.getByTestId("update-card")).toContainText("Hearth 0.32.0 is out");
 

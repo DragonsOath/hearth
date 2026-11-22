@@ -224,7 +224,16 @@ export async function arrSignIn(
       const failed = /loginFailed/i.test(to);
       if (res.status >= 300 && res.status < 400 && !failed && cookies.length)
         return { ok: true, said: `signed in (${res.status})` };
-      said = `${res.status}${to ? ` to ${to.replace(/\?.*/, "")}${failed ? " (loginFailed)" : ""}` : ""}${cookies.length ? `, cookies ${cookies.join(", ")}` : ", no cookie"}`;
+      // A refusal (400) says why in its body: keep a short, plain piece of it.
+      const why =
+        res.status >= 400
+          ? (await res.text().catch(() => ""))
+              .replace(/<[^>]*>/g, " ")
+              .replace(/\s+/g, " ")
+              .trim()
+              .slice(0, 160)
+          : "";
+      said = `${res.status}${why ? ` "${why}"` : ""}${to ? ` to ${to.replace(/\?.*/, "")}${failed ? " (loginFailed)" : ""}` : ""}${cookies.length ? `, cookies ${cookies.join(", ")}` : ", no cookie"}`;
     } catch (e) {
       said = e instanceof Error ? e.message : String(e);
     }

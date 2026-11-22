@@ -388,6 +388,15 @@ cat >"$home/open-hearth" <<'OPEN'
 # instead of filing the window under the browser. Signing in there is remembered there.
 dir="$(dirname "$(readlink -f "$0")")"
 url="${1:-$(cat "$dir/app-url")}"
+# A hearth://open/<page> link (Hearth in a browser tab on this PC, "Open the Hearth app"): Hearth's
+# own address and that page. Only a plain page path is kept; anything else opens Hearth's start.
+case "$url" in
+  hearth:*)
+    page="${url#hearth://open}"
+    [[ "$page" =~ ^/[A-Za-z0-9/_.?=\&%-]*$ ]] || page=""
+    url="$(cat "$dir/app-url")$page"
+    ;;
+esac
 # Marks Hearth's own window, so Hearth knows it is not a browser tab (never the fallback tab).
 case "$url" in *\?*) own="$url&window=app" ;; *) own="$url?window=app" ;; esac
 for b in google-chrome google-chrome-stable chromium chromium-browser microsoft-edge microsoft-edge-stable brave-browser; do
@@ -401,11 +410,12 @@ cat >"$data_home/applications/$service.desktop" <<DESKTOP
 Type=Application
 Name=Hearth
 Comment=Your homelab, with Ember
-Exec=$home/open-hearth
+Exec=$home/open-hearth %u
 Icon=$data_home/icons/$service.png
 Terminal=false
 Categories=System;
 StartupWMClass=Hearth
+MimeType=x-scheme-handler/hearth;
 DESKTOP
 desktop_dir="$(xdg-user-dir DESKTOP 2>/dev/null || echo "$HOME/Desktop")"
 if [[ -d "$desktop_dir" ]]; then
@@ -425,6 +435,9 @@ Icon=$data_home/icons/$service.png
 NoDisplay=true
 WAYLAND
 update-desktop-database "$data_home/applications" 2>/dev/null || true
+# hearth:// links open this Hearth's own window: Hearth in a browser tab on this PC offers
+# "Open the Hearth app" (11-22, the owner: nothing told a beginner an app landed on their PC).
+xdg-mime default "$service.desktop" x-scheme-handler/hearth 2>/dev/null || true
 echo "Hearth is in your app menu$([[ -d "$desktop_dir" ]] && echo " and on your desktop"): it opens in its own window."
 
 # --- Done ---------------------------------------------------------------------------------------------

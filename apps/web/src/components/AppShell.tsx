@@ -21,6 +21,7 @@ import { PhoneLairButton, useOpenEmberChat } from "./shell/LairButton";
 import { ApprovalDock } from "./jobs/ApprovalDock";
 import { PlanNotices } from "./shell/PlanNotices";
 import { UpdateNotice } from "./shell/UpdateNotice";
+import { OpenInApp } from "./shell/OpenInApp";
 import { useViewingPcName } from "../lib/viewingPc";
 import { useLayoutKeeper } from "../lib/layoutKeeper";
 import { SCREEN_ID, ScreenCapture } from "./shell/ScreenCapture";
@@ -306,6 +307,7 @@ export function AppShell() {
       <PlanNotices />
       <ApprovalDock />
       <UpdateNotice />
+      <OpenInApp />
     </CaveProvider>
   );
 }

@@ -80,6 +80,9 @@ if ($Uninstall -or $env:HEARTH_UNINSTALL -eq "1") {
   foreach ($dir in @([Environment]::GetFolderPath("Programs"), [Environment]::GetFolderPath("Desktop"))) {
     Remove-Item (Join-Path $dir "Hearth.lnk") -ErrorAction SilentlyContinue
   }
+  # hearth:// links, only when they open this Hearth.
+  $cmd = (Get-ItemProperty "HKCU:\Software\Classes\hearth\shell\open\command" -ErrorAction SilentlyContinue)."(default)"
+  if ($cmd -and $cmd -like "*$HearthHome*") { Remove-Item -Recurse "HKCU:\Software\Classes\hearth" -ErrorAction SilentlyContinue }
   Write-Host "Removed the sign-in task and the Hearth app icons."
   Write-Host ""
   Write-Host "Your Hearth folder is still here: $HearthHome (your settings, vault, backups, and the app)."
@@ -385,7 +388,8 @@ switch (`$Do) {
     $profileDir = Join-Path $HearthHome "app-window"
     if ($browser) {
       $lnk.TargetPath = $browser
-      $lnk.Arguments = "--user-data-dir=`"$profileDir`" --no-first-run --no-default-browser-check --autoplay-policy=no-user-gesture-required --app=$appUrl"
+      # window=app: Hearth knows it is in its own window, not a browser tab.
+      $lnk.Arguments = "--user-data-dir=`"$profileDir`" --no-first-run --no-default-browser-check --autoplay-policy=no-user-gesture-required --app=$appUrl/?window=app"
     }
     else { $lnk.TargetPath = $appUrl }
     if ($ico) { $lnk.IconLocation = $ico }
@@ -399,6 +403,24 @@ switch (`$Do) {
       $prefix = if ($browser -eq $chrome) { "Chrome" } else { "MSEdge" }
       try { SetTaskbarId (Join-Path $dir "Hearth.lnk") "$prefix.$($u.Host)_$($u.AbsolutePath).appwindow.Default" } catch { }
     }
+  }
+  # hearth:// links open Hearth's own window: Hearth in a browser tab on this PC offers "Open the
+  # Hearth app" (11-22, the owner: nothing told a beginner an app landed on their PC).
+  if ($browser) {
+    $opener = Join-Path $HearthHome "open-hearth.ps1"
+    @"
+# Opens a hearth://open/<page> link in Hearth's own window. Only a plain page path is kept.
+param([string]`$Link = "")
+`$page = `$Link -replace '^hearth://open', ''
+if (`$page -notmatch '^/[A-Za-z0-9/_.?=&%-]*$') { `$page = "/" }
+`$sep = if (`$page.Contains("?")) { "&" } else { "?" }
+Start-Process -FilePath "$browser" -ArgumentList @("--user-data-dir=```"$profileDir```"", "--no-first-run", "--no-default-browser-check", "--autoplay-policy=no-user-gesture-required", "--app=$appUrl`$page`${sep}window=app")
+"@ | Set-Content -Encoding utf8 $opener
+    $key = "HKCU:\Software\Classes\hearth"
+    New-Item -Path "$key\shell\open\command" -Force | Out-Null
+    Set-ItemProperty -Path $key -Name "(default)" -Value "URL:Hearth"
+    Set-ItemProperty -Path $key -Name "URL Protocol" -Value ""
+    Set-ItemProperty -Path "$key\shell\open\command" -Name "(default)" -Value "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$opener`" `"%1`""
   }
   Write-Host "Hearth is in your Start menu and on your desktop: it opens in its own window."
 

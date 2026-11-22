@@ -1466,6 +1466,38 @@ export const FEATURES: Feature[] = [
     },
   },
   {
+    id: "media-home-tab",
+    name: "Home tab of Plex, Jellyfin and Emby",
+    summary:
+      "Plex, Jellyfin and Emby panels open on Home: the server's home screen row by row with posters, in Home rows' editor for that server, with Refresh to read it again (a row just made or moved, a title that just landed). Changes not sent yet are kept.",
+    aliases: [
+      "plex home screen",
+      "jellyfin home screen",
+      "emby home screen",
+      "see my home rows",
+      "refresh home rows",
+      "default tab plex",
+      "what plex opens to",
+    ],
+    where: {
+      route: "/services",
+      path: "Open Plex, Jellyfin or Emby: it opens on Home; Refresh at the top",
+    },
+    open: { app: ["plex", "jellyfin", "emby"], tab: "home" },
+    labels: ["Refresh"],
+    status: "working",
+    evidence: [
+      {
+        file: "tests/e2e/media-home-rows.spec.ts",
+        test: "Plex opens on its home screen, and Refresh reads it again",
+      },
+      {
+        file: "tests/e2e/media-home-rows.spec.ts",
+        test: "Jellyfin and Emby open on their home screens too",
+      },
+    ],
+  },
+  {
     id: "plex-panel",
     name: "Plex's own tabs",
     summary:
@@ -3262,7 +3294,7 @@ export const FEATURES: Feature[] = [
     aliases: ["emby", "emby server", "emby users", "emby library", "emby plugins", "emby settings"],
     where: {
       route: "/services",
-      path: "Open Emby; tabs Overview, Library, Tasks, People, Devices, Activity, Manage, Plugins, Settings, Logs",
+      path: "Open Emby; tabs Home, Overview, Library, Tasks, People, Devices, Activity, Manage, Plugins, Settings, Logs",
     },
     open: { app: ["emby"], tab: "people" },
     labels: ["Tasks", "People", "Devices", "Activity", "Logs"],

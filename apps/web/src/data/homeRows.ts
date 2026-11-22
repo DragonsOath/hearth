@@ -4,6 +4,7 @@ import {
   useQueries,
   useQuery,
   useQueryClient,
+  type QueryKey,
 } from "@tanstack/react-query";
 import type { HomeRow, HomeRowInput } from "@dragon-control/core";
 import { api } from "./api";
@@ -209,4 +210,19 @@ export function useLibraryOrder() {
       api("PUT", "/api/home-rows/library-order", b),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["home-rows-options"] }),
   });
+}
+
+/** Everything read from one server to draw its home screen: what Refresh reads again. */
+export function isHomeQuery(key: QueryKey, serviceId: string) {
+  const [what, id, , part] = key as unknown[];
+  if (id !== serviceId) return false;
+  if (
+    what === "home-rows" ||
+    what === "home-rows-options" ||
+    what === "home-rows-posters" ||
+    what === "home-layouts"
+  )
+    return true;
+  // Jellyfin and Emby: each person's home screen and what it can show.
+  return what === "dashboard" && typeof part === "string" && part.startsWith("home");
 }

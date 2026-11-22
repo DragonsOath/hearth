@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useIsFetching, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 import {
   ArrowDown,
@@ -10,6 +10,7 @@ import {
   Lock,
   Pencil,
   Plus,
+  RefreshCw,
   Search,
   SlidersHorizontal,
   Trash2,
@@ -30,6 +31,7 @@ import {
   useContinuePosters,
   useRowPosters,
   useSaveLayout,
+  isHomeQuery,
   type HomeRowsOptions,
 } from "../../data/homeRows";
 import { useJobs } from "../../data/jobs";
@@ -42,6 +44,7 @@ import { ToolImage } from "../panels/ToolImage";
 import { targetProps } from "../panels/targets";
 import { useCave } from "../shell/cave-context";
 import { Skeleton, cx } from "../ui";
+import { agoWords } from "../../lib/format";
 import { EmbyHomeEditor } from "./EmbyHome";
 import { JellyfinHomeEditor } from "./JellyfinHome";
 import { AddTitleToCollection } from "./AddTitle";
@@ -320,6 +323,67 @@ export function HomeRowsPanel({
         </div>
       )}
     </WorkspaceFrame>
+  );
+}
+
+/**
+ * A media server's own Home tab (11-21, the owner: "we need to see the home screen and its rows",
+ * the page Plex, Jellyfin and Emby open on). The same editor as the Home rows panel, for this one
+ * server, with Refresh: reads the home screen again, so a row made or moved in Home rows, or a
+ * movie or show that just landed, shows here at once. Changes not sent yet are kept.
+ */
+export function ServerHome({ serviceId }: { serviceId: string }) {
+  const ws = useWorkspace();
+  const service = ws.data?.services.find((s) => s.id === serviceId);
+  const kind = service ? appKindOf(service) : undefined;
+  const qc = useQueryClient();
+  const busy = useIsFetching({ predicate: (q) => isHomeQuery(q.queryKey, serviceId) }) > 0;
+  const [read, setRead] = useState(() => new Date().toISOString());
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => tick((n) => n + 1), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  const refresh = () => {
+    void qc
+      .invalidateQueries({ predicate: (q) => isHomeQuery(q.queryKey, serviceId) })
+      .then(() => setRead(new Date().toISOString()));
+  };
+  const name = service?.name ?? "this server";
+  return (
+    <div className="hr-panel space-y-4" data-testid="server-home">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[0.86rem] text-muted">
+          The home screen as {name} shows it.{" "}
+          <span className="text-faint" data-testid="server-home-read">
+            {busy ? "Reading it now…" : `Read ${agoWords(read)}.`}
+          </span>
+        </p>
+        <button
+          type="button"
+          onClick={refresh}
+          disabled={busy}
+          className="hr-lift inline-flex min-h-10 items-center gap-2 rounded-lg border border-line px-3 text-[0.85rem] font-semibold text-ink hover:border-line-strong disabled:opacity-60"
+          data-testid="server-home-refresh"
+        >
+          <RefreshCw
+            size={15}
+            className={cx(busy && "animate-spin motion-reduce:animate-none")}
+            aria-hidden
+          />
+          Refresh
+        </button>
+      </div>
+      {ws.isLoading ? (
+        <Skeleton className="h-64" />
+      ) : kind === "emby" ? (
+        <EmbyHomeEditor serviceId={serviceId} />
+      ) : kind === "jellyfin" ? (
+        <JellyfinHomeEditor serviceId={serviceId} />
+      ) : (
+        <Editor serviceId={serviceId} />
+      )}
+    </div>
   );
 }
 

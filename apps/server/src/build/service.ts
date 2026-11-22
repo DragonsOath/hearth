@@ -667,6 +667,12 @@ export class HomelabBuilder {
         : { OPENVPN_USER: input.username ?? "", OPENVPN_PASSWORD: input.password ?? "" };
     if (Object.values(values).some((v) => !v.trim()))
       throw new SetupError("Fill in every field of the VPN login.");
+    // A VPN's OpenVPN login is never an email address: an email is the account sign-in (often
+    // filled in by the browser), which the VPN turns away. Say so now, not as a failed start.
+    if (input.type === "openvpn" && input.username?.includes("@"))
+      throw new SetupError(
+        `That looks like your ${VPN_PROVIDERS[input.provider].name} account email. The VPN needs its own OpenVPN username and password, a separate pair shown in your ${VPN_PROVIDERS[input.provider].name} account (often on a page called OpenVPN, manual setup, or service credentials). If the boxes filled in by themselves, your browser put your saved login there: clear them and paste the OpenVPN pair.`,
+      );
     const before = (await this.ledger()).vpn;
     const ids: Record<string, string> = {};
     for (const [envName, value] of Object.entries(values)) {

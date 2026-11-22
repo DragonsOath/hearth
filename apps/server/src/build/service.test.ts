@@ -290,6 +290,19 @@ describe("Build my plan", () => {
     expect([...vault.kept.values()].map((s) => s.value)).toContain("s3cret-vpn");
   });
 
+  it("an email as the VPN username is turned away with the reason (the browser filled it, 11-22)", async () => {
+    const { builder, vault } = await setup({ docker: true, helper: ["docker.install"] });
+    await expect(
+      builder.saveVpn({
+        provider: "proton",
+        type: "openvpn",
+        username: "alex@example.com",
+        password: "hearth-pass",
+      }),
+    ).rejects.toThrow(/looks like your Proton VPN account email.*OpenVPN username and password/s);
+    expect([...vault.kept.values()].some((v) => v.value === "alex@example.com")).toBe(false);
+  });
+
   it("finds the movies folder by name, and the drive with the most videos", async () => {
     const { drive } = await setup();
     const f = await mediaFolders(drive);

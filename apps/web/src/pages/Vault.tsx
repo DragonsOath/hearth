@@ -301,7 +301,8 @@ function SecretSheet({
           type="password"
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          autoComplete="off"
+          // Not the browser's saved Hearth password: it fills a plain "off" anyway (11-22).
+          autoComplete="new-password"
           hint="Encrypted the moment it reaches Hearth. It never leaves this machine, and AI agents never see it."
           required={!existing}
         />

@@ -197,7 +197,13 @@ function VpnNeed({ provider: given }: { provider?: VpnProvider }) {
             value={a}
             onChange={(e) => setA(e.target.value)}
             type={t === "wireguard" ? "password" : "text"}
+            // Never the browser's saved login for Hearth (11-22: Chrome filled the owner's own
+            // email and password here, and Gluetun got those instead of the VPN's login).
+            name="vpn-login-user"
             autoComplete="off"
+            data-lpignore="true"
+            data-1p-ignore=""
+            data-testid="vpn-user"
             className={field}
           />
         </label>
@@ -207,7 +213,11 @@ function VpnNeed({ provider: given }: { provider?: VpnProvider }) {
             value={b}
             onChange={(e) => setB(e.target.value)}
             type={t === "wireguard" ? "text" : "password"}
-            autoComplete="off"
+            name="vpn-login-secret"
+            autoComplete="new-password"
+            data-lpignore="true"
+            data-1p-ignore=""
+            data-testid="vpn-pass"
             className={field}
           />
         </label>

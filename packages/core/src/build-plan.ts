@@ -1953,7 +1953,8 @@ export function includeAnywayEffects(
 export const VPN_LOGIN_PAGES: Partial<Record<VpnProvider, { url: string; where: string }>> = {
   proton: {
     url: "https://account.proton.me/vpn/OpenVpnIKEv2",
-    where: 'the "OpenVPN / IKEv2 username" and "OpenVPN / IKEv2 password" on that page (OpenVPN, in the left menu of your Proton account)',
+    where:
+      'the "OpenVPN / IKEv2 username" and "OpenVPN / IKEv2 password" on that page (OpenVPN, in the left menu of your Proton account)',
   },
   nord: {
     url: "https://my.nordaccount.com/dashboard/nordvpn/manual-configuration/",

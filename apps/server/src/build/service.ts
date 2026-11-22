@@ -695,6 +695,8 @@ export class HomelabBuilder {
       const s = await this.d.vault.add({
         name: `VPN for downloads: ${envName.toLowerCase().replaceAll("_", " ")}`,
         kind: envName.includes("USER") ? "login" : "password",
+        // Shown as the entry's username too, so the box and the value never disagree.
+        ...(envName === "OPENVPN_USER" ? { username: value.trim() } : {}),
         tier: "automation",
         value: value.trim(),
         category: "Homelab plan",
@@ -1197,9 +1199,16 @@ export class HomelabBuilder {
           if (name === "WIREGUARD_ADDRESSES") continue;
           return { ok: false, result: `${name} is not in Secure Vault: add your VPN login again.` };
         }
-        const v = await this.d.vault.use(id, `Start ${recipe.name} for your homelab plan`, {
+        let v = await this.d.vault.use(id, `Start ${recipe.name} for your homelab plan`, {
           actor: "dragon-control",
         });
+        // The VPN username is that entry's value; an owner who fixes it in Secure Vault types it
+        // in the entry's Username box, which wins (11-22: the box said one thing, the VPN got
+        // the old value).
+        if (name === "OPENVPN_USER") {
+          const shown = (await this.d.vault.list()).find((x) => x.id === id)?.username?.trim();
+          if (shown) v = shown;
+        }
         // Compose reads .env values literally when single-quoted; a quote is escaped out.
         lines.push(`${name}='${v.replaceAll("'", "'\\''")}'`);
       }

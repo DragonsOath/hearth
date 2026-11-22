@@ -30,17 +30,25 @@ const ANSWERS: BuildAnswers = {
 };
 
 function fakeVault() {
-  const kept = new Map<string, { name: string; value: string; serviceId?: string }>();
+  const kept = new Map<
+    string,
+    { name: string; value: string; username?: string; serviceId?: string }
+  >();
   let n = 0;
   return {
     kept,
     vault: {
-      add: async (x: { name: string; value: string }) => {
+      add: async (x: { name: string; value: string; username?: string }) => {
         const id = `s${++n}`;
-        kept.set(id, { name: x.name, value: x.value });
+        kept.set(id, {
+          name: x.name,
+          value: x.value,
+          ...(x.username ? { username: x.username } : {}),
+        });
         return { id };
       },
       use: async (id: string) => kept.get(id)!.value,
+      list: async () => [...kept].map(([id, k]) => ({ id, name: k.name, username: k.username })),
       removeInternal: async (id: string) => void kept.delete(id),
       update: async (id: string, p: { serviceId?: string }) => {
         kept.get(id)!.serviceId = p.serviceId;
@@ -288,6 +296,9 @@ describe("Build my plan", () => {
     expect(all).toContain("${OPENVPN_PASSWORD}");
     expect(all).not.toContain("s3cret-vpn");
     expect([...vault.kept.values()].map((s) => s.value)).toContain("s3cret-vpn");
+    // The VPN username shows in the entry's Username box too, so the two never disagree.
+    const user = [...vault.kept.values()].find((s) => s.name.endsWith("openvpn user"))!;
+    expect(user).toMatchObject({ value: "user+pmp", username: "user+pmp" });
   });
 
   it("an email as the VPN username is turned away with the reason (the browser filled it, 11-22)", async () => {

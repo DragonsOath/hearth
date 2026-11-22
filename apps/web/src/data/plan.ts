@@ -125,6 +125,18 @@ export function useProposeBuildStep() {
   });
 }
 
+/** The owner checked a failed step's app and it works: a plan to mark it done (approved). */
+export function useConfirmBuildStep() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (step: HomelabStepId) => api<Job>("POST", "/api/plan/build/confirm", { step }),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: ["plan-build"] });
+      void qc.invalidateQueries({ queryKey: ["jobs"] });
+    },
+  });
+}
+
 /** The VPN login for downloads: straight into Secure Vault, never shown back. */
 export function useSaveBuildVpn() {
   const qc = useQueryClient();

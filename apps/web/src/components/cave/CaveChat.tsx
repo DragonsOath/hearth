@@ -27,6 +27,7 @@ import { useClaimShow, useResumeShow, useShowSettings, useShowState } from "../.
 import { isClearStop } from "@dragon-control/core";
 import { Message, Notice, remoteQuestion } from "./Thread";
 import { ConversationPlans, PlanCards, plansIn, Progress } from "./Progress";
+import { BuildNext } from "../plan/BuildNext";
 import { Suggestions } from "../desk/Suggestions";
 import { useOpenPanels } from "../desk/useOpenPanels";
 import { CredentialPrompts } from "../credentials/CredentialPrompts";
@@ -569,6 +570,10 @@ export function CaveChat({
             </Fragment>
           ))}
           {conversationId && <ConversationPlans conversationId={conversationId} drawn={drawn} />}
+          {/* The build's conversation: always one next action under Ember's latest message. */}
+          {conversationId && !working && messages.at(-1)?.role === "agent" && (
+            <BuildNext conversationId={conversationId} />
+          )}
           {ask.isPending &&
             ask.variables &&
             !messages.some((m) => m.text === ask.variables!.text) && (

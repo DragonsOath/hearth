@@ -67,6 +67,7 @@ const STEP_KIND_LABEL: Record<ActionKind, string> = {
   "build-tailscale": "Install Tailscale (your homelab plan)",
   "build-app": "Set up an app (your homelab plan)",
   "build-connect": "Connect your apps (your homelab plan)",
+  "build-confirm": "You checked an app works (your homelab plan)",
   "run-check": "Run the health check",
   "test-endpoint": "Test the web address",
   "inspect-logs": "Read recent logs",

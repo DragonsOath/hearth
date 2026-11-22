@@ -7,12 +7,14 @@ import {
   type VpnProvider,
 } from "@dragon-control/core";
 import {
+  useConfirmBuildStep,
   useHomelabBuild,
   useProposeBuildStep,
   useSaveBuildVpn,
   useTailscaleLink,
 } from "../../data/plan";
 import { Button, LinkButton, cx } from "../ui";
+import { openApp } from "./BuildNext";
 import { FormError } from "../../pages/auth/AuthFrame";
 
 /**
@@ -249,6 +251,36 @@ function TailscaleNeed({ url: given }: { url?: string }) {
   );
 }
 
+/**
+ * A step that failed while its app runs and answers: Hearth's own check may be what failed
+ * (11-22), so the owner can say it works. It is a plan they approve, and Hearth notes it.
+ */
+function ConfirmWorks({ step }: { step: HomelabStep }) {
+  const confirm = useConfirmBuildStep();
+  return (
+    <div
+      className="mt-2 rounded-xl border border-line p-3 text-[0.82rem]"
+      data-testid="build-confirm-box"
+    >
+      <p className="leading-relaxed text-muted">
+        {step.name} runs and answers on its address. If you open it and can sign in, Hearth&apos;s
+        own check is what failed: tell Hearth it works and the build carries on.
+      </p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <Button tone="primary" disabled={confirm.isPending} onClick={() => confirm.mutate(step.id)}>
+          I checked it myself, it works: continue
+        </Button>
+        {step.url && (
+          <Button tone="quiet" onClick={() => openApp(step.url!, step.id)}>
+            Open {step.name}
+          </Button>
+        )}
+      </div>
+      <FormError error={confirm.error} />
+    </div>
+  );
+}
+
 export function BuildProgress({ aiName }: { aiName: string }) {
   const build = useHomelabBuild();
   const propose = useProposeBuildStep();
@@ -308,15 +340,24 @@ export function BuildProgress({ aiName }: { aiName: string }) {
                 <VpnNeed {...(s.need.provider ? { provider: s.need.provider } : {})} />
               )}
               {s.status === "needs-you" && s.need?.kind === "open-app" && (
-                <a
-                  href={s.need.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-2 inline-flex min-h-11 items-center rounded-lg bg-gold px-4 text-[0.88rem] text-bg hover:bg-gold-bright"
+                <Button
+                  tone="primary"
+                  className="mt-2"
+                  onClick={() => openApp((s.need as { url: string }).url, s.id)}
                 >
                   {s.need.label}
-                </a>
+                </Button>
               )}
+              {s.status === "done" && s.url && (
+                <button
+                  type="button"
+                  onClick={() => openApp(s.url!, s.id)}
+                  className="mt-1 text-[0.82rem] text-gold underline underline-offset-2"
+                >
+                  Open {s.name}
+                </button>
+              )}
+              {s.status === "failed" && s.answering && <ConfirmWorks step={s} />}
               {s.status === "needs-you" && s.need?.kind === "tailscale-login" && (
                 <TailscaleNeed {...(s.need.url ? { url: s.need.url } : {})} />
               )}

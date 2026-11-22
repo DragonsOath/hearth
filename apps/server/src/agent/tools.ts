@@ -5403,9 +5403,9 @@ export function registerTools(
     "homelab_build",
     {
       description:
-        "Build my plan: the owner's saved homelab plan, built one approved step at a time from Hearth's own recipes (Docker, Jellyfin or Plex, Seerr, Radarr, Sonarr, Prowlarr, qBittorrent through their VPN, connecting the apps, Tailscale). action status lists every step in order with what it needs (for Docker or Tailscale without the admin helper: the reason, and two ways, the helper's one command or the vendor's own install commands to run themselves; the VPN login; a Tailscale sign-in) and the next one; action propose makes the next step (or the named one) a plan the owner approves, with exactly what will be installed shown on its card. Propose one step at a time. Hearth fills in every detail; never write a Compose file for these, and never suggest indexers or sources. Plex and Seerr-with-Plex ask the owner to sign in on the app's own page (status says so). The VPN rule: Hearth never sets up qBittorrent or any download app without a VPN that allows P2P, whatever the budget. status.downloads says whether downloading is set up and why not (from the saved plan). When the owner asks why they can't download, or asks you to download something without a download app, explain it from that in your own friendly words (no VPN means their internet provider sees every download; a VPN that allows it is usually about $2 to $5 a month; if they asked to keep it free, say this is the best setup within that), and offer to help pick a VPN. If they say yes, action add-downloads adds downloading to their plan; they add the VPN login on the plan page, then you propose the steps as usual.",
+        "Build my plan: the owner's saved homelab plan, built one approved step at a time from Hearth's own recipes (Docker, Jellyfin or Plex, Seerr, Radarr, Sonarr, Prowlarr, qBittorrent through their VPN, connecting the apps, Tailscale). action status lists every step in order with what it needs (for Docker or Tailscale without the admin helper: the reason, and two ways, the helper's one command or the vendor's own install commands to run themselves; the VPN login; a Tailscale sign-in) and the next one; action propose makes the next step (or the named one) a plan the owner approves, with exactly what will be installed shown on its card. Propose one step at a time. When a step failed but status shows answering true (the app runs and answers), Hearth's own check may be what failed: say so plainly, ask the owner to open it (its url) and sign in, and if it works for them, action confirm (with step) proposes marking it done as they checked it, which they approve; the build then goes on. Never confirm without the owner saying it works. Hearth fills in every detail; never write a Compose file for these, and never suggest indexers or sources. Plex and Seerr-with-Plex ask the owner to sign in on the app's own page (status says so). The VPN rule: Hearth never sets up qBittorrent or any download app without a VPN that allows P2P, whatever the budget. status.downloads says whether downloading is set up and why not (from the saved plan). When the owner asks why they can't download, or asks you to download something without a download app, explain it from that in your own friendly words (no VPN means their internet provider sees every download; a VPN that allows it is usually about $2 to $5 a month; if they asked to keep it free, say this is the best setup within that), and offer to help pick a VPN. If they say yes, action add-downloads adds downloading to their plan; they add the VPN login on the plan page, then you propose the steps as usual.",
       inputSchema: {
-        action: z.enum(["status", "propose", "add-downloads"]),
+        action: z.enum(["status", "propose", "confirm", "add-downloads"]),
         step: z
           .enum([
             "docker",
@@ -5420,7 +5420,9 @@ export function registerTools(
             "tailscale",
           ])
           .optional()
-          .describe("propose: a step other than the next one (only to try a failed one again)."),
+          .describe(
+            "propose: a step other than the next one (only to try a failed one again). confirm: the failed step the owner checked and says works.",
+          ),
       },
     },
     async ({ action, step: which }) => {
@@ -5437,8 +5439,11 @@ export function registerTools(
         return text(st);
       }
       if (ctx.quiet) return text(QUIET_REFUSAL(ctx.quiet));
+      if (action === "confirm" && !which) return text("Not proposed: name the step that works.");
       try {
-        const job = await homelab.propose(which, {
+        const job = await (
+          action === "confirm" ? homelab.confirm.bind(homelab) : homelab.propose.bind(homelab)
+        )(which as never, {
           requestedBy: "agent",
           ...(ctx.conversationId ? { conversationId: ctx.conversationId } : {}),
         });

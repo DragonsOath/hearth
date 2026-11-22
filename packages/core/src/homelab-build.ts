@@ -58,6 +58,15 @@ export interface HomelabStep {
   detail?: string;
   jobId?: string;
   need?: HomelabNeed;
+  /** The app's own address, once it runs (its Open button). */
+  url?: string;
+  /**
+   * Failed, but the app runs and answers on its address: Hearth's own check may be what failed,
+   * so the owner can say it works (action confirm, approved like any step) and the build goes on.
+   */
+  answering?: boolean;
+  /** Done because the owner checked it and said it works (Hearth's own check had not passed). */
+  confirmedByOwner?: boolean;
 }
 
 export interface HomelabBuild {
@@ -74,6 +83,10 @@ export interface HomelabBuild {
   blocker?: string;
   /** The conversation the build is talked through in. */
   conversationId?: string;
+  /** One password the owner chose for every app, or a strong new one each (in Secure Vault). */
+  passwords?: "own" | "generate";
+  /** The owner's user name in every app. */
+  username?: string;
   /** Whether downloading is set up, and why not, from the saved plan (the VPN rule). */
   downloads?: {
     setUp: boolean;

@@ -144,6 +144,20 @@ export const buildText = (name: string, owner?: string) =>
     "Never invent a step, a Compose file, an indexer, a download site or a source: Hearth's recipes decide every detail, and the owner brings their own indexers. Logins and keys stay in Secure Vault; you never ask for or see a password.",
   ].join("\n");
 
+/**
+ * Build mode (11-22, the owner, from the beginner retest: "during a build, Ember doesn't drive...
+ * A real beginner would have quit"). For every message in the build's conversation until the
+ * plan is built, whichever AI agent answers: one next action, stay on the build, one way forward.
+ */
+export const buildModeText = (name: string) =>
+  [
+    `Build mode: this conversation is building the owner's homelab plan with you (${name}), and it is not finished. Until it is, every message follows these rules.`,
+    '1. End with exactly one clear next action: the approval card you just proposed ("Approve it below when you\'re ready"), the one button Hearth shows under your message (Open the app, Continue, Try again), or one plain instruction. Never end a message that just stops.',
+    '2. Stay on the build. If the owner asks something else, answer it in a sentence or two, then bring it back: "Back to your build: next is <the next step>. Ready?"',
+    "3. When something fails, give one recommended way forward: not a list, not an open question. If it is a Hearth bug you cannot fix (homelab_build status shows the step failed but answering true: the app runs and answers, and Hearth's own check is what failed), say so plainly, ask them to open the app and sign in, and if it works for them, propose homelab_build action confirm for that step.",
+    '4. Every app goes the same way: you propose it and the card appears here; they approve it. When it is up, name it, say Hearth opens it from the Open button under your message, and: "Sign in with the username and password you saved at the start." (when status says Hearth made strong passwords, say the password is in Secure Vault as "<App>: your login"). Hearth reads its API key itself and keeps it in Secure Vault: never ask for one, and never ask them to find or paste one. Then propose the next step straight away.',
+  ].join("\n");
+
 export const meetText = (name: string) =>
   [
     `This is the owner's first proper conversation with you ("Meet ${name}"). Do three things, in order.`,
@@ -210,6 +224,8 @@ export const CAVE_SYSTEM = (o: {
   meet?: boolean;
   /** Build my plan: greet the owner and build their saved homelab plan with them (buildText). */
   build?: boolean;
+  /** This conversation is building the owner's plan and it is not finished (build mode). */
+  buildMode?: boolean;
   /** The owner's name, for the build greeting. */
   ownerName?: string;
   /** Full access is on: the full Claude Code, not only Hearth's tools. */
@@ -290,6 +306,7 @@ ${o.ownerRules.trim()}
     "Findings: Hearth keeps one list of what is wrong or worth knowing across the homelab (its analyzers watch monitoring, the apps' own health, Docker, storage, the machines, backups, and security posture), and the owner's dashboard is built from it. For any assessment or 'what is wrong' question, start with list_findings, then investigate the ones that matter with get_finding and your other tools, most important first. When your investigation establishes something from evidence (a cause, a risk, an improvement), record it with record_finding (problem only when confirmed; suspected when likely; observation or recommendation otherwise) so it reaches the dashboard and is followed up; mark a finding you are working on with update_finding (investigating), and add what you learn as notes. Propose fixes for problems as plans linked to the finding (propose_job findingNumber); never propose a plan for an observation or recommendation unless the owner asks. Hearth's own findings resolve when its recheck shows the condition is gone; yours, when you verified it (say how) or a linked plan's checks pass. Areas Hearth cannot see are listed with the findings: a gap is not a clean bill of health. Keep certainty honest: a configuration risk (nature risk) is not an outage, one sighting is not a pattern, and when the evidence is not enough, say what is uncertain and what would settle it. A finding the owner accepted stays as they decided unless it changed. A finding that came back after a repair (returned-after-repair) means the fix did not hold: find the underlying cause before proposing the same fix again.",
     "Be observant. If, while working, you notice a separate problem, risk, maintenance need, or worthwhile improvement that genuinely matters (not minor warnings, one-off blips, or anything already on the to-do list), record it with note_finding and mention it in one short sentence at the end, offering to add it to the list. Do not investigate it or let it take over the answer unless the owner asks; at most two per answer.",
     'The to-do list (issues, tasks, ideas) is shared with the owner and its items have stable numbers (#12). When the owner asks to add something, keep it for later, put it on the back burner, drop it, or mark it done, do exactly that at once without asking again. Work out what "that", "the one you just mentioned", or "the second one" means from the items listed for this conversation; if it is genuinely ambiguous, ask which. Saving an item is never permission to act on it. Before recommending work on an older item, say whether it looks still active, apparently resolved, or unverified from current evidence (check live when you can); never call something resolved on your own, ask the owner. When working on a saved item, pick up from its history and plans, add what you find (update_todo note), and link plans to it (propose_job todoNumber).',
+    o.build || o.buildMode ? buildModeText(o.aiName ?? DEFAULT_AI_NAME) : "",
     o.build
       ? buildText(o.aiName ?? DEFAULT_AI_NAME, o.ownerName)
       : o.meet
@@ -876,8 +893,8 @@ export class Agents {
     void this.track(
       this.converse({
         text: ok
-          ? `The homelab step "${j.title}" finished: ${what}. Tell the owner in one or two plain lines (with the app's address if there is one), then call homelab_build (action status) and propose the next step with homelab_build (action propose), or say exactly what they need to do first. If every step is done, congratulate them and tell them what to try first.`
-          : `The homelab step "${j.title}" did not finish: ${j.summary ?? what}. Explain plainly what happened and what would fix it. Propose it again with homelab_build only if trying again makes sense.`,
+          ? `The homelab step "${j.title}" finished: ${what}. In one or two plain lines: name the app, say Hearth opens it from the Open button under your message, and "Sign in with the username and password you saved at the start." (or, when status says Hearth made strong passwords, that its password is in Secure Vault). Then call homelab_build (action status) and propose the next step right away with homelab_build (action propose), or say exactly what they need to do first. If every step is done, congratulate them and tell them the one thing to try first.`
+          : `The homelab step "${j.title}" did not finish: ${j.summary ?? what}. Call homelab_build (action status). Give one recommended way forward, not a list: if the step shows answering true (the app runs and answers, so Hearth's own check is what failed), say plainly that it looks like a Hearth check problem, ask them to open the app and sign in, and that if it works they can tell Hearth so (homelab_build action confirm, which they approve). Otherwise propose it again with homelab_build when trying again makes sense, or say the one thing that would fix it.`,
         conversationId: j.conversationId,
         source: "app",
         waitMs: 0,
@@ -940,6 +957,16 @@ export class Agents {
         waitMs: 0,
         carryOn: true,
       }).catch(() => undefined),
+    );
+  }
+
+  /** This conversation is the build's, and the plan is not built yet (build mode). */
+  private async inBuild(conversationId: string): Promise<boolean> {
+    const homelab = this.cave?.homelab;
+    if (!homelab) return false;
+    const st = await homelab.status().catch(() => undefined);
+    return Boolean(
+      st && st.conversationId === conversationId && st.steps.some((s) => s.status !== "done"),
     );
   }
 
@@ -2184,6 +2211,7 @@ export class Agents {
           todo: commands,
           meet: input.meet,
           build: input.build,
+          buildMode: await this.inBuild(conversationId),
           ownerName: (await getSetting(this.db, "owner_name")) || undefined,
           // A look-only message runs without the shell, so its instructions do not offer one.
           full: this.full().on && workIntent !== "look",
@@ -2198,6 +2226,7 @@ export class Agents {
         let lean =
           !input.meet &&
           !input.build &&
+          !(await this.inBuild(conversationId)) &&
           !input.carryOn &&
           !input.followUp &&
           !images.length &&

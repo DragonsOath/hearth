@@ -49,6 +49,7 @@ import {
   setupPlexLibraries,
   setupSeerr,
   type SetupDeps,
+  waitForApp,
 } from "./setup";
 
 /**
@@ -80,7 +81,12 @@ const STEP_INFO: Record<HomelabStepId, { name: string; what: string }> = {
 };
 
 interface Ledger {
-  steps: Partial<Record<HomelabStepId, { jobId?: string; done?: string; detail?: string }>>;
+  steps: Partial<
+    Record<
+      HomelabStepId,
+      { jobId?: string; done?: string; detail?: string; confirmedByOwner?: boolean }
+    >
+  >;
   /** Vault ids of each app's login and API key. */
   secrets: Partial<Record<RecipeId, { login?: string; key?: string }>>;
   vpn?: { provider: VpnProvider; type: "openvpn" | "wireguard"; ids: Record<string, string> };
@@ -208,6 +214,16 @@ function portInUse(port: number): Promise<boolean> {
 /** The admin helper's source, for anyone checking what it can do before setting it up. */
 export const HELPER_SOURCE_URL =
   "https://github.com/DragonsOath/hearth/tree/main/apps/server/src/elevated";
+
+/** Whether an app answers on its address at all (any answer below a server error), quickly. */
+async function answers(url: string, f: typeof fetch = fetch): Promise<boolean> {
+  try {
+    const r = await f(url, { signal: AbortSignal.timeout(3_000), redirect: "manual" });
+    return r.status < 500;
+  } catch {
+    return false;
+  }
+}
 
 export class HomelabBuilder {
   constructor(private readonly d: HomelabBuildDeps) {}
@@ -426,6 +442,7 @@ export class HomelabBuilder {
           ...(rec.detail || installed.has(id)
             ? { detail: rec.detail ?? "Already on this computer." }
             : {}),
+          ...(rec.confirmedByOwner ? { confirmedByOwner: true } : {}),
         };
       else if (job?.status === "awaiting-approval")
         step = {
@@ -474,12 +491,21 @@ export class HomelabBuilder {
           status: "failed",
           jobId: job.id,
           detail: job.summary ?? job.steps.find((s) => s.result)?.result ?? "It did not finish.",
+          // The app runs and answers anyway: Hearth's own check may be what failed (11-22).
+          ...((RECIPE_IDS as readonly string[]).includes(id) &&
+          (await answers(RECIPES[id as RecipeId].local, this.d.setup?.fetch))
+            ? { answering: true }
+            : {}),
         };
       else step = { ...base, status: "ready" };
       if (step.status !== "done" && id !== "tailscale") earlierPending = true;
       if (id === "docker" && step.status !== "done") earlierPending = true;
       steps.push(step);
     }
+    // Each app's own address, for its Open button (Hearth opens it in its own window).
+    for (const s of steps)
+      if ((RECIPE_IDS as readonly string[]).includes(s.id) && s.status !== "waiting")
+        s.url = `http://${os.hostname()}:${RECIPES[s.id as RecipeId].port}`;
     const next = steps.find((s) => s.status === "ready" || s.status === "failed")?.id;
     const drive = saved?.scan ? mediaDrive(saved.scan) : undefined;
     // Why downloading is or isn't set up, from the saved plan (Ember explains it when asked).
@@ -501,6 +527,7 @@ export class HomelabBuilder {
       ...(drive ? { drive } : {}),
       ...(blocker ? { blocker } : {}),
       ...(ledger.conversationId ? { conversationId: ledger.conversationId } : {}),
+      ...(accounts ? { passwords: accounts.passwords, username: accounts.username } : {}),
       done: steps.length > 0 && steps.every((s) => s.status === "done"),
     };
   }
@@ -870,7 +897,117 @@ export class HomelabBuilder {
         policyReason: "Changes your apps' settings: it waits for your approval.",
       };
     }
+    if (step.kind === "build-confirm") {
+      const app = String(step.params?.app ?? "") as RecipeId;
+      const recipe = RECIPES[app];
+      if (!recipe) return refuse(`Hearth has no recipe for "${app}".`);
+      const st = (await this.status()).steps.find((s) => s.id === app);
+      // Failed, or already this plan (waiting for the owner's OK, or running once approved).
+      if (!st || !["failed", "awaiting-approval", "running"].includes(st.status))
+        return refuse(`${recipe.name} is not a step that failed, so there is nothing to confirm.`);
+      const change: StepChange = {
+        summary: `You checked ${recipe.name} yourself: it works`,
+        settings: [
+          {
+            name: "Hearth's own check",
+            before: st.detail ?? "Did not pass",
+            after: "Set aside: you checked it yourself",
+          },
+          {
+            name: "This step",
+            before: "Failed",
+            after: "Done, noted as confirmed by you",
+          },
+          {
+            name: "Before marking it",
+            before: "",
+            after: `Hearth makes sure ${recipe.name} answers at http://${os.hostname()}:${recipe.port}${
+              app === "radarr" || app === "sonarr" || app === "prowlarr"
+                ? ", and reads its API key from its own settings into Secure Vault"
+                : ""
+            }`,
+          },
+        ],
+      };
+      return {
+        ...base,
+        label: change.summary,
+        serviceName: recipe.name,
+        change,
+        params: { app },
+        policy: "approve-first",
+        policyReason: "You say the app works: it waits for your approval, and Hearth notes it.",
+      };
+    }
     return refuse("Not a homelab step.");
+  }
+
+  /**
+   * The owner checked a failed step's app and it works (11-22: a false failure stopped the
+   * build, with no way past it). Proposed like any step and approved by the owner; Hearth never
+   * marks one done on its own.
+   */
+  async confirm(id: HomelabStepId, opts: { requestedBy: Requester; conversationId?: string }) {
+    const jobs = this.d.jobs();
+    if (!jobs) throw new SetupError("Plans are not available here.");
+    if (!(RECIPE_IDS as readonly string[]).includes(id))
+      throw new SetupError(`"${id}" is not an app of this plan.`);
+    const st = await this.status();
+    const step = st.steps.find((s) => s.id === id);
+    if (!step) throw new SetupError(`"${id}" is not a step of this plan.`);
+    if (step.status === "awaiting-approval" && step.jobId) return jobs.get(step.jobId);
+    if (step.status !== "failed")
+      throw new SetupError(`${step.name} did not fail, so there is nothing to confirm.`);
+    const job = await jobs.create({
+      title: `Your homelab: ${step.name} works (you checked)`,
+      reason: `You checked ${step.name} yourself and it works, though Hearth's own check did not pass: ${step.detail ?? "it failed"}.`,
+      impact: `The build carries on from ${step.name}. Hearth notes that you confirmed it.`,
+      steps: [{ kind: "build-confirm", serviceId: THIS_HOST, params: { app: id } }],
+      requestedBy: opts.requestedBy,
+      ...(opts.conversationId ? { conversationId: opts.conversationId } : {}),
+    });
+    await this.save((l) => {
+      l.steps[id] = { ...(l.steps[id] ?? {}), jobId: job.id };
+    });
+    return job;
+  }
+
+  private async runConfirm(step: StepRun): Promise<StepOutcome> {
+    const app = String(step.params?.app) as RecipeId;
+    const recipe = RECIPES[app];
+    const setupDeps: SetupDeps = {
+      ...this.d.setup,
+      ...(this.d.wait ? { wait: this.d.wait } : {}),
+    };
+    try {
+      await waitForApp(recipe.local, setupDeps, 30_000);
+    } catch {
+      return {
+        ok: false,
+        result: `${recipe.name} does not answer at its address right now, so it was not marked done. Start it again (try the step again), then check it once more.`,
+      };
+    }
+    let keyNote = "";
+    if (app === "radarr" || app === "sonarr" || app === "prowlarr") {
+      const dir = path.join(this.d.appsRoot, app);
+      const key = await arrKey(path.join(dir, "config", "config.xml"), {
+        ...setupDeps,
+        wait: async () => undefined,
+      }).catch(() => undefined);
+      if (key && !(await this.secret(app, "key"))) {
+        await this.keep(app, undefined, key);
+        keyNote = " Its API key is now in Secure Vault.";
+      } else if (key) keyNote = " Its API key is in Secure Vault.";
+    }
+    const at = new Date().toISOString();
+    const detail = `Running at http://${os.hostname()}:${recipe.port}. You checked it and said it works (${at.slice(0, 10)}).`;
+    await this.save((l) => {
+      l.steps[app] = { ...(l.steps[app] ?? {}), done: at, detail, confirmedByOwner: true };
+    });
+    return {
+      ok: true,
+      result: `${recipe.name} is marked done: you checked it and it works.${keyNote}`,
+    };
   }
 
   async runStep(step: StepRun): Promise<StepOutcome> {
@@ -879,6 +1016,7 @@ export class HomelabBuilder {
       if (step.kind === "build-tailscale") return await this.runTailscale(step);
       if (step.kind === "build-app") return await this.runApp(step);
       if (step.kind === "build-connect") return await this.runConnect();
+      if (step.kind === "build-confirm") return await this.runConfirm(step);
       return { ok: false, result: "Not a homelab step." };
     } catch (error) {
       return { ok: false, result: error instanceof Error ? error.message : String(error) };
@@ -1093,7 +1231,11 @@ export class HomelabBuilder {
       note = ` Libraries: ${r.libraries.join(", ")}.`;
     } else if (app === "radarr" || app === "sonarr" || app === "prowlarr") {
       const cred = await this.credentials(app);
+      // Hearth reads the app's API key itself, from its own config, and keeps it and the login in
+      // Secure Vault straight away: a later check that does not pass must never leave them unsaved
+      // (11-22: Radarr signed in fine, but its key never reached the Vault).
       const key = await arrKey(path.join(dir, "config", "config.xml"), setupDeps);
+      await this.keep(app, cred, key);
       const roots =
         app === "radarr"
           ? [rel(folders.movies, "/data")]
@@ -1101,7 +1243,6 @@ export class HomelabBuilder {
             ? [rel(folders.shows, "/data")]
             : [];
       await setupArr(app, recipe.local, key, cred, roots, setupDeps);
-      await this.keep(app, cred, key);
       if (roots.length)
         note = ` Its library folder: ${app === "radarr" ? folders.movies : folders.shows}.`;
     } else if (app === "qbittorrent") {

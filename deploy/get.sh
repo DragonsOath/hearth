@@ -372,9 +372,11 @@ cat >"$home/open-hearth" <<'OPEN'
 # Its own browser profile makes it its own app: the taskbar shows Hearth's icon (it can be pinned)
 # instead of filing the window under the browser. Signing in there is remembered there.
 dir="$(dirname "$(readlink -f "$0")")"
-url="$(cat "$dir/app-url")"
+url="${1:-$(cat "$dir/app-url")}"
+# Marks Hearth's own window, so Hearth knows it is not a browser tab (never the fallback tab).
+case "$url" in *\?*) own="$url&window=app" ;; *) own="$url?window=app" ;; esac
 for b in google-chrome google-chrome-stable chromium chromium-browser microsoft-edge microsoft-edge-stable brave-browser; do
-  command -v "$b" >/dev/null && exec "$b" --user-data-dir="$dir/app-window" --no-first-run --no-default-browser-check --autoplay-policy=no-user-gesture-required --class=Hearth --app="$url"
+  command -v "$b" >/dev/null && exec "$b" --user-data-dir="$dir/app-window" --no-first-run --no-default-browser-check --autoplay-policy=no-user-gesture-required --class=Hearth --app="$own"
 done
 exec xdg-open "$url"
 OPEN
@@ -411,8 +413,10 @@ elif [[ -f "$home/data/setup-code.txt" ]]; then
   link="http://localhost:$port/setup?code=$(cat "$home/data/setup-code.txt")"
   say "Hearth is running. Finish setting it up here:"
   printf '\n    %s\n\n' "$link"
-  if [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]] && command -v xdg-open >/dev/null; then
-    xdg-open "$link" >/dev/null 2>&1 || true
+  # In Hearth's own window (the desktop icon's), not a browser tab: setting up and signing in
+  # there is remembered there, so the icon opens Hearth ready to use (11-22).
+  if [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]]; then
+    (nohup "$home/open-hearth" "$link" >/dev/null 2>&1 &) || true
   fi
 else
   say "Hearth is updated and running. Sign in as usual."

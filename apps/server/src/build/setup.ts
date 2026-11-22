@@ -168,6 +168,11 @@ export async function setupJellyfin(
 
 export type ArrApp = "radarr" | "sonarr" | "prowlarr";
 const API: Record<ArrApp, string> = { radarr: "v3", sonarr: "v3", prowlarr: "v1" };
+const ARR_NAMES: Record<ArrApp, string> = {
+  radarr: "Radarr",
+  sonarr: "Sonarr",
+  prowlarr: "Prowlarr",
+};
 
 /** The API key the app wrote into its own config.xml on first start. */
 export async function arrKey(configXml: string, deps: SetupDeps = {}): Promise<string> {
@@ -181,9 +186,51 @@ export async function arrKey(configXml: string, deps: SetupDeps = {}): Promise<s
 }
 
 /**
+ * Signs in on the app's own sign-in page with the owner's account, as the owner would: the forms
+ * login answers with a redirect home and its sign-in cookie, or back to the page with loginFailed.
+ * A few tries: the app may take a moment to start asking for the new sign-in.
+ */
+export async function arrSignsIn(
+  base: string,
+  account: { username: string; password: string },
+  deps: SetupDeps = {},
+): Promise<boolean> {
+  for (let i = 0; i < 5; i++) {
+    try {
+      const res = await (deps.fetch ?? fetch)(`${base}/login?returnUrl=%2F`, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          username: account.username,
+          password: account.password,
+          rememberMe: "on",
+        }).toString(),
+        redirect: "manual",
+        signal: AbortSignal.timeout(30_000),
+      });
+      const to = res.headers.get("location") ?? "";
+      const cookie = res.headers.get("set-cookie") ?? "";
+      if (
+        res.status >= 300 &&
+        res.status < 400 &&
+        !/loginFailed/i.test(to) &&
+        /Auth=/i.test(cookie)
+      )
+        return true;
+    } catch {
+      /* not answering yet: try again */
+    }
+    await (deps.wait ?? sleep)(2_000);
+  }
+  return false;
+}
+
+/**
  * Turns on the app's sign-in with the owner's account (forms login, required everywhere but
  * from this home network's own addresses is not offered: the app asks everyone), and adds its
- * root folders. Reads both back.
+ * root folders. Checked by signing in with that account, the way the owner will (11-22: the app
+ * keeps the user name in lower case, so comparing it to the one given failed a working sign-in
+ * for any name with a capital letter, and the build stopped there).
  */
 export async function setupArr(
   app: ArrApp,
@@ -215,8 +262,13 @@ export async function setupArr(
   const back = parse<{ authenticationMethod?: string; username?: string }>(
     (await call(deps, `${base}/api/${v}/config/host`, { headers: h })).text,
   );
-  if (back.authenticationMethod !== "forms" || back.username !== account.username)
-    throw new SetupError(`${app} did not keep the sign-in it was given.`);
+  const name = ARR_NAMES[app];
+  if (String(back.authenticationMethod).toLowerCase() !== "forms")
+    throw new SetupError(`${name} did not turn its sign-in on.`);
+  if (!(await arrSignsIn(base, account, deps)))
+    throw new SetupError(
+      `${name} turned its sign-in on, but signing in as ${account.username} did not work.`,
+    );
   if (app === "prowlarr") return;
   const have = parse<{ path: string }[]>(
     (await call(deps, `${base}/api/${v}/rootfolder`, { headers: h })).text,

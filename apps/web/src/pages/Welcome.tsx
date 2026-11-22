@@ -1,3 +1,5 @@
+import { isTouchOnly } from "../lib/media";
+import { inAppWindow } from "../lib/appWindow";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePcs } from "../data/pcs";
 import { PcEditor } from "../components/devices/Pcs";
@@ -466,6 +468,15 @@ function Finished({
         )}
         {connected && <MeetButton before={beforeMeet} tone="outline" />}
       </div>
+      {/* Set up in a browser tab: say once where Hearth's own window is (11-22). */}
+      {!inAppWindow() && !isTouchOnly() && (
+        <p
+          className="mt-4 rounded-xl border border-gold/40 bg-gold/5 p-3 text-[0.88rem] text-ink"
+          data-testid="welcome-app-window"
+        >
+          Hearth is now on your desktop and app menu. Open it from there next time.
+        </p>
+      )}
       <p className="mt-5 text-[0.82rem] text-faint">
         {building ? "Already run apps after all? " : "New to this after all? "}
         <button

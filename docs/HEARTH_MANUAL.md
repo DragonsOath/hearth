@@ -14,6 +14,7 @@ beside Ember; "the War Room" is Ember's full-screen workspace.
 ---
 
 <!-- feature: capabilities -->
+
 ## 1. What Hearth can do
 
 Hearth is a homelab control center that lives on your PC (Linux or Windows). In short:
@@ -123,6 +124,7 @@ Hearth is a homelab control center that lives on your PC (Linux or Windows). In 
 ## 2. Getting started
 
 <!-- feature: first-run-setup -->
+
 ### First-run setup
 
 A new Hearth opens with setup, one step at a time (you can stop and pick up later):
@@ -140,6 +142,7 @@ A new Hearth opens with setup, one step at a time (you can stop and pick up late
 Run it again any time: Settings, General, **First-run setup**, **Run the setup again**.
 
 <!-- feature: plan-first-homelab -->
+
 ### Plan my first homelab
 
 For someone with no homelab yet. It asks **What would you love to do?**, a little about you,
@@ -163,6 +166,7 @@ what this computer can run (**How much memory does this computer have?**) and bu
 - **Start over** clears it.
 
 <!-- feature: build-homelab -->
+
 ### Build my plan
 
 After **Save my account details**, press **Build it with Ember**. Ember greets you, has your plan,
@@ -170,6 +174,20 @@ and builds it with you one step at a time. Nothing happens until you approve eac
 same way as every other plan. **Building your homelab** on the plan page shows every step:
 **Done**, **Under way**, **Waiting for your OK**, **Needs you**, **Next** or **Later**. No AI
 connected? **Next step** there proposes the next step for you to approve yourself.
+
+In the chat, every app goes the same way: its approval card appears, you approve it, and when it
+is up Ember names it with an **Open** button (it opens in its own window) and says how to sign in
+("Sign in with the username and password you saved at the start", or where its strong password
+is in Secure Vault). Hearth reads the app's API key itself and keeps it in Secure Vault: you never
+find or paste one. Then Ember proposes the next step. Under her latest message there is always
+one **Next** action: approve the card, **Continue: set up** the next app, **Open** one, or **Try
+again**. Ask her something else and she answers briefly, then brings you back to the build.
+
+**I checked it myself, it works: continue**: when a step fails but its app runs and answers,
+Hearth's own check may be what failed. Open the app and sign in; if it works, press this (under
+the step on the plan page, or in the chat). It is a plan you approve: Hearth makes sure the app
+answers, reads its API key into Secure Vault, notes that you confirmed it, and the build carries
+on. It is never done for you.
 
 The steps, in order (only the ones in your plan):
 
@@ -186,6 +204,7 @@ The steps, in order (only the ones in your plan):
    With the helper, installing Docker is a protected step: approving it asks you to confirm it's
    you, because using Docker is close to administrator access. Either way, your account ends up
    in the `docker` group.
+
 2. **Jellyfin** (or **Plex**, if that's your plan: it starts here, and you **Sign in to Plex** on
    its own page to make it yours; Hearth then adds your libraries). Jellyfin comes with your drive shared read only, so your files are never moved, renamed or
    deleted. Hearth makes your account, finds your Movies and Shows folders by name (or makes
@@ -215,6 +234,7 @@ Not built yet: the shared folder, backups and the other apps in a plan (the list
 which), and building on Windows (Hearth plans it there).
 
 <!-- feature: discovery -->
+
 ### Find what I already run (Discovery)
 
 Systems, **Discover** (or **Discover this machine** on Home). Hearth looks at this machine and
@@ -229,6 +249,7 @@ its containers and suggests what to watch. It only reads; nothing changes.
 - **Start over** scans fresh. Systems you removed stay removed (**Removed by you**).
 
 <!-- feature: sample-data -->
+
 ### Sample data
 
 Before discovery, Hearth shows sample systems so every page has something in it. A gold
@@ -239,6 +260,7 @@ instead** / **Keep my systems**.
 ---
 
 <!-- feature: navigation -->
+
 ## 3. Finding your way
 
 - **Top bar**: search (**Find a service, or start a question**, Ctrl+K), the status pill
@@ -257,6 +279,7 @@ instead** / **Keep my systems**.
 ---
 
 <!-- feature: home -->
+
 ## 4. Home
 
 Home fits on one screen on a computer (no scrolling); phones and tablets stack it.
@@ -275,7 +298,9 @@ Home fits on one screen on a computer (no scrolling); phones and tablets stack i
   risky. **War Room**: building something (an app, a website, a script) with Claude Code, Codex
   or Ollama in its own folder. Then **Project Name**, **Project Description**, **Color on Home** and which PC (for the Lair, which
   machine it is about), and **Start in the Lair** or **Start in the War Room**.
+
 <!-- feature: project-colors -->
+
 - **Color on Home**: when you start a project, pick **Red**, **Orange**, **Yellow**, **Green**,
   **Blue** or **Purple** and its card on Home glows in that color, with its line to Ember in the
   same color. **No color** (the default) keeps the plain card. Change it later on a Lair
@@ -304,6 +329,7 @@ Home fits on one screen on a computer (no scrolling); phones and tablets stack i
 ## 5. Ember, the AI
 
 <!-- feature: lair lair-arrange -->
+
 ### The Lair
 
 **The Lair** button (top bar, any page) opens Ember beside your systems' panels.
@@ -325,7 +351,9 @@ Home fits on one screen on a computer (no scrolling); phones and tablets stack i
 - **Layouts**: save the current set of panels with a name and reopen it later (**Saved
   layouts**).
 - **Suggestions**: **Open beside this** offers related panels; **Open all** opens them.
+
 <!-- feature: ember-opens-panels -->
+
 - **Ask Ember to open one**: "open Seerr" opens its panel beside the chat (at the front on a
   phone). This works on every Hearth, with Show & Tell on or off; Show & Tell adds pointing at
   things on screen.
@@ -337,7 +365,9 @@ Home fits on one screen on a computer (no scrolling); phones and tablets stack i
   page); **Bring back** reopens it as it was. Opening the same panel link again (a bookmark, or a
   link in a message) goes back to the workspace that already has those panels, so no copies pile
   up.
+
 <!-- feature: lair-phone -->
+
 - **On a phone**, **Ask** in the bottom bar opens Ember's chat in the Lair (with your panels, the
   Lair you used last when you come from elsewhere). Ember and every open panel form a ring, in the order they were opened. Swipe
   sideways to go round it, either way; it wraps (right from Ember is the last panel). Scrolling up
@@ -366,7 +396,9 @@ Home fits on one screen on a computer (no scrolling); phones and tablets stack i
   never listens while Ember is working on an answer or speaking, so it never hears itself. The
   **ear** beside it stops it hearing you (replies are still spoken); tap it again to talk. Tap
   the waveform again to end voice chat.
+
 <!-- feature: capture -->
+
 - **Capture** (camera icon on a panel): take a picture of a panel, a row, card or chart, or a
   region you draw, mark it up, and attach it to your next message. It stays on your Hearth.
   The camera in the top bar does the same for the whole Hearth screen: **Whole screen** (what is
@@ -377,6 +409,7 @@ Home fits on one screen on a computer (no scrolling); phones and tablets stack i
   time, never over another), with **Download** beside it; with no folder set, Save downloads it.
 
 <!-- feature: page-help -->
+
 - **How this works** (the question-mark button in the top bar, and in a panel's header): what
   each feature on that page or panel is for, whether it is ready on your installation (and what
   to set up first), and the manual's own section for it. **Ask Ember about this** starts a
@@ -387,6 +420,7 @@ Home fits on one screen on a computer (no scrolling); phones and tablets stack i
   Room opens in a new tab so the conversation stays as it was.
 
 <!-- feature: war-room -->
+
 ### The War Room
 
 **War Room** (top bar) opens Ember full screen.
@@ -427,7 +461,9 @@ Home fits on one screen on a computer (no scrolling); phones and tablets stack i
 - **Screenshot**: capture the War Room, copy or save it, or attach it to your next message.
 - **Hearth menu**: every page of Hearth, and **Open the Lair**.
 - **Down arrow**: jumps to the newest message after you scroll up.
+
 <!-- feature: remote-control -->
+
 - **/rc**: type it to turn on Remote Control (the conversation also appears in the Claude app
   and claude.ai/code, as **Hearth • <PC> • War Room • <project>**); type it again to turn it off.
   It has Hearth's tools, as a War Room message does.
@@ -438,7 +474,9 @@ Home fits on one screen on a computer (no scrolling); phones and tablets stack i
   sides show in the Lair; when Claude Code asks a question, type its number here or answer it in
   the app. **/rc** again turns it off, and the next message carries on with everything said. It
   needs Claude Code as Ember's AI (not Codex or Ollama).
+
 <!-- feature: chat-login -->
+
 - **/login** (Lair or War Room): signs Claude Code in on this computer from the chat, the same
   sign-in as the AI Agent page. The answer has **Open Anthropic's sign-in**; sign in there and
   paste the code Anthropic shows as your next message. The code is never kept (the chat shows "the
@@ -447,6 +485,7 @@ Home fits on one screen on a computer (no scrolling); phones and tablets stack i
 - **Play** on a reply reads it aloud.
 
 <!-- feature: ai-choice -->
+
 ### Which AI (Claude Code, Codex, Ollama)
 
 - **Claude Code**: the default. Signed in at setup (Settings, Ember).
@@ -460,6 +499,7 @@ Home fits on one screen on a computer (no scrolling); phones and tablets stack i
 - Every agent gets the same access and the same memory, in the War Room and the Lair.
 
 <!-- feature: full-access -->
+
 ### What Ember asks before acting
 
 In the War Room and the Lair, Ember is always the full Claude Code, Codex, or Ollama (which runs
@@ -479,6 +519,7 @@ With the first two, a War Room message with words like "delete" or "sudo" also w
 approval before it starts. It never gives itself sudo rights. Only you change this setting.
 
 <!-- feature: ember-mark -->
+
 **Buttons that start Ember** (Ask Ember, Ask why, Investigate, Improve this panel with Ember, and
 the like) carry Ember's mark: its face in a small orange pill with the name of the AI behind it
 (Claude, Codex or Ollama). Pressing one puts Ember to work, which uses your AI plan the same as
@@ -488,6 +529,7 @@ sits beside the plan usage bar as its key. The first press of a marked button in
 again"). Questions you type yourself never show it.
 
 <!-- feature: show-and-tell -->
+
 ### Show & Tell: watch Ember work
 
 Show & Tell is part of Hearth Premium (Settings, Premium). Without it, Settings, Ember, Show & Tell
@@ -554,8 +596,8 @@ question turns out to need real work, Ember switches to full mode by herself and
 message again (the activity line says so). This works the same with Claude Code, Codex and Ollama.
 A request to do something ("can you restart Radarr?") always runs in full.
 
-
 <!-- feature: embers-browser -->
+
 ### Ember's Browser
 
 When the web is the right way to do something (ratings, documentation, a download, or something
@@ -626,6 +668,7 @@ host administration), approving plans, Hearth updates, pairing PCs or devices, a
 Everything it changes is in the audit log as Ember's.
 
 <!-- feature: voice -->
+
 ### Voice
 
 - **Mic** (dictation): your words appear in the box; sending turns the mic off.
@@ -644,6 +687,7 @@ Everything it changes is in the audit log as Ember's.
   unused).
 
 <!-- feature: personality -->
+
 ### Personality and look
 
 Settings, Ember: **AI administrator name**, its picture (**Change picture** under the name: ten
@@ -663,6 +707,7 @@ starts again with the new persona, in the same conversation),
 applied by themselves; technical text is left alone. This device only.
 
 <!-- feature: conversations -->
+
 ### Ask page and conversations
 
 While Ember is working, the list under your message shows each step as it happens (a command, a
@@ -675,6 +720,7 @@ searches them. A click opens one; **right-click** it (or press and hold) for **R
 **Delete** (which asks first). Suggested questions for an empty conversation start with **What can Hearth do?**.
 
 <!-- feature: thread-looks -->
+
 ### Thread Looks and "where did we talk about this?"
 
 **New conversation** opens a window of small Ember pictures (in rows, scrolling up and down), each with a one-word name that hints at what the
@@ -702,6 +748,7 @@ Sonarr?") and she answers with the thread and a link to it. The search runs on y
 no AI, nothing leaves your lab.
 
 <!-- feature: ai-budget -->
+
 ### What Ember looks after, and its budget
 
 Settings, Ember:
@@ -723,6 +770,7 @@ Settings, Ember:
 - **Tools and capabilities**: what it found missing while working.
 
 <!-- feature: agents -->
+
 ### Agents page
 
 **Agents**: **Your operator** (the connected AI service), **Hand unresolved incidents to the
@@ -735,12 +783,14 @@ agent keeps the same memory and access.
 ## 6. Your systems
 
 <!-- feature: services -->
+
 ### All services
 
 Systems, **All services**: every watched service with status. **Filter services** (All, Needs
 attention) and **Search services**.
 
 <!-- feature: service-panel -->
+
 ### A service's panel
 
 Click a service (sidebar, Lair, or All services). The app's own tabs come first (**Overview**,
@@ -777,6 +827,7 @@ Tabs:
   down**, **Break what it depends on**, **Back to normal**, to see how Hearth reacts.
 
 <!-- feature: machines -->
+
 ### Machines
 
 Systems, **Machines**: **Your machines** with processor, memory, uptime, Docker and storage;
@@ -784,6 +835,7 @@ machines **Over the network** with address, services and **Last answered**. **Ad
 machine** watches apps on another computer by address. **Scan again**.
 
 <!-- feature: memory-breakdown -->
+
 ### Where the memory goes
 
 **What's using memory** under a machine's memory bar (every PC, Linux and Windows): one bar for
@@ -797,6 +849,7 @@ go** has Ember look and propose one plan for the rest. An app closes the normal 
 ask about unsaved work; Hearth then checks it is gone. A full swap is called out.
 
 <!-- feature: add-remove-system -->
+
 ### Add or remove a system
 
 **Add a system** (for anything discovery missed): a container (exact Docker name), an app with a
@@ -813,6 +866,7 @@ Each panel reads the app live with its key from the Secure Vault. Changes are pl
 to Ember with its details.
 
 <!-- feature: arr-panels -->
+
 ### Sonarr and Radarr
 
 Tabs: **Queue**, **Download trail**, **Missing**, **Coming** (next 7 days), **Upgrades**,
@@ -825,7 +879,9 @@ Tabs: **Queue**, **Download trail**, **Missing**, **Coming** (next 7 days), **Up
   every release every indexer offers with the app's verdict, and **Download this**, confirmed in
   place. Chaptarr's search also lists what its own search finds that isn't in your library yet,
   with **Add in Chaptarr**; once it is added, it can be searched here.
+
 <!-- feature: crucible -->
+
 - **The Crucible: Quality & Size** (in the Lair once Radarr or Sonarr is connected): the
   picture you want at a size you're happy with, in plain words. With nothing saved it opens on
   the **Balanced** rules, unsaved; **No limits**, **Storage-smart** and **Answer a few questions**
@@ -876,7 +932,9 @@ Tabs: **Queue**, **Download trail**, **Missing**, **Coming** (next 7 days), **Up
   them even when Hearth is off; it never touches profiles you, Recyclarr or Profilarr made. If a
   Hearth profile is changed in Radarr itself, the Crucible asks whether to keep that change or put
   its own back. **Advanced** lists exactly what it makes.
+
 <!-- feature: near-miss -->
+
 - **Why isn't it grabbing?** (Radarr and Sonarr): when nothing the indexers offer passes your
   rules, the search says so in plain words: nothing found at all, or found but turned down by your
   own rules, and why (for example "All are only over your size limit of 8 GB. Closest: 8.9 GB
@@ -911,6 +969,7 @@ Tabs: **Queue**, **Download trail**, **Missing**, **Coming** (next 7 days), **Up
   rules. Download Health shows the same list under **Held back by your own rules**.
 
 <!-- feature: radarr-panel -->
+
 ### Radarr's own tabs
 
 Radarr's panel has its own tabs after **Overview** and **Diagnostics**, so Radarr's own web page
@@ -952,6 +1011,7 @@ is rarely needed. Every change shows the exact before and after and waits for yo
 A Radarr version Hearth was not built for (not 6.x) shows these tabs read only, with a note.
 
 <!-- feature: prowlarr-panel -->
+
 ### Prowlarr's own tabs
 
 Prowlarr's panel has its own tabs after **Overview** (failing indexers first, **Test all**,
@@ -979,6 +1039,7 @@ approval and is read back afterwards; Ember uses the same steps.
 A Prowlarr version Hearth was not built for (not 2.x) shows these tabs read only, with a note.
 
 <!-- feature: sonarr-panel -->
+
 ### Sonarr's own tabs
 
 Sonarr's panel has the same kind of tabs after **Overview** and **Diagnostics**. Every change
@@ -1006,6 +1067,7 @@ same steps.
 A Sonarr version Hearth was not built for (not 4.x) shows these tabs read only, with a note.
 
 <!-- feature: lidarr-panel -->
+
 ### Lidarr's own tabs
 
 Lidarr's panel has its own tabs after **Overview** (the queue, download trail, missing albums and
@@ -1028,6 +1090,7 @@ approval and is read back afterwards; Ember uses the same steps.
 A Lidarr version Hearth was not built for (not 3.x) shows these tabs read only, with a note.
 
 <!-- feature: books-music-panels -->
+
 ### Lidarr, Chaptarr (books), Readarr
 
 **Queue**, **Download trail**, **Wanted** (Audiobooks, Ebooks), **Coming** (next 14 days),
@@ -1036,6 +1099,7 @@ listed and marked **Hidden by Chaptarr**), **Recent activity**, **Stop wanting**
 author**.
 
 <!-- feature: seerr-panel -->
+
 ### Overseerr / Jellyseerr / Seerr
 
 Tabs: Overview (requests), Discover, Issues, People.
@@ -1073,6 +1137,7 @@ cinemas**, **Digital** release dates, and what Radarr or Sonarr is doing. Filter
   changed in Seerr (**Open Seerr's users**).
 
 <!-- feature: media-server-panels -->
+
 ### Plex, Jellyfin, Tautulli
 
 - **Who is watching**: each stream, with **Stop stream** and an optional **Message to show
@@ -1085,6 +1150,7 @@ cinemas**, **Digital** release dates, and what Radarr or Sonarr is doing. Filter
 - **Scan libraries**: rescans as a confirmed plan.
 
 <!-- feature: jellyfin-panel -->
+
 ### Jellyfin's own tabs
 
 Jellyfin's panel opens on **Home** (its home screen, above) and has its own tabs after
@@ -1120,6 +1186,7 @@ Ember uses the same steps. Passwords, API keys and networking settings stay in J
 - **Logs**: Jellyfin's log files, read with keys and tokens hidden.
 
 <!-- feature: emby-panel -->
+
 ### Emby
 
 Emby speaks Jellyfin's API (Jellyfin began as Emby's free version), so Emby gets every one of
@@ -1135,6 +1202,7 @@ and lacks a few), and Emby's plugin catalog is read from Emby's site, so install
 Emby to reach the internet.
 
 <!-- feature: media-home-tab -->
+
 ### Home: the home screen, where Plex, Jellyfin and Emby open
 
 The Plex, Jellyfin and Emby panels open on **Home**: the home screen as that server shows it,
@@ -1145,6 +1213,7 @@ sent yet are kept. Under it, **Read just now** (or how long ago) says when it wa
 **Overview** is the next tab.
 
 <!-- feature: plex-panel -->
+
 ### Plex's own tabs
 
 Plex's panel has its own tabs after **Home** and **Overview** (who is watching, libraries, scans,
@@ -1175,6 +1244,7 @@ networking settings and anything with a password stay in Plex (shown locked, wit
   for the rest, and a search. Change any number, then **Review changes**.
 
 <!-- feature: home-rows -->
+
 ### Home rows
 
 Build your Plex home screen. Open **Home rows** in the Lair (or **Design it in Home rows** on
@@ -1287,6 +1357,7 @@ shares.
 Emby, row schedules and rows that keep themselves up to date come later.
 
 <!-- feature: curator -->
+
 ### Curator
 
 Find something to watch, read or listen to. Open **Curator** in the Lair (it appears once Seerr,
@@ -1380,6 +1451,7 @@ Plex) and **Seen it** (with **Undo** right there), and titles you already have a
 can search for them above. The arrow in the Curator section's corner folds it away.
 
 <!-- feature: tautulli-panel -->
+
 ### Tautulli's own tabs
 
 Tautulli's panel has its own tabs after **Overview** (who is watching now, this week's tops).
@@ -1398,6 +1470,7 @@ Ember uses the same steps. Notifications, newsletters and Tautulli's settings st
 - **System**: Tautulli's log with keys hidden, and **Back up database**.
 
 <!-- feature: wizarr -->
+
 ### Wizarr
 
 Tabs: Overview, People, Servers, Settings (General and Wizard, as in Wizarr).
@@ -1422,7 +1495,9 @@ Tabs: Overview, People, Servers, Settings (General and Wizard, as in Wizarr).
   time, it asks for it: **Admin username**, **Admin password**, **Connect**. It goes
   in Secure Vault, is only sent to Wizarr's own address, and is never shown again. An admin that
   signs in with a passkey cannot be used: make an admin without one in Wizarr (Settings, Admins).
+
 <!-- feature: wizarr-setup -->
+
 - Settings, **Wizard**, **Designs**: ready-made looks for the guide, starting with **Vault** (from the
   owner's wizarr-community-extras, for Jellyfin, Plex and Audiobookshelf). **Choose colors and
   wording**: **For** (the media server), **Colors** (**Original**, **Ember**, **Gold**,
@@ -1454,16 +1529,21 @@ Tabs: Overview, People, Servers, Settings (General and Wizard, as in Wizarr).
 <!-- feature: download-panels -->
 <!-- feature: qbittorrent-torrents -->
 <!-- feature: sabnzbd-downloads -->
+
 ### qBittorrent, Deluge, Transmission and SABnzbd
 
 - qBittorrent's **Overview**: connection, VPN, speeds and free space, **Add torrent**, **All
   torrents**, counts by status, what **Needs you** (errors, stalled, no seeders) and what is
   **Downloading now**; each opens in the Torrents tab.
+
 <!-- feature: download-sources -->
+
 - Each torrent and each SABnzbd job shows **where it came from**: the indexer that grabbed it and
   the app that did ("TrackerOne · via Sonarr"), from the grab history of Sonarr, Radarr, Lidarr,
   Readarr, Chaptarr and Prowlarr. A private tracker's own address names it when no app grabbed it.
+
 <!-- feature: seeding-rules -->
+
 - **Seeding rules** (beside Categories on the Torrents tab): **Add rule** picks one or more
   indexers (from Prowlarr's list and your torrents) or tracker addresses, the days of seeding
   (qBittorrent's seeding time; paused time doesn't count), an optional ratio, and then what
@@ -1475,7 +1555,9 @@ Tabs: Overview, People, Servers, Settings (General and Wizard, as in Wizarr).
   "delete files", and skips anything a media app hasn't imported or that sits in a library folder.
   **Stop every rule** halts them all. **Activity** and the bell show what they did. Torrents
   Hearth can't trace to an indexer are never touched. Your tracker may count seeding differently.
+
 <!-- feature: download-health -->
+
 - **Download Health** (a panel in the Lair, beside To-do and Storage & Files, once a download
   client is connected) opens on a **Checkup** with Ember, a card for each download client, and
   **Ask Ember to fix it** on each one that needs you. It shows stuck and failing downloads across qBittorrent, SABnzbd, Sonarr,
@@ -1497,7 +1579,9 @@ Tabs: Overview, People, Servers, Settings (General and Wizard, as in Wizarr).
     download that didn't import keeps the app's own Import or Remove (or **Ask Ember to fix it**).
   - **Automatic Recovery** (a switch in the panel, off unless you turn it on): Hearth does Fix it
     by itself for each one that needs you, and the bell and **History** say what was done.
+
 <!-- feature: audiobook-intake -->
+
 - Audiobookshelf's **Intake** tab brings finished audiobook downloads into your library.
   **Review the setup** proposes it from your own apps: your book libraries and their folders
   (read from Audiobookshelf; correct a folder if needed), and the download folders your audiobooks
@@ -1512,7 +1596,9 @@ Tabs: Overview, People, Servers, Settings (General and Wizard, as in Wizarr).
   editable, a library to choose, **Import** and **Skip**. A book already in your library with the
   same files is marked **In your library**, not copied again. Nothing in a download folder is
   ever moved. **Check now** looks straight away; **Turn off** stops it.
+
 <!-- feature: manual-sort -->
+
 - qBittorrent's **Manual downloads** tab: a torrent you add by hand has no category, so it stays
   in the default folder and no app imports it. **Review the setup** proposes where each type goes
   from your own categories and apps (movies follow Radarr's folder, shows Sonarr's, music Lidarr's,
@@ -1540,7 +1626,9 @@ Tabs: Overview, People, Servers, Settings (General and Wizard, as in Wizarr).
   approve, read back after. Default and category folders are never changed from Hearth.
 - **Seeding, speed, and queue settings** opens the Settings tab: speed limits (KiB/s, 0 = none) and the alternative-limit schedule, seeding limits and **When a seeding limit is reached** (a red warning when that would delete files), queue limits, connections, disk. A setting that only matters when its switch is on stays greyed until then. Change what you need, then **Review N changes**: one plan with each before and after, read back once approved. **Undo my edits** drops them. Ports, proxies, the Web UI login, privacy settings and save paths stay in qBittorrent (**Open qBittorrent**).
   Shows whether the VPN is connected.
+
 <!-- feature: deluge-panel -->
+
 - **Deluge** (2.x, through its Web UI): the same **Overview** and **Torrents** tab as qBittorrent,
   with Deluge's words. Hearth signs in with the Web UI password (the vault calls it the **Web UI
   password**; Deluge's own default is "deluge") and, when the Web UI is not attached to a Deluge
@@ -1554,7 +1642,9 @@ Tabs: Overview, People, Servers, Settings (General and Wizard, as in Wizarr).
   = none), seeding (stop or remove at a share ratio), queue, connections, disk; **Review N
   changes** is one plan with each before and after. The Web UI password, ports, the proxy and
   download folders stay in Deluge (**Open Deluge**).
+
 <!-- feature: transmission-panel -->
+
 - **Transmission** (3.x and 4.x, through its RPC): the same **Overview** and **Torrents** tab,
   with the Web UI username and password from the vault (if Transmission asks for none, save any).
   Its labels are free text: type one when you label a torrent (**Label**, then **Change**), or
@@ -1579,7 +1669,9 @@ Tabs: Overview, People, Servers, Settings (General and Wizard, as in Wizarr).
   **Failed only**, by category, **Show more**; **Retry** a failed one, **Ask why**, or **Remove** it
   (its files stay unless you tick the box). Each is a plan you confirm, read back. An indexer
   link's key (after "?") is never shown in a plan. Usenet servers and their logins stay in SABnzbd.
+
 <!-- feature: nzbget-panel -->
+
 - **NZBGet** (with its control username and password in the vault): the same **Overview** and
   **Downloads** tab as SABnzbd. Its speed limit is a rate (**Limit to 5 MB/s** and so on, or **No
   speed limit**), not a share of the line. Its warnings come from NZBGet's own health check (no
@@ -1589,6 +1681,7 @@ Tabs: Overview, People, Servers, Settings (General and Wizard, as in Wizarr).
   history as deleted. News servers, their passwords, folders and scripts stay in NZBGet.
 
 <!-- feature: romm-panel -->
+
 ### RomM (your game library)
 
 - **Overview**: how many games and platforms, saves, how many RomM could not identify,
@@ -1607,6 +1700,7 @@ Tabs: Overview, People, Servers, Settings (General and Wizard, as in Wizarr).
   scans). Playing and downloading games stay in RomM.
 
 <!-- feature: home-assistant -->
+
 ### Home Assistant
 
 - **Lights and switches**: **Find a light or switch**, switch them.
@@ -1617,6 +1711,7 @@ Tabs: Overview, People, Servers, Settings (General and Wizard, as in Wizarr).
   beyond lights and the TV waits for your OK.
 
 <!-- feature: home-dashboard -->
+
 ### The home dashboard (Home Assistant's Home tab)
 
 Home Assistant's panel opens on its **Home** tab: a household command centre for a wall tablet
@@ -1731,6 +1826,7 @@ kept or given to Ember. Music Assistant plays YouTube Music only with YouTube Mu
 needs its token helper (the yt-po-token container) running.
 
 <!-- feature: music-playlist -->
+
 **Have Ember make a playlist** (Media page, in Hearth; not on a home tablet): say **What kind of
 playlist?** (2010s rock like Muse, a rainy-day mix), **About how many songs** and a **Name**, then
 **Ask Ember to make it**. Ember asks anything it still needs, picks the songs, checks each one is
@@ -1751,6 +1847,7 @@ services or change the PIN. **Unpair this tablet** (in Dashboard settings) signs
 your devices to remove.
 
 <!-- feature: other-panels -->
+
 ### Others
 
 - **Prowlarr**: indexers and **Feeds these apps** on the Overview; its own tabs are above.
@@ -1772,7 +1869,9 @@ your devices to remove.
 - **Gluetun**: the VPN connection, **Move to another server** (country, port forwarding,
   streaming), and which apps lose their connection if the VPN drops.
 - **FlareSolverr**: challenges solved **By site**, **Latest**.
+
 <!-- feature: portainer-panel -->
+
 - **Portainer** (with an access token in the vault):
   - Overview: each environment with its containers running, stopped and unhealthy and its stacks
     (one not reachable is marked); **Unhealthy** containers with **Restart**, **Stop** and **Ask
@@ -1784,7 +1883,9 @@ your devices to remove.
     asks you to confirm it is you; Hearth never stops itself. Deleting, editing Compose files or
     variables, registries and users stay in Portainer (**Open Portainer**). Image updates: Hearth's
     Updates page checks your images (Portainer's own check is in its Business edition).
+
 <!-- feature: uptimekuma-panel -->
+
 - **Uptime Kuma** (with the username and password you sign in to it with in the vault; not while
   two-factor sign-in is on):
   - Overview: **Up**, **Down** (with pending, paused and in maintenance), the average **Response**
@@ -1801,7 +1902,9 @@ your devices to remove.
   - Each change is a plan you approve and is read back. Monitor settings, notifications, status
     pages and users stay in Uptime Kuma (**Open Uptime Kuma**): their settings can hold
     passwords, which Hearth never reads.
+
 <!-- feature: nextcloud-panel -->
+
 - **Nextcloud** (an administrator's username and the password they sign in with in the vault;
   Nextcloud asks for the account's own password before any change, so an app password only reads,
   and two-factor sign-in on that account stops Hearth. A separate administrator for Hearth is best):
@@ -1825,7 +1928,9 @@ your devices to remove.
     an app**, **Turn on** or **Turn off** (never the apps Hearth reads through).
   - Each change is a plan you approve, is read back and can be undone. New accounts, passwords,
     new groups and installing apps stay in Nextcloud (**Open Nextcloud**).
+
 <!-- feature: paperless-panel -->
+
 - **Paperless-ngx** (an API token in the vault: in Paperless, your name, **My Profile**, **API Auth
   Token**; an administrator's sees every document). Hearth shows titles, never a document's text:
   - Overview: **Inbox** (new documents still to sort), **Importing**, **Failed** and
@@ -1846,7 +1951,9 @@ your devices to remove.
   - Each change is a plan you approve, is read back and can be undone. New correspondents and
     document types, workflows, mail accounts and emptying the trash stay in Paperless-ngx
     (**Open Paperless-ngx**).
+
 <!-- feature: vaultwarden-panel -->
+
 - **Vaultwarden** (its admin page on, and its admin token in the vault: the plain token you sign
   in to /admin with, not its hash). Hearth never sees anything inside a vault, an account's keys,
   or a setting that holds a secret, and signs in to the admin page once every 15 minutes at most
@@ -1867,7 +1974,9 @@ your devices to remove.
     **Invite**.
   - Every change is a protected plan: approving asks you to confirm it is you. Turning off and
     inviting can be undone; deleting cannot.
+
 <!-- feature: navidrome-panel -->
+
 - **Navidrome** (an administrator's username and password in the vault; Navidrome locks an
   account for a while after a few wrong tries, so Hearth signs in once and reuses the session):
   - Overview: **Songs** (with albums and artists), **Listening** (who is playing now),
@@ -1882,7 +1991,9 @@ your devices to remove.
     passwords are made in Navidrome.
   - Each change is a plan you approve and is read back. Hearth never removes or demotes the
     administrator it signs in as.
+
 <!-- feature: gitea-panel -->
+
 - **Gitea** (an administrator's access token in the vault: in Gitea, Settings, Applications,
   Generate new token, with read and write access to admin and repository). Forgejo answers the same
   way and the panel names it:
@@ -1896,23 +2007,28 @@ your devices to remove.
     own (sync every mirror, check repository health and more), each with **Run now**.
   - Each change is a plan you approve and is read back. Hearth never makes a runner registration
     token or reads a secret; repositories and people are changed in Gitea.
+
 <!-- feature: forgejo-panel -->
+
 - **Forgejo** uses Gitea's panel (the same kind of access token, made the same way). Forgejo's API
   does not list runners or every run, and cannot run failed jobs again, so its panel differs:
   - Overview shows **Waiting runs** (runs waiting for a runner) in place of Runners.
   - Actions: runners are managed on Forgejo's own page (Site administration, Actions, Runners).
     **Recent runs** are read from the most recently changed repositories, without **Run failed
     jobs again**. Mirrors, **Sync now** and **Scheduled tasks** work as for Gitea.
+
 <!-- feature: authelia-panel -->
+
 - **Authelia** (nothing to add to the vault), a light read-only panel on one page:
   - **Sign-in** (working or not, and since when), and from Authelia's metrics: **Sign-ins** (with
     how long each takes), **Failed** and **Banned** (refused after too many wrong tries) since it
     started; server errors and memory.
-  - The counts need Authelia's metrics on (in its configuration, telemetry, metrics, enabled, port
-    9959) and reachable from Hearth; until then the panel says so.
+  - The counts need Authelia's metrics on (in its configuration, telemetry, metrics, enabled, port 9959) and reachable from Hearth; until then the panel says so.
   - Authelia has no admin API: people, groups and access rules are changed in its configuration
     files. Hearth reads no names, passwords or secrets from it.
+
 <!-- feature: frigate-panel -->
+
 - **Frigate** (the username and password you sign in to Frigate with in the vault, and Frigate's
   signed-in address, port 8971; Hearth accepts its self-signed certificate on your network and
   remembers it), on one page. Hearth never shows a camera's stream address (it usually holds the
@@ -1927,7 +2043,9 @@ your devices to remove.
   - Each change is a plan you approve. Detection is read back from Frigate's live stats, events
     from its list, and a restart by Frigate answering again. Zones, masks and cameras are set up in
     Frigate.
+
 <!-- feature: authentik-panel -->
+
 - **Authentik** (an administrator's API token in the vault: Admin interface, Directory, Tokens and
   App passwords, Create, intent API). Authentik holds everyone's sign-in secrets, so Hearth never
   shows or reads a password, token or secret, and never the details of a sign-in event:
@@ -1941,7 +2059,9 @@ your devices to remove.
   - Every change is a protected plan: approving asks you to confirm it is you. Hearth never turns
     off the account its token belongs to, or the last active administrator. Passwords, sign-in
     methods, apps and flows are changed in Authentik.
+
 <!-- feature: actual-panel -->
+
 - **Actual Budget** (its server password in the vault: the one you set when you first opened
   Actual), a light, read-only panel on one page:
   - **Server** (healthy or not, and how long it has been up), **Version** and memory, **Budgets**
@@ -1950,7 +2070,9 @@ your devices to remove.
   - **Budget files**: each budget's name, whether it is encrypted (then only its own password opens
     it), and how many people can open it.
   - Hearth reads only the server: never what is in a budget. Budgets are opened and changed in Actual.
+
 <!-- feature: mealie-panel -->
+
 - **Mealie** (an administrator's API token in the vault: in Mealie, your profile, API Tokens,
   Generate), a light panel on one page:
   - A warning when Mealie still has its first-run administrator (changeme@example.com), whose
@@ -1964,7 +2086,9 @@ your devices to remove.
     locked accounts** (locked by failed sign-ins).
   - Each change is a plan you approve; a backup is read back from Mealie's list. Hearth never reads
     Mealie's database address, which can hold its password.
+
 <!-- feature: komga-panel -->
+
 - **Komga** (an administrator's API key in the vault: in Komga, your account (top right), API
   Keys, Generate API key; Komga 1.13 or later):
   - Overview: **Books** (with series), **Unreadable** (books Komga could not open), **Readers
@@ -1979,7 +2103,9 @@ your devices to remove.
     day with the address they came from. Komga keeps each person's reading progress to them, so
     Hearth shows sign-ins. New people, passwords and library access are set in Komga.
   - Each change is a plan you approve. A scan is read back by the library's book count.
+
 <!-- feature: wgeasy-panel -->
+
 - **wg-easy** (version 15 or later, with the username and password you sign in to it with in the
   vault; not while two-factor sign-in is on for that account). A client's configuration and QR code
   hold its private key, so Hearth never asks for them: they stay in wg-easy:
@@ -1995,7 +2121,9 @@ your devices to remove.
     scan its QR code in wg-easy on the device.
   - Every change is a protected plan: approving asks you to confirm it is you. All but removing
     and restarting can be undone.
+
 <!-- feature: tailscale-panel -->
+
 - **Tailscale** (read from Tailscale's own API, since it keeps your devices in its own service:
   make an access token in Tailscale's admin console, **Settings**, **Keys**, **Generate access
   token**, and add it to the vault for this service with the address
@@ -2015,7 +2143,9 @@ your devices to remove.
   - Every change is a protected plan: approving asks you to confirm it is you. All but removing
     can be undone. Access rules (ACLs), DNS and keys stay in Tailscale's admin console (**Open
     Tailscale**).
+
 <!-- feature: traefik-panel -->
+
 - **Traefik** (read from its API, api.insecure on port 8080 inside your network; no key):
   - Overview: **Routers**, routers Traefik **Refused** (with its own error), **Apps down** behind
     a router, **Certificates** expiring within two weeks, the entry points, and **Ask Ember how to
@@ -2026,7 +2156,9 @@ your devices to remove.
   - Read only: Traefik is set up in its files and container labels. Ember explains a fix; a change
     to those files goes through host administration as a protected plan. Its routers also fill in
     Hearth's **Open web UI** addresses (**Open Traefik's dashboard**).
+
 <!-- feature: npm-panel -->
+
 - **Nginx Proxy Manager** (with the email and password you sign in to it with, in the vault):
   - Overview: **Sites on**, sites **Not loading** (nginx refused their settings, with nginx's own
     error and **Ask Ember why**), **Certificates** in use expiring within two weeks, redirections,
@@ -2040,7 +2172,9 @@ your devices to remove.
     reaches what, so every change asks you to confirm it is you, and is read back with whether
     nginx loaded it. New certificates, uploads and keys, access lists and their passwords, and
     custom nginx settings stay in Nginx Proxy Manager (**Open Nginx Proxy Manager**).
+
 <!-- feature: proxmox-panel -->
+
 - **Proxmox VE** (with an API token in the vault, written user@realm!tokenid=secret):
   - Overview: each node's CPU, memory and system disk, how long it has been up and **updates
     waiting**; how many VMs and containers are **Running**, how many were **Backed up this
@@ -2056,7 +2190,9 @@ your devices to remove.
   - Proxmox uses its own certificate: Hearth accepts it on your home network and remembers it, and
     refuses a different one later. Creating, deleting, migrating, consoles, restoring and rolling
     back stay in Proxmox (**Open Proxmox**). Not yet checked against a real Proxmox.
+
 <!-- feature: adguard-panel -->
+
 - **AdGuard Home** (with the username and password you sign in to it with, in the vault):
   - Overview: whether protection is on, **Pause protection** (5 minutes, 30 minutes, 1 hour, or
     until you turn it on) and **Turn protection on**; queries, blocked, sites blocked for safety
@@ -2079,7 +2215,9 @@ your devices to remove.
     it asks you to confirm it is you. A list address that holds a key is shown masked. DNS
     servers, encryption, DHCP, clients and schedules stay in AdGuard Home (**Open AdGuard
     Home**).
+
 <!-- feature: pihole-panel -->
+
 - **Pi-hole** (Pi-hole 6 or newer, with its app password in the vault):
   - Overview: whether it is blocking ads, **Pause blocking** (5 minutes, 30 minutes, 1 hour, or
     until you turn it on) and **Turn blocking on**; queries, blocked, devices and domains on
@@ -2166,6 +2304,7 @@ your devices to remove.
 - **Syncthing**: folders and **Other machines**.
 
 <!-- feature: generic-panel -->
+
 ### Apps without a panel of their own
 
 Any other web app you add shows **the app itself** on its Overview, its own page inside the panel,
@@ -2186,6 +2325,7 @@ asked-for are built first. When Hearth gets a full panel for the app, it replace
 itself. Databases, caches and the VPN keep their plain container view.
 
 <!-- feature: panel-builder -->
+
 ### Ember Panel Builder: a better panel for an app
 
 On an app's panel, the sparkle button in the header opens **Improve this panel**. That works on a
@@ -2230,6 +2370,7 @@ of the design (never a key, address or data). Apps with a panel Hearth ships, in
 and Hearth's own tools are never changed this way.
 
 <!-- feature: saved-sign-in -->
+
 ### Signing Hearth in to an app with no API key
 
 Some apps (Tasterr, for example) have no API key: they only let in a browser that signed in.
@@ -2252,6 +2393,7 @@ in to them with Plex or not.
 ---
 
 <!-- feature: storage -->
+
 ## 8. Storage & Files
 
 Sidebar **Storage**, or the Lair panel **Storage & Files**. The **PC menu** at the top switches
@@ -2260,23 +2402,33 @@ every tab to another PC in your Hearth (read only from here; changes are made on
 - **Overview**: physical drives, total capacity (used and free), overall status, average
   temperature, each drive with its verdict and space, **Recent file activity**, the **File
   explorer**, and **Current storage operations** (downloads, imports, scrubs, rebuilds).
+
 <!-- feature: drive-health -->
+
 - **Drives**: each drive's own health verdict and what the system shares (type, connection,
   size, temperature, powered on, rated life used, read and write errors, self-test, firmware).
   Hard drives have no single health percentage, so none is shown. Rename a drive (its name
   becomes the card title). Reading full drive health may need the elevated executor.
+
 <!-- feature: file-manager -->
+
 - **Files**: a file manager over your drives: **Back**, **Forward**, **Up one folder**, the path,
   **Filter this folder**, **Search here and below**, **Copy path**, details (size, dates,
   preview). **Rename, move, or copy (asks you first)** and **New folder here**: nothing is
   deleted or replaced, and folders Radarr, Sonarr or a download client manage are refused.
+
 <!-- feature: file-journeys -->
+
 - **Recently Added**: new files, by library or downloads, within a day to 3 months, by kind
   (video, audio, books, images, subtitles), searchable. **Open in folder**, **See its journey**.
+
 <!-- feature: file-journeys -->
+
 - **File Journeys**: each download from the grab to Plex (Radarr, Sonarr, qBittorrent, SABnzbd,
   Plex), sorted into **Needs a look**, **Waiting or in progress**, **Done**.
+
 <!-- feature: raid -->
+
 - **RAID / Arrays**: every array and pool (mdadm, ZFS, Btrfs, SnapRAID, Storage Spaces; Unraid,
   DrivePool, LVM and hardware RAID are detected). Each shows **Usable**, **Raw**, **Members**,
   **Can lose** (how many drives it can lose). Actions: checks and scrubs (with **Scheduled
@@ -2285,7 +2437,9 @@ every tab to another PC in your Hearth (read only from here; changes are made on
   Changes need the elevated executor and your approval. RAID is not a backup: keep a copy
   elsewhere.
 - **Health & History**: **Space over time** with a forecast, and open incidents about storage.
+
 <!-- feature: collection-pdf -->
+
 - **Collection PDF**: a printable catalog of your library. **PDF title**, **Folders to list**
   (each named, as Movies, Shows, Audiobooks by author, or Ebooks and comics by author), **Save
   folders**, **Make PDF**. **Your PDFs**: open or download. Hearth only reads the folders.
@@ -2297,16 +2451,21 @@ every tab to another PC in your Hearth (read only from here; changes are made on
 ## 9. Projects, plans and lists
 
 <!-- feature: projects -->
+
 - **Projects** (All projects): **Start a project** (name, what it is for, icon, systems it
   concerns). A project has **Overview** (checklist, open threads, systems, **Pause**, **Mark
   complete**), **Tasks**, **Logs**, **Terminal**, **Files**, **Notes**, **History**.
+
 <!-- feature: jobs -->
+
 - **Jobs**: plans of steps Hearth already knows. **New plan** (title, why, steps) then **Review
   the plan**. A job shows each step's **Exact change** (before and after), how it is checked,
   and what happens if a later step fails. **Approve and run** covers exactly that plan, once.
   **Stop after this step** while running. Jobs is the full list and history; it is never the
   only place to approve.
+
 <!-- feature: approvals-here -->
+
 - **Approvals where you are**: a plan Ember proposes in a chat (Ask, the Lair, the build
   hand-off, with any AI agent) shows its card right there in that chat: the steps, before and
   after, **Approve and run** and **Decline**. That includes a plan made in an automatic
@@ -2316,15 +2475,21 @@ every tab to another PC in your Hearth (read only from here; changes are made on
   plan Ember or Hearth proposed slides in as **Needs your approval** with the same card and
   buttons; **Later** hides it (it stays in Jobs). Hearth's own instructions to the AI (the
   automatic follow-ups) never show in the chat: only Ember's reply does.
+
 <!-- feature: todo -->
+
 - **To-do**: **To deal with**, **Deferred**, **Resolved**, **Dismissed**. **Add an item** (kind,
   title, details, system, project, priority, for later). Each item: **Mark resolved**, notes,
   history, evidence when it was noted. **Add to to-do** buttons elsewhere put things here.
+
 <!-- feature: todo-panel -->
+
 - **To-do in the Lair**: **To-do** in the Lair's row of systems opens the list as a panel beside
   Ember: **To deal with** and **Done**, tick an item off, add one, change its priority. **The whole
   list** opens the full page.
+
 <!-- feature: saved-work -->
+
 - **The Forge** (anvil icon; was Saved work): where you and Ember work through things together.
   Ask for anything with many items ("find duplicate movies in Plex and lay them out in the Forge")
   and Ember opens a Forge sheet beside the chat: every item, what it found and what it would do.
@@ -2354,6 +2519,7 @@ every tab to another PC in your Hearth (read only from here; changes are made on
 ---
 
 <!-- feature: releases -->
+
 ## 10. Releases
 
 **Releases** (**Release watch**): follows every movie requested in Seerr (Overseerr, Jellyseerr)
@@ -2376,19 +2542,25 @@ until it is in your library.
 `/autonomy`), so links still open the right one.
 
 <!-- feature: findings -->
+
 - **Findings**: what Hearth noticed (not yet a problem, or a pattern). Each says **What Hearth
   saw**, **Why it matters**, **What to do next**, **Evidence**. **Add to my list**, **Mark as
   seen**, **Snooze a week**, **Accept as it is** (with a reason; **Stop accepting**),
   **Investigate**. Filters: Open, Resolved, Accepted, Dismissed.
+
 <!-- feature: incidents -->
+
 - **Incidents**: problems with a timeline, what happened, who handled it, and the **Proposed
   repair** (**Approve repair** when autonomy asks you). Every check and decision is recorded.
+
 <!-- feature: autonomy -->
+
 - **Autonomy**: how far Hearth and your AI may go: **Monitor**, **Diagnose**, **Ask before
   fixing**, **Fix automatically**. A default, then **By area** and per service. Some actions
   **Always ask you**, whatever the setting.
 
 <!-- feature: notifications -->
+
 ### Notifications
 
 - **Channels**: Discord, email, ntfy, Telegram, webhook and browser push. **Set up**, **Send
@@ -2435,7 +2607,9 @@ until it is in your library.
 - **What goes where**: each kind of message (needs your attention, repaired automatically,
   repair failed, critical, weekly summary, a word from Hearth, long work, movie releases, Hearth
   updates, new in your library) and which channels get it.
+
 <!-- feature: briefs -->
+
 - **Briefs and watches**: things you ask for in your own words, also by asking Ember ("every
   weekday at 7, send me a server summary", "tell me if a disk goes over 90%"). **Add a brief or
   watch**: **A server summary on a schedule** (days and a time: services, machines offline, the
@@ -2452,6 +2626,7 @@ until it is in your library.
 - **Recently sent**: what went out.
 
 <!-- feature: media-announcements -->
+
 ### Media announcements
 
 When something becomes available in your library (not just downloaded). Movies and shows come
@@ -2486,6 +2661,7 @@ kind is turned on later, and anything added more than two days earlier is not ne
   test** (marked as a test), **Check now**, **Recent announcements** with **Try again**.
 
 <!-- feature: movie-nights -->
+
 ### Movie nights
 
 Its own panel in the Lair (**Movie nights**, once a media server is connected). Who gets invited
@@ -2515,6 +2691,7 @@ list and the post update, and only they see the reply.
 ---
 
 <!-- feature: vault -->
+
 ## 12. Secure Vault and keys
 
 - **Secure Vault**: every key and password your homelab uses, encrypted the moment it reaches
@@ -2533,16 +2710,23 @@ list and the post update, and only they see the reply.
 ## 13. Docker, Network, Backups, Logs, Memory, Integrations
 
 <!-- feature: docker -->
+
 - **Docker**: containers Hearth watches, by machine; open one for health, logs and history
   beside Ember.
+
 <!-- feature: network -->
+
 - **Network**: machines, the addresses services answer on, and which reverse proxy publishes
   them (**Public address**, **Through**, **Not published**).
+
 <!-- feature: backups -->
+
 - **Backups**: once a day after 3 in the morning, Hearth backs up its database and memory,
   checks the backup, and copies it off the machine when set up (**Off this machine**). **Keys to
   keep safe**: **Show the keys** (store them in your password manager).
+
 <!-- feature: lab-blueprint -->
+
 - **Lab Blueprint** (Settings, Backups): a written plan of the whole lab for rebuilding it on
   another machine: every app with its compose settings (values hidden), drives, networks, install
   order, where each app keeps its own backups, and the vault entries. Once a day after 4 in the
@@ -2557,16 +2741,22 @@ list and the post update, and only they see the reply.
   for things Hearth can't see. On a new machine, **Import a blueprint** shows what it holds
   before adding vault entries; then ask Ember to plan the rebuild. If the folder is on the system
   disk you are warned, and a failed or two-day-old blueprint shows in Needs you.
+
 <!-- feature: activity -->
+
 - **Changes and activity**: every change by you, Hearth or the AI (the audit trail), and what
   monitoring noticed. Secret values never appear.
+
 <!-- feature: memory -->
+
 - **Memory**: what Hearth remembers about your homelab. **Remember something** (kind, title,
   details, project, how it is known), **Search memories and conversations**, filters (Threads,
   Journal, Wins, How you work, Hardware, Notes), **Projects**, **Saved sessions** (whole
   conversations, word for word), **Recently deleted**, **Review your notes** (imports).
   Never put passwords or keys in memory.
+
 <!-- feature: integrations -->
+
 - **Integrations**: which apps Hearth understands beyond "is it running": **Connected**, **Found
   on your network**, **Available**.
 
@@ -2578,12 +2768,15 @@ Tabs: **General**, **PCs and devices**, **Ember**, **Security**, **Backups**, **
 **Systems**, **Premium**, **About**. A link like `/settings#cave` opens a tab.
 
 <!-- feature: settings-general -->
+
 - **General**: **This PC** (name and icon), your name and picture, **Pictures beside
   messages**, **Open web UIs** (how app links open), **Time zone**, **Theme** (and your own
   colors; **Desktop** and **Phone**: phones use the desktop's look until you pick one for them,
   and **Use the desktop's look on phones** goes back), **First-run setup**, **Getting started**, **Removed systems**, **Support Hearth**
   (Buy Me a Coffee).
+
 <!-- feature: panel-looks -->
+
 - **Service panels** (under Themes): how service panels look. **Minimal** (the default) is the
   plain dark panel. **Service branding** gives every service panel its own identity inside Hearth's glowing lava
   frame and flame: Sonarr, Radarr, Overseerr and qBittorrent use their own painted artwork; every
@@ -2592,7 +2785,9 @@ Tabs: **General**, **PCs and devices**, **Ember**, **Security**, **Backups**, **
   Ember's own panel (the conversation) sits in its painted lava frame too. **Hearth branding** puts
   Hearth's ember look on every service panel. Only the look changes: every control and tab works
   the same. Saved to your account.
+
 <!-- feature: pcs-and-devices -->
+
 - **PCs and devices**: **PCs** (icon and name, **Link another Hearth** with a one-time join link and
   command, **Uninstall** from any device), **Devices** (**Add a device**: a QR code for a phone,
   tablet or the Hearth app; **Disconnect**), **Open to my home network**.
@@ -2600,7 +2795,9 @@ Tabs: **General**, **PCs and devices**, **Ember**, **Security**, **Backups**, **
   access**, **Ollama**, administration, tools, AI use and budget, **Homelab rules** (**Do not
   touch** list, **Reserved times** when a machine or GPU is yours, and **Your own rules**: what
   Ember should always keep in mind, in your words, sent with every Lair message).
+
 <!-- feature: security -->
+
 - **Security**: **Passkeys** (fingerprint, face or Windows Hello; they need a secure https
   address, such as your Tailscale one), **Password** (change it), **Sign-in name and new
   password** (for signing in elsewhere without the old password), **Signed-in devices** (**Sign
@@ -2609,11 +2806,15 @@ Tabs: **General**, **PCs and devices**, **Ember**, **Security**, **Backups**, **
   other software that talks to Hearth, such as Home Assistant (each does only what you allow;
   none can change settings, security or autonomy, or open the vault; shown once).
 - **Backups**: see section 13.
+
 <!-- feature: monitoring-settings -->
+
 - **Monitoring**: **Check services** (how often), **Open an incident after** (failed checks in a
   row), **Resource history** (keep hourly CPU, memory and disk for), **Restart history**.
 - **Systems**: discovery, sample data and scenarios.
+
 <!-- feature: premium -->
+
 - **Premium**: Hearth is free for your homelab, with no limits. The extras are Premium: **Hearth
   Connected** (linking two or more Hearth installations and working on one through another),
   **Ember Show & Tell** and **Panel Builder** (Ember building a custom panel for an app with you).
@@ -2630,12 +2831,15 @@ Tabs: **General**, **PCs and devices**, **Ember**, **Security**, **Backups**, **
   them, shown once), **Make a promo code** (features, how many can use it, how long each grant
   lasts, redeem by; the code is shown once), **Revoke** or **Reinstate** a grant, **Switch off** a
   code.
+
 <!-- feature: updates -->
+
 - **About**: version, **Update now** (and every PC's version with **Update all my PCs**), and **Check for updates**: on, Hearth asks GitHub every few hours whether a newer Hearth is out; off, it never checks on its own, only when you press **Check now**. **Release channel**: **Stable** (the default) offers only releases marked stable, after they have run on the fast channel first; **Fast** offers every release as soon as it is out. Update now installs the version shown, and never moves Hearth to an older one.
 
 ---
 
 <!-- feature: pcs-and-devices -->
+
 ## 15. More than one PC, phones and the app
 
 - Linking PCs is **Hearth Connected** (Premium, Settings, Premium). You pay once: Premium on one
@@ -2669,13 +2873,16 @@ Tabs: **General**, **PCs and devices**, **Ember**, **Security**, **Backups**, **
   example 100.64.0.5:7600. Nothing is opened to the internet, and only your own devices can reach
   it. Turn Tailscale on in the phone's app whenever you are out. A reverse proxy with https on
   your own domain also works, but it puts Hearth on the internet, so set up its sign-in first.
+
 <!-- feature: updates -->
+
 - **Update Hearth** in the top bar when a new version is out; you choose when. Other PCs show
   as **Behind** until updated.
 
 ---
 
 <!-- feature: memory-usage -->
+
 ## 16. When Hearth uses a lot of memory
 
 - **The voice program**: about 1.5 to 2 GB while loaded. It stops after 10 minutes unused, or now
@@ -2689,13 +2896,16 @@ Tabs: **General**, **PCs and devices**, **Ember**, **Security**, **Backups**, **
 ---
 
 <!-- feature: safety -->
+
 ## 17. How Hearth keeps you safe
 
 - Anything that changes a system is a **plan** you approve (or done directly with **Full
   access**, which still asks before anything risky).
 - **Autonomy** decides which routine fixes run without asking; some always ask.
 - Protected systems (VPN, reverse proxy, firewall, networking) need you to confirm it is you.
+
 <!-- feature: homelab-rules -->
+
 - **Homelab rules**: a **Do not touch** list the AI is refused, even with approval,
   **Reserved times**, and **Your own rules** for Ember (they never switch off an approval).
 - Keys stay in the **Secure Vault**; the AI never sees them, and secrets never appear in logs.

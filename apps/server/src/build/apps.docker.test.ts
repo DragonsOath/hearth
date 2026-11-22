@@ -27,7 +27,8 @@ const ON = process.env.DC_BUILD_DOCKER_TEST === "1";
 describe.skipIf(!ON)("Build my plan, on the real apps", () => {
   let root = "";
   let ctx: RecipeContext;
-  const account = { username: "hearthtest", password: "Hearth-test-Password-1" };
+  // A capital letter on purpose: the *arr apps keep user names in lower case (11-22).
+  const account = { username: "HearthTest", password: "Hearth-test-Password-1" };
   const keys: Record<string, string> = {};
   const file = (id: string) => path.join(root, id, "compose.yaml");
   const logs = async (c: string) =>

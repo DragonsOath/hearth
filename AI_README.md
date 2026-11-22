@@ -4,44 +4,79 @@ This is your runbook for installing Hearth for a person, from the first question
 setup link. Follow it step by step. It describes only what exists today. Where it says **stop**,
 hand over to the person: those steps are theirs.
 
-**For a person with nothing set up yet:** Hearth is meant to be the first thing they install,
-even with no server and no apps. Its setup asks what they want, checks the computer without
-changing anything, and plans the media server for them; Ember then sets up apps through plans the
-person approves one at a time. Installing a media server separately beforehand isn't needed, and
-it is Hearth's job to remove that work from a beginner. On Linux, Hearth builds the media starter
-itself (Docker, Jellyfin or Plex, Seerr, Radarr, Sonarr, Prowlarr, qBittorrent through their VPN,
-Tailscale); its installer asks once whether to set up the small admin helper that installing
-Docker needs. Saying yes there saves the person a terminal step later. If the person mentions
-Plex: Hearth can set up Plex for them, including with an existing Plex account or Plex Pass, so
-there is no need to install Plex separately.
+**For a person with nothing set up yet:** Hearth can be the first thing installed, on a computer
+with no server and no apps. Its setup asks what they want, checks the computer without changing
+anything, and plans a media server. Ember then sets up apps through plans the person approves one
+at a time. On Linux, Hearth can build: Docker, a media server (Jellyfin or Plex), Seerr, Radarr,
+Sonarr, Prowlarr, qBittorrent through their VPN, and Tailscale. With Plex, the person signs in on
+Plex's own page with their own Plex account (with or without Plex Pass). The person can also
+install any of these themselves first; Hearth then finds and watches them. The media apps are
+meant for media the person has the rights to.
 
-### The admin helper, for a reviewing AI
+### The installer's questions, when you run it
 
-Facts for checking it before recommending yes or no:
+With no terminal attached (as when an agent runs it), the installer asks nothing. Each question
+takes **no**, and it prints what it chose. Ask the person both questions yourself and pass the
+answers:
 
-- **Actions:** a fixed list, as get.sh installs it: `docker.install` (Docker Engine and Compose
-  from download.docker.com, and Hearth's account added to the `docker` group) and
-  `tailscale.install` (from pkgs.tailscale.com). Neither takes parameters from the request.
-  Other operations (file changes inside owner-chosen folders, RAID) exist only if the owner adds
-  them on the machine with `install-elevation.sh`.
-- **No general access:** no shell, no "run this command". It refuses its own files and anything
-  that hands out raw privilege (sudo, accounts, SSH keys). The AI never sees its key, socket, or
-  requests.
-- **Approval:** it acts only for a plan step the owner approved. Each request carries a signed
-  authorization for exactly that request, single use, valid at most 15 minutes. Every request is
-  logged to `/var/log/hearth/elevated.jsonl`.
-- **Known limit:** the `docker` group gives the account broad access to the machine through
-  Docker, as for any Docker user.
-- **Source:** `apps/server/src/elevated/` (`install-software.ts` has the exact install scripts;
-  `executor.ts`, `protocol.ts`), installer `deploy/linux/install-elevation.sh`, design
-  `docs/ELEVATED_EXECUTOR.md`.
-- **The download:** built by GitHub Actions (`.github/workflows/release.yml`) from the tagged
-  commit and shipped unminified. get.sh checks the archive against the release's SHA-256 file and
-  stops on a mismatch. The checksum comes from the same release, so it shows integrity, not who
-  built it; releases are not signed yet. When the installer asks, both files are already on disk
-  to read: `~/hearth/app/deploy/linux/install-elevation.sh` and
-  `~/hearth/app/apps/server/dist-elevated/hearth-elevated.js`. Saying no is supported; the plan
-  page shows how to add it later.
+- **Open Hearth to other devices on the home network?** `HEARTH_NETWORK=yes|no`. Yes: Hearth
+  listens on all of the computer's addresses (port 7600 or the next free one), so other devices on
+  the network can reach its sign-in page. No: this computer only. It can be changed later.
+- **Set up the admin helper now?** `HEARTH_HELPER=yes|no`. No: Hearth's plan page asks later, the
+  first time a plan needs Docker or Tailscale. Yes: it runs `sudo` now, which needs the person's
+  password; ask before it. With no terminal, sudo usually cannot ask, and the installer says the
+  helper was not set up.
+
+For example: `curl -fsSL https://raw.githubusercontent.com/DragonsOath/hearth/main/deploy/get.sh | HEARTH_NETWORK=no HEARTH_HELPER=no bash`.
+On Windows there is no admin helper: `$env:HEARTH_NETWORK = "no"` before `get.ps1`.
+
+### The admin helper
+
+The admin helper is a root service that runs Hearth's approved operations from a fixed list:
+
+- `docker.install`: Docker Engine and Compose from download.docker.com, and Hearth's account
+  added to the `docker` group.
+- `tailscale.install`: Tailscale from pkgs.tailscale.com.
+
+Neither takes parameters from the request. It has no general command or shell, and the person
+approves every use: each request carries a signed authorization for exactly that request, single
+use, valid at most 15 minutes, and every request is logged to `/var/log/hearth/elevated.jsonl`.
+Other operations (file changes in folders the owner chooses, RAID) exist only if the owner adds
+them on the machine with `install-elevation.sh`. It refuses its own files and anything that hands
+out raw privilege (sudo, accounts, SSH keys), and the AI never sees its key, socket, or requests.
+Without the helper, Hearth shows the vendors' own install commands for the person to run. Either
+way, the `docker` group gives the account broad access to the machine through Docker.
+
+Source: `apps/server/src/elevated/` (`install-software.ts` has the exact install scripts;
+`executor.ts`, `protocol.ts`), installer `deploy/linux/install-elevation.sh`, design
+`docs/ELEVATED_EXECUTOR.md`. After install, the shipped copies are at
+`~/hearth/app/deploy/linux/install-elevation.sh` and
+`~/hearth/app/apps/server/dist-elevated/hearth-elevated.js` (unminified).
+
+### Checking the download
+
+The Linux release archive (and the Android app) is built by GitHub Actions
+(`.github/workflows/release.yml`) from the tagged commit, with a build provenance attestation.
+To confirm a downloaded archive was built from this repository's source:
+
+```sh
+gh attestation verify hearth-<version>-linux.tar.gz -R DragonsOath/hearth
+```
+
+The output names the workflow and the commit. get.sh also checks the archive against the
+release's SHA-256 file and stops on a mismatch. Releases before 0.88.0 have the checksum only. On
+Windows, get.ps1 downloads the tagged source and builds it on the PC. The closed Premium package
+is not part of these downloads and is not attested publicly.
+
+### Release channels
+
+- **stable** (the default for new installs): releases marked stable, after running on the fast
+  channel first.
+- **fast**: every release as soon as it is published. `HEARTH_CHANNEL=fast` (Linux) or
+  `$env:HEARTH_CHANNEL = "fast"` (Windows).
+
+The person can switch in Settings, About. An update never moves Hearth to an older release.
+`HEARTH_VERSION` installs one exact version.
 
 ## What Hearth is
 
@@ -64,9 +99,10 @@ is called Ember.
 ## The short way (most people)
 
 Hearth has a one-command installer for each platform. Use it unless the person wants custom
-folders, a second installation, or the interview below. Each one asks at most one question
-(whether other devices on the home network may open Hearth), keeps everything in one folder,
-updates in place when run again, and ends by opening the setup page.
+folders, a second installation, or the interview below. In a terminal, each one asks at most one
+question (whether other devices on the home network may open Hearth); run by you, it asks nothing
+and takes no, so pass the person's answers (see "The installer's questions" above). Each keeps
+everything in one folder, updates in place when run again, and ends by opening the setup page.
 
 - **Linux**: `deploy/get.sh`. Run it as the person's everyday account, never root. Show the dry
   run first (`bash get.sh --dry-run`, changes nothing). Hearth runs as a systemd user service;

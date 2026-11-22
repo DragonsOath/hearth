@@ -173,11 +173,19 @@ connected? **Next step** there proposes the next step for you to approve yoursel
 
 The steps, in order (only the ones in your plan):
 
-1. **Docker**, from Docker's own repository. It needs Hearth's admin helper, a small program
-   that does one approved step at a time. The Linux installer offers to set it up. If you said
-   no, the step shows the one command to paste in a terminal (**Copy the command**). Installing
-   Docker is a protected step: approving it asks you to confirm it's you, because using Docker
-   is close to administrator access.
+1. **Docker**, from Docker's own repository. Installing it needs administrator rights, which
+   Hearth's own account doesn't have, so the first time a plan needs Docker (or Tailscale), the
+   step says why and shows two ways:
+   - **Set up the admin helper (once)**: a root service that runs only a fixed list of
+     operations (install Docker, install Tailscale), each time you approve one. It has no shell
+     and runs no other commands. **Its source** links to its code. Paste its command in a
+     terminal (**Copy the command**) and type your password.
+   - **Or install it yourself**: Docker's own commands (**Copy the commands**), then restart the
+     computer so Hearth's account can use Docker. Hearth sees it and moves on.
+
+   With the helper, installing Docker is a protected step: approving it asks you to confirm it's
+   you, because using Docker is close to administrator access. Either way, your account ends up
+   in the `docker` group.
 2. **Jellyfin** (or **Plex**, if that's your plan: it starts here, and you **Sign in to Plex** on
    its own page to make it yours; Hearth then adds your libraries). Jellyfin comes with your drive shared read only, so your files are never moved, renamed or
    deleted. Hearth makes your account, finds your Movies and Shows folders by name (or makes
@@ -2600,7 +2608,7 @@ Tabs: **General**, **PCs and devices**, **Ember**, **Security**, **Backups**, **
   lasts, redeem by; the code is shown once), **Revoke** or **Reinstate** a grant, **Switch off** a
   code.
 <!-- feature: updates -->
-- **About**: version, **Update now** (and every PC's version with **Update all my PCs**), and **Check for updates**: on, Hearth asks GitHub every few hours whether a newer Hearth is out; off, it never checks on its own, only when you press **Check now**.
+- **About**: version, **Update now** (and every PC's version with **Update all my PCs**), and **Check for updates**: on, Hearth asks GitHub every few hours whether a newer Hearth is out; off, it never checks on its own, only when you press **Check now**. **Release channel**: **Stable** (the default) offers only releases marked stable, after they have run on the fast channel first; **Fast** offers every release as soon as it is out. Update now installs the version shown, and never moves Hearth to an older one.
 
 ---
 

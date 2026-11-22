@@ -242,11 +242,21 @@ export const FEATURES: Feature[] = [
       route: "/plan",
       path: "Plan, Your homelab: save your account details, then Build it with Ember",
     },
-    labels: ["Build it with", "Building your homelab", "Save my VPN login", "Copy the command"],
+    labels: [
+      "Build it with",
+      "Building your homelab",
+      "Save my VPN login",
+      "Copy the command",
+      "Or install it yourself",
+    ],
     status: "partial",
     statusNote:
-      "Linux (Ubuntu, Debian, Fedora and their relatives) with Hearth's admin helper: Docker, Jellyfin, Seerr, Radarr, Sonarr, Prowlarr, qBittorrent through the VPN, the connections between them, and Tailscale. Plex is set up too (the owner signs in on its page). Downloading is only ever set up with a VPN that allows P2P. The shared folder, backups and the other apps are not built yet, and Windows plans only.",
+      "Linux (Ubuntu, Debian, Fedora and their relatives): Docker, Jellyfin or Plex (with Plex the owner signs in on its page), Seerr, Radarr, Sonarr, Prowlarr, qBittorrent through the VPN, the connections between them, and Tailscale. Docker and Tailscale need root: the first time a plan needs one, the step gives the reason and two ways, Hearth's admin helper (a fixed list of operations, each use approved) or the vendor's own commands run by the owner. Downloading is only ever set up with a VPN that allows P2P. The shared folder, backups and the other apps are not built yet, and Windows plans only.",
     evidence: [
+      {
+        file: "apps/server/src/build/service.test.ts",
+        test: "asks about the admin helper only when Docker is needed, with the reason and both ways",
+      },
       {
         file: "apps/server/src/build/service.test.ts",
         test: "makes the next step a plan to approve, with the details from Hearth, not the AI",
@@ -5056,12 +5066,26 @@ export const FEATURES: Feature[] = [
   {
     id: "updates",
     name: "Updates",
-    summary: "A new Hearth is offered; you update when you are ready.",
-    aliases: ["update hearth", "new version", "update now", "what version"],
+    summary:
+      "A new Hearth on your release channel (stable, the default, or fast) is offered; you update when you are ready.",
+    aliases: [
+      "update hearth",
+      "new version",
+      "update now",
+      "what version",
+      "release channel",
+      "stable channel",
+      "fast channel",
+      "beta",
+    ],
     where: { route: "/settings#about", path: "Update Hearth in the top bar, or Settings, About" },
-    labels: ["Update now"],
+    labels: ["Update now", "Release channel"],
     status: "working",
     evidence: [
+      {
+        file: "apps/server/src/updates/service.test.ts",
+        test: "follows the chosen channel, says which, and Update now pins that version",
+      },
       {
         file: E2E("updates.spec.ts"),
         test: "a new Hearth: Update in the top bar, on the bell, and in Settings; Update now",

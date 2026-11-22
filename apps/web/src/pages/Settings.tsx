@@ -28,6 +28,7 @@ import {
   Rows,
   SaveNote,
   Section,
+  Segmented,
   setFoldDefault,
   Switch,
   cx,
@@ -39,7 +40,7 @@ import { DevicesContent } from "./Devices";
 import { PcBadge } from "../components/devices/PcBadge";
 import { usePcs } from "../data/pcs";
 import { UpdateDetails } from "../components/updates/UpdateNotice";
-import { useUpdateAuto, useUpdates } from "../data/updates";
+import { useUpdateAuto, useUpdateChannel, useUpdates } from "../data/updates";
 import { AccessKeysSection } from "./auth/AccessKeys";
 import { BackupsSection } from "./BackupsSection";
 import { BlueprintSection } from "./BlueprintSection";
@@ -494,10 +495,36 @@ function ThisPcField({ onEdit }: { onEdit: () => void }) {
 function UpdatesSection() {
   const s = useUpdates().data;
   const auto = useUpdateAuto();
+  const channelSave = useUpdateChannel();
   if (!s) return <p className="text-[0.9rem] text-faint">Checking…</p>;
   const on = auto.isPending ? (auto.variables ?? s.auto !== false) : s.auto !== false;
+  const channel = channelSave.isPending
+    ? (channelSave.variables ?? s.channel ?? "stable")
+    : (s.channel ?? "stable");
   return (
     <>
+      <div
+        className="mb-3 flex flex-wrap items-center justify-between gap-2"
+        data-testid="update-channel"
+      >
+        <p className="max-w-prose text-[0.9rem] text-muted">
+          {channel === "stable"
+            ? "Stable: only releases marked stable, after they have run on the fast channel first."
+            : "Fast: every release as soon as it is out. Newer, and less tested."}
+        </p>
+        <div className="flex items-center gap-2">
+          <Segmented
+            label="Release channel"
+            value={channel}
+            options={[
+              { value: "stable", label: "Stable" },
+              { value: "fast", label: "Fast" },
+            ]}
+            onChange={(next) => channelSave.mutate(next)}
+          />
+          <SaveNote status={channelSave.status} error={channelSave.error} />
+        </div>
+      </div>
       <div
         className="mb-3 flex flex-wrap items-center justify-between gap-2"
         data-testid="update-auto"

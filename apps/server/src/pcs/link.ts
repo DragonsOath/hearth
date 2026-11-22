@@ -66,6 +66,8 @@ export interface InstallInfo {
   kind: "linux-user-service" | "windows-sign-in-task" | "manual";
   home?: string;
   service?: string;
+  /** The release channel the installer was run with (HEARTH_CHANNEL; stable when not given). */
+  channel?: "stable" | "fast";
 }
 
 /** Response headers worth passing through (others are the transport's business). */

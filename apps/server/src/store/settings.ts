@@ -197,6 +197,8 @@ export interface SettingValues {
   update_announced: string;
   /** Check for updates (Settings, About); off: Hearth never asks GitHub on its own. */
   update_check_auto: boolean;
+  /** Release channel (Settings, About): stable (releases marked stable) or fast (every release). */
+  update_channel: "stable" | "fast";
   /** Ember: AI budget and models, and the day the budget warning last went out. */
   ai_budget: Partial<import("@dragon-control/core").AiBudget>;
   ai_warned_on: string;

@@ -1,6 +1,12 @@
 # A Hearth release archive, built the same way every time and attached to a draft release.
 # Run it from the Actions tab (Run workflow) with a version, or by pushing a tag like v0.1.0.
-# The release stays a draft until the owner publishes it.
+# The release stays a draft until the owner publishes it: first as a prerelease (the fast
+# channel), then marked stable once it has run there (docs/RELEASES.md).
+#
+# Each archive (and the Android app) gets a build provenance attestation, so anyone can check a
+# download was built here from the tagged commit:
+#   gh attestation verify hearth-<version>-linux.tar.gz -R DragonsOath/hearth
+# Public core only: the closed Premium package is not built or attested here.
 name: release
 
 on:
@@ -18,6 +24,9 @@ on:
 
 permissions:
   contents: write
+  # Build provenance attestations (actions/attest-build-provenance).
+  id-token: write
+  attestations: write
 
 jobs:
   release:
@@ -49,6 +58,10 @@ jobs:
           DC_DATA_DIR=/tmp/check/data DC_PORT=7999 timeout 20 node apps/server/dist/index.js > /tmp/check/run.log 2>&1 &
           for i in $(seq 1 15); do sleep 1; curl -sf http://127.0.0.1:7999/api/health && break; done
           curl -sf http://127.0.0.1:7999/api/health || { echo "It did not start:"; cat /tmp/check/run.log; ls apps/server/node_modules | head -30; exit 1; }
+      - name: Attest the archive's build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: hearth-${{ steps.pack.outputs.version }}-linux.tar.gz
       # A short-lived copy for looking into a failed run. The release itself holds the files, so a
       # full artifact store never stops a release.
       - name: Keep the archive with this run
@@ -127,6 +140,11 @@ jobs:
           ./gradlew assembleRelease --no-daemon -q
           cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/hearth-$v-android.apk"
           rm -f "$RUNNER_TEMP/hearth.jks"
+      - name: Attest the app's build provenance
+        if: steps.changed.outputs.build == 'true'
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: hearth-*-android.apk
       - name: Attach to the release
         if: steps.changed.outputs.build == 'true'
         env:

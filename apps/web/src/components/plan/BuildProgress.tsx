@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { VPN_PROVIDERS, type HomelabStep, type VpnProvider } from "@dragon-control/core";
+import {
+  VPN_PROVIDERS,
+  type HomelabNeed,
+  type HomelabStep,
+  type VpnProvider,
+} from "@dragon-control/core";
 import {
   useHomelabBuild,
   useProposeBuildStep,
@@ -47,15 +52,17 @@ function Dot({ status }: { status: HomelabStep["status"] }) {
   );
 }
 
-function HelperNeed({ command }: { command: string }) {
+/** A command to paste into a terminal, with a Copy button. */
+function CopyCommand({ command, label }: { command: string; label: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="mt-2">
-      <p className="text-[0.82rem] leading-relaxed text-muted">
-        Open a terminal on this computer, paste this, and type your password when asked. It sets up
-        Hearth&apos;s small admin helper, which only ever does one step you approved.
-      </p>
-      <pre className="mt-2 overflow-x-auto rounded-lg border border-line bg-bg px-3 py-2 text-[0.78rem] text-ink">
+    <>
+      {/* Long commands scroll sideways: focusable, so a keyboard can scroll them too. */}
+      <pre
+        tabIndex={0}
+        aria-label="Command"
+        className="mt-2 overflow-x-auto rounded-lg border border-line bg-bg px-3 py-2 text-[0.78rem] text-ink focus-visible:outline-2 focus-visible:outline-gold"
+      >
         {command}
       </pre>
       <Button
@@ -63,8 +70,61 @@ function HelperNeed({ command }: { command: string }) {
         className="mt-1"
         onClick={() => void navigator.clipboard?.writeText(command).then(() => setCopied(true))}
       >
-        {copied ? "Copied" : "Copy the command"}
+        {copied ? "Copied" : label}
       </Button>
+    </>
+  );
+}
+
+/**
+ * Docker or Tailscale needs administrator rights: two ways, side by side, with the reason above
+ * (the step's detail). Neither is pushed: the helper's fixed list and source are shown, and the
+ * vendor's own commands are the other way.
+ */
+function HelperNeed({ need }: { need: Extract<HomelabNeed, { kind: "helper" }> }) {
+  return (
+    <div className="mt-2 grid gap-3 sm:grid-cols-2" data-testid="helper-choice">
+      <section className="rounded-xl border border-line p-3" aria-label="Set up the admin helper">
+        <h4 className="text-[0.86rem] font-medium text-ink">Set up the admin helper (once)</h4>
+        <p className="mt-1 text-[0.82rem] leading-relaxed text-muted">
+          A root service that runs only these operations, each time you approve one:
+        </p>
+        <ul className="mt-1 list-disc pl-5 text-[0.82rem] leading-relaxed text-muted">
+          {need.helper.can.map((c) => (
+            <li key={c}>{c}</li>
+          ))}
+        </ul>
+        <p className="mt-1 text-[0.82rem] leading-relaxed text-muted">
+          It has no shell and runs no other commands.{" "}
+          <a
+            className="text-gold underline"
+            href={need.helper.source}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Its source
+          </a>
+          . Paste this in a terminal on this computer and type your password when asked:
+        </p>
+        <CopyCommand command={need.command} label="Copy the command" />
+      </section>
+      <section className="rounded-xl border border-line p-3" aria-label="Install it yourself">
+        <h4 className="text-[0.86rem] font-medium text-ink">Or install it yourself</h4>
+        <p className="mt-1 text-[0.82rem] leading-relaxed text-muted">
+          The official commands, run once in a terminal on this computer (
+          <a
+            className="text-gold underline"
+            href={need.yourself.docs}
+            target="_blank"
+            rel="noreferrer"
+          >
+            their instructions
+          </a>
+          ):
+        </p>
+        <CopyCommand command={need.yourself.commands.join("\n")} label="Copy the commands" />
+        <p className="mt-1 text-[0.82rem] leading-relaxed text-muted">{need.yourself.after}</p>
+      </section>
     </div>
   );
 }
@@ -242,7 +302,7 @@ export function BuildProgress({ aiName }: { aiName: string }) {
                 </Link>
               )}
               {s.status === "needs-you" && s.need?.kind === "helper" && (
-                <HelperNeed command={s.need.command} />
+                <HelperNeed need={s.need} />
               )}
               {s.status === "needs-you" && s.need?.kind === "vpn-login" && (
                 <VpnNeed {...(s.need.provider ? { provider: s.need.provider } : {})} />

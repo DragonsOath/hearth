@@ -30,7 +30,21 @@ export type HomelabStepStatus =
   | "failed";
 
 export type HomelabNeed =
-  | { kind: "helper"; command: string }
+  /**
+   * Docker or Tailscale needs root to install, and the admin helper is not set up. Asked here, the
+   * first time a plan needs it, with the reason; two ways: set up the helper (its one command), or
+   * install it yourself with the vendor's own command (then Hearth sees it and moves on).
+   */
+  | {
+      kind: "helper";
+      command: string;
+      /** Why this step needs it, in plain words. */
+      reason: string;
+      /** What the helper can do here (its fixed list), and where its source is. */
+      helper: { can: string[]; source: string };
+      /** The vendor's own install commands, for the person to run once instead. */
+      yourself: { commands: string[]; after: string; docs: string };
+    }
   | { kind: "vpn-login"; provider?: VpnProvider }
   | { kind: "tailscale-login"; url?: string }
   /** Sign in on the app's own page (Plex, Seerr with Plex): the owner's account, never Hearth's. */

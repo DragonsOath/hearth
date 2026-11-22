@@ -421,19 +421,13 @@
 }
 /* The scroller in the chosen AI's color (10-27): orange for Claude Code (the default above),
    blue for Codex, white for Ollama. */
-.ember-shell.theme-codex,
-.ember-shell.theme-codex * {
-  scrollbar-color: rgba(47, 139, 255, 0.7) transparent;
+.ember-shell.theme-codex {
+  --sb-thumb: rgba(47, 139, 255, 0.7);
+  --sb-thumb-hover: rgba(79, 216, 255, 0.95);
 }
-.ember-shell.theme-codex *:hover {
-  scrollbar-color: rgba(79, 216, 255, 0.95) transparent;
-}
-.ember-shell.theme-ollama,
-.ember-shell.theme-ollama * {
-  scrollbar-color: rgba(255, 255, 255, 0.6) transparent;
-}
-.ember-shell.theme-ollama *:hover {
-  scrollbar-color: rgba(255, 255, 255, 0.95) transparent;
+.ember-shell.theme-ollama {
+  --sb-thumb: rgba(255, 255, 255, 0.6);
+  --sb-thumb-hover: rgba(255, 255, 255, 0.95);
 }
 
 /* The Lair tab (10-30): the Lair's own conversation fills the middle. The War Room's orb,

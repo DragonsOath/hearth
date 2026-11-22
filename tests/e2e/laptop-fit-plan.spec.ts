@@ -5,7 +5,11 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 // keeps Close at the top and Approve in view, its steps scrolling inside the card; the plan
 // wizard keeps Back and Next on screen. The plan is a stand-in answer.
 
-test.use({ viewport: { width: 1280, height: 720 } });
+test.use({
+  viewport: { width: 1280, height: 720 },
+  // Real scrollbars, as on a laptop (headless Chrome hides them by default).
+  launchOptions: { ignoreDefaultArgs: ["--hide-scrollbars"] },
+});
 
 const steps = Array.from({ length: 14 }, (_, i) => ({
   seq: i + 1,
@@ -71,4 +75,27 @@ test("the plan wizard keeps Back and Next on a laptop screen", async ({ page }) 
   const nav = page.getByRole("navigation", { name: "Plan steps" });
   await expect(nav.getByRole("button", { name: "Back" })).toBeVisible({ timeout: 15_000 });
   await inView(page, nav.getByRole("button", { name: "Back" }));
+});
+
+test("a page that scrolls has a bar wide enough to grab and drag", async ({ page }, testInfo) => {
+  await page.goto("/settings");
+  const main = page.locator("main").first();
+  await expect(main).toBeVisible({ timeout: 15_000 });
+  const bar = await main.evaluate((el) => {
+    const e = el as HTMLElement;
+    return { scrolls: e.scrollHeight > e.clientHeight, width: e.offsetWidth - e.clientWidth };
+  });
+  expect(bar.scrolls).toBe(true);
+  expect(bar.width).toBeGreaterThanOrEqual(12);
+  // Grab the bar near the top and drag it down: the page moves.
+  const box = (await main.boundingBox())!;
+  const x = box.x + box.width - 7;
+  await page.mouse.move(x, box.y + 40);
+  await page.mouse.down();
+  await page.mouse.move(x, box.y + 300, { steps: 8 });
+  await page.mouse.up();
+  expect(await main.evaluate((el) => el.scrollTop)).toBeGreaterThan(100);
+  await page.screenshot({
+    path: `test-results/screens/${testInfo.project.name}/laptop-scrollbar.png`,
+  });
 });

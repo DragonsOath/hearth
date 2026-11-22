@@ -56,7 +56,7 @@ test("the VPN login: not the Proton sign-in, Proton's labels and page, no browse
   await expect(where).toContainText("not the username and password you sign in to Proton VPN with");
   await expect(where.getByRole("link", { name: "Open Proton VPN's page for it" })).toHaveAttribute(
     "href",
-    "https://account.proton.me/u/0/vpn/OpenVpnIKEv2",
+    "https://account.proton.me/vpn/OpenVpnIKEv2",
   );
   await expect(form.getByLabel("OpenVPN / IKEv2 username")).toBeVisible();
   await expect(form.getByLabel("OpenVPN / IKEv2 password")).toBeVisible();
@@ -90,7 +90,7 @@ test("a refused VPN login says so plainly on the step, and where the right pair 
             status: "failed",
             jobId: "job-1",
             detail:
-              'Proton VPN turned down the VPN login, so qBittorrent was not started (nothing downloads without the VPN). Proton VPN\'s VPN connections use their own username and password, a separate pair from the one you sign in to Proton VPN with: the "OpenVPN / IKEv2 username" and "OpenVPN / IKEv2 password" on that page (https://account.proton.me/u/0/vpn/OpenVpnIKEv2). Put that pair in "Your VPN login" on the plan page, and Hearth tries again.',
+              'Proton VPN turned down the VPN login, so qBittorrent was not started (nothing downloads without the VPN). Proton VPN\'s VPN connections use their own username and password, a separate pair from the one you sign in to Proton VPN with: the "OpenVPN / IKEv2 username" and "OpenVPN / IKEv2 password" on that page (https://account.proton.me/vpn/OpenVpnIKEv2). Put that pair in "Your VPN login" on the plan page, and Hearth tries again.',
           },
         ],
       },

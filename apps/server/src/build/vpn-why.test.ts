@@ -8,7 +8,7 @@ describe("why the VPN did not come up", () => {
     const why = vpnWhy(log, "proton")!;
     expect(why).toContain("Proton VPN turned down the VPN login");
     expect(why).toContain("a separate pair from the one you sign in to Proton VPN with");
-    expect(why).toContain("account.proton.me/u/0/vpn/OpenVpnIKEv2");
+    expect(why).toContain("account.proton.me/vpn/OpenVpnIKEv2");
     expect(why).toContain('"Your VPN login" on the plan page');
   });
 

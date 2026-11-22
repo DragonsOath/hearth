@@ -234,7 +234,11 @@ function SecretSheet({
             <input
               value={username}
               maxLength={200}
+              // Never the browser's saved Hearth login (11-22, the VPN entries got it on Edit).
+              name="vault-secret-user"
               autoComplete="off"
+              data-lpignore="true"
+              data-1p-ignore=""
               onChange={(e) => setUsername(e.target.value)}
               className={cx(field, "mt-2")}
             />
@@ -303,6 +307,9 @@ function SecretSheet({
           onChange={(e) => setValue(e.target.value)}
           // Not the browser's saved Hearth password: it fills a plain "off" anyway (11-22).
           autoComplete="new-password"
+          name="vault-secret-value"
+          data-lpignore="true"
+          data-1p-ignore=""
           hint="Encrypted the moment it reaches Hearth. It never leaves this machine, and AI agents never see it."
           required={!existing}
         />

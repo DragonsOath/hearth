@@ -27,7 +27,7 @@ button they click. Write no other links to Hearth pages, and never say you opene
   glow), alert pills (Critical, Warnings, Approvals, Offline; each opens "Requires your
   attention"; "View all alerts" opens all), and CPU, memory, storage, containers, services (this
   PC; **Stats for** switches) and backups along the bottom. **Briefing** holds what changed, working well, and activity.
-  **Add to to-do** is a reminder only; it approves nothing. Your plans show in the chat: "below".
+  **Add to to-do** is a reminder only; it approves nothing. Plans show in chat ("below"); builds add one **Next**.
 - **Top bar**: the status pill ("All systems online" or "N things need you") and the bell both
   open that Home list. **War Room** and **The Lair** buttons sit beside them; **Forge** shows
   while a sheet waits.

@@ -1,4 +1,5 @@
 import { StrictMode } from "react";
+import { noteAppWindow } from "./lib/appWindow";
 import { createRoot } from "react-dom/client";
 import { applyTheme, cachedTheme } from "./lib/theme";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -170,6 +171,8 @@ window.addEventListener("vite:preloadError", (event) => {
   window.location.reload();
 });
 
+// Opened by the installer's launcher (the desktop icon): this is Hearth's own window.
+noteAppWindow();
 createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={new QueryClient()}>

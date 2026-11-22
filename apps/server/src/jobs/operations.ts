@@ -90,6 +90,8 @@ export const VERIFY_TEXT: Record<ActionKind, string> = {
     "Every container of the app must be running, the app must answer on its address, and its account must sign in with the details saved in Secure Vault.",
   "build-connect":
     "Each connection is read back from the app it was added to (Seerr lists Jellyfin, Radarr and Sonarr; Radarr and Sonarr list qBittorrent; Prowlarr lists Radarr and Sonarr).",
+  "build-confirm":
+    "The app must answer on its address. Then the step is marked done as you confirmed, and Hearth notes that it was you who checked.",
   "run-check": "Passes when Hearth's health check finds it working.",
   "test-endpoint": "Passes when its web address answers.",
   "inspect-logs": "Passes when its recent logs can be read.",
@@ -294,6 +296,8 @@ export const ROLLBACK_TEXT: Record<ActionKind, string> = {
     "If it does not start cleanly, its containers are removed again; its settings folder is kept. Your media files are never moved, renamed or deleted.",
   "build-connect":
     "Not undone automatically: each connection can be removed in the app's own settings. Nothing is deleted.",
+  "build-confirm":
+    "Nothing to undo: the app is not changed. Only the build's record of the step is.",
   "lab-transfer": "Nothing to undo: Hearth Transfer was removed.",
   "free-memory":
     "Nothing to put back: open the app again yourself; the voice starts again when used.",

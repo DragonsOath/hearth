@@ -168,6 +168,11 @@ export async function setupJellyfin(
 
 export type ArrApp = "radarr" | "sonarr" | "prowlarr";
 const API: Record<ArrApp, string> = { radarr: "v3", sonarr: "v3", prowlarr: "v1" };
+const ARR_NAMES: Record<ArrApp, string> = {
+  radarr: "Radarr",
+  sonarr: "Sonarr",
+  prowlarr: "Prowlarr",
+};
 
 /** The API key the app wrote into its own config.xml on first start. */
 export async function arrKey(configXml: string, deps: SetupDeps = {}): Promise<string> {
@@ -180,10 +185,79 @@ export async function arrKey(configXml: string, deps: SetupDeps = {}): Promise<s
   throw new SetupError(`No API key in ${configXml} yet.`);
 }
 
+/** What one sign-in try answered: whether it worked, and in words (never a cookie's value). */
+export interface SignInTry {
+  ok: boolean;
+  said: string;
+}
+
+/**
+ * Signs in on the app's own sign-in page with the owner's account, as the owner would: the forms
+ * login answers with a redirect home and a sign-in cookie, or back to the page with loginFailed.
+ * A few tries: the app may take a moment to start asking for the new sign-in.
+ */
+export async function arrSignIn(
+  base: string,
+  account: { username: string; password: string },
+  deps: SetupDeps = {},
+  tries = 5,
+): Promise<SignInTry> {
+  let said = "it did not answer";
+  for (let i = 0; i < tries; i++) {
+    try {
+      const res = await (deps.fetch ?? fetch)(`${base}/login?returnUrl=%2F`, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          username: account.username,
+          password: account.password,
+          // A real true or false: newer Radarr refuses a browser's "on" (400, 11-22).
+          rememberMe: "true",
+        }).toString(),
+        redirect: "manual",
+        signal: AbortSignal.timeout(30_000),
+      });
+      const to = res.headers.get("location") ?? "";
+      const cookies = (res.headers.get("set-cookie") ?? "")
+        .split(/,(?=\s*[^;,=\s]+=)/)
+        .map((c) => c.split("=")[0]!.trim())
+        .filter(Boolean);
+      const failed = /loginFailed/i.test(to);
+      if (res.status >= 300 && res.status < 400 && !failed && cookies.length)
+        return { ok: true, said: `signed in (${res.status})` };
+      // A refusal (400) says why in its body: keep a short, plain piece of it.
+      const why =
+        res.status >= 400
+          ? (await res.text().catch(() => ""))
+              .replace(/<[^>]*>/g, " ")
+              .replace(/\s+/g, " ")
+              .trim()
+              .slice(0, 160)
+          : "";
+      said = `${res.status}${why ? ` "${why}"` : ""}${to ? ` to ${to.replace(/\?.*/, "")}${failed ? " (loginFailed)" : ""}` : ""}${cookies.length ? `, cookies ${cookies.join(", ")}` : ", no cookie"}`;
+    } catch (e) {
+      said = e instanceof Error ? e.message : String(e);
+    }
+    await (deps.wait ?? sleep)(2_000);
+  }
+  return { ok: false, said };
+}
+
+/** Whether the owner's account signs in on the app's own page. */
+export async function arrSignsIn(
+  base: string,
+  account: { username: string; password: string },
+  deps: SetupDeps = {},
+): Promise<boolean> {
+  return (await arrSignIn(base, account, deps)).ok;
+}
+
 /**
  * Turns on the app's sign-in with the owner's account (forms login, required everywhere but
  * from this home network's own addresses is not offered: the app asks everyone), and adds its
- * root folders. Reads both back.
+ * root folders. Checked by signing in with that account, the way the owner will (11-22: the app
+ * keeps the user name in lower case, so comparing it to the one given failed a working sign-in
+ * for any name with a capital letter, and the build stopped there).
  */
 export async function setupArr(
   app: ArrApp,
@@ -215,8 +289,27 @@ export async function setupArr(
   const back = parse<{ authenticationMethod?: string; username?: string }>(
     (await call(deps, `${base}/api/${v}/config/host`, { headers: h })).text,
   );
-  if (back.authenticationMethod !== "forms" || back.username !== account.username)
-    throw new SetupError(`${app} did not keep the sign-in it was given.`);
+  const name = ARR_NAMES[app];
+  if (String(back.authenticationMethod).toLowerCase() !== "forms")
+    throw new SetupError(`${name} did not turn its sign-in on.`);
+  // Radarr, Sonarr and Prowlarr take a new sign-in method only after a restart: when signing in
+  // does not work yet, Hearth restarts the app with its own API (it is Hearth's, just set up),
+  // waits for it, and signs in again (11-22, the real apps in CI).
+  let tried = await arrSignIn(base, account, deps, 2);
+  if (!tried.ok) {
+    await call(deps, `${base}/api/${v}/system/restart`, {
+      method: "POST",
+      headers: h,
+      ok: [200, 202],
+    });
+    await (deps.wait ?? sleep)(5_000);
+    await waitForApp(`${base}/api/${v}/system/status?apikey=${apiKey}`, deps);
+    tried = await arrSignIn(base, account, deps);
+  }
+  if (!tried.ok)
+    throw new SetupError(
+      `${name} turned its sign-in on, but signing in as ${account.username} did not work (it answered ${tried.said}).`,
+    );
   if (app === "prowlarr") return;
   const have = parse<{ path: string }[]>(
     (await call(deps, `${base}/api/${v}/rootfolder`, { headers: h })).text,

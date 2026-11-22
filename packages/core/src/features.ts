@@ -248,6 +248,7 @@ export const FEATURES: Feature[] = [
       "Save my VPN login",
       "Copy the command",
       "Or install it yourself",
+      "I checked it myself, it works: continue",
     ],
     status: "partial",
     statusNote:
@@ -256,6 +257,14 @@ export const FEATURES: Feature[] = [
       {
         file: "apps/server/src/build/service.test.ts",
         test: "asks about the admin helper only when Docker is needed, with the reason and both ways",
+      },
+      {
+        file: "apps/server/src/build/service.test.ts",
+        test: "no dead ends: a step that failed while the app works is marked done once the owner says so",
+      },
+      {
+        file: "tests/e2e/build-next-lair-chat.spec.ts",
+        test: "every Ember message in a build ends with one next action, and a false failure has a way past",
       },
       {
         file: "apps/server/src/build/service.test.ts",

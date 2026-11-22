@@ -1706,6 +1706,22 @@ export async function buildApp({
         throw new ConflictError(e instanceof Error ? e.message : String(e));
       });
   });
+  // The owner checked a failed step's app and it works: a plan to mark it done (11-22).
+  app.post("/api/plan/build/confirm", async (request) => {
+    planOwner(request);
+    const body = z
+      .object({ step: z.enum(HOMELAB_STEP_IDS as [string, ...string[]]) })
+      .strict()
+      .parse(request.body ?? {});
+    return homelab
+      .confirm(body.step as HomelabStepId, {
+        requestedBy: "you",
+        conversationId: await homelab.conversation(),
+      })
+      .catch((e: unknown) => {
+        throw new ConflictError(e instanceof Error ? e.message : String(e));
+      });
+  });
   // The VPN login for qBittorrent's VPN: straight into Secure Vault, never returned.
   app.put("/api/plan/build/vpn", async (request) => {
     planOwner(request);

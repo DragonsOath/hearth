@@ -27,6 +27,7 @@ import { useClaimShow, useResumeShow, useShowSettings, useShowState } from "../.
 import { isClearStop } from "@dragon-control/core";
 import { Message, Notice, remoteQuestion } from "./Thread";
 import { ConversationPlans, PlanCards, plansIn, Progress } from "./Progress";
+import { BuildNext } from "../plan/BuildNext";
 import { Suggestions } from "../desk/Suggestions";
 import { useOpenPanels } from "../desk/useOpenPanels";
 import { CredentialPrompts } from "../credentials/CredentialPrompts";
@@ -505,6 +506,8 @@ export function CaveChat({
           data-testid="cave-thread"
         >
           {conversationId && convo.isPending && <Skeleton className="h-24" />}
+          {/* A new chat with an unfinished build starts where it left off (11-22). */}
+          {!messages.length && !working && <BuildNext fresh />}
           {!messages.length && !working && (
             <li>
               {empty ?? (
@@ -569,6 +572,8 @@ export function CaveChat({
             </Fragment>
           ))}
           {conversationId && <ConversationPlans conversationId={conversationId} drawn={drawn} />}
+          {/* An unfinished build: always one next action under Ember's latest message (any chat). */}
+          {!working && messages.at(-1)?.role === "agent" && <BuildNext />}
           {ask.isPending &&
             ask.variables &&
             !messages.some((m) => m.text === ask.variables!.text) && (

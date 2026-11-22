@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useIsFetching, useQueryClient } from "@tanstack/react-query";
+import { useIsFetching, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 import {
   ArrowDown,
@@ -19,7 +19,7 @@ import {
   Zap,
 } from "lucide-react";
 import { JOB_DONE, type HomeRow, type StepParams } from "@dragon-control/core";
-import { useWorkspace } from "../../data/api";
+import { api, useWorkspace } from "../../data/api";
 import { plexArt } from "../../data/dashboards";
 import {
   useDeleteLayout,
@@ -332,10 +332,27 @@ export function HomeRowsPanel({
  * server, with Refresh: reads the home screen again, so a row made or moved in Home rows, or a
  * movie or show that just landed, shows here at once. Changes not sent yet are kept.
  */
-export function ServerHome({ serviceId }: { serviceId: string }) {
+export function ServerHome({
+  serviceId,
+  onConnect,
+}: {
+  serviceId: string;
+  /** Opens Overview, where an app Hearth cannot read yet is connected (its key or sign-in). */
+  onConnect?: () => void;
+}) {
   const ws = useWorkspace();
   const service = ws.data?.services.find((s) => s.id === serviceId);
   const kind = service ? appKindOf(service) : undefined;
+  // The same reads the editors make (shared): when they fail, say why and how to fix it here.
+  const plexRead = useHomeRowOptions(kind === "plex" ? serviceId : undefined);
+  const jfRead = useQuery({
+    queryKey: ["dashboard", serviceId, "jellyfin", "home", ""],
+    queryFn: () =>
+      api<unknown>("GET", `/api/services/${encodeURIComponent(serviceId)}/jellyfin/home`),
+    enabled: kind === "jellyfin" || kind === "emby",
+    retry: false,
+  });
+  const readError = kind === "plex" ? plexRead.error : jfRead.error;
   const qc = useQueryClient();
   const busy = useIsFetching({ predicate: (q) => isHomeQuery(q.queryKey, serviceId) }) > 0;
   const [read, setRead] = useState(() => new Date().toISOString());
@@ -376,6 +393,23 @@ export function ServerHome({ serviceId }: { serviceId: string }) {
       </div>
       {ws.isLoading ? (
         <Skeleton className="h-64" />
+      ) : readError ? (
+        <div className="rounded-xl border border-line p-4" data-testid="server-home-unread">
+          <p className="text-[0.9rem] text-ink">
+            Hearth can&apos;t read {name}&apos;s home screen yet: it needs to be connected first.
+          </p>
+          <p className="mt-1 text-[0.82rem] text-muted">{readError.message}</p>
+          {onConnect && (
+            <button
+              type="button"
+              onClick={onConnect}
+              className="mt-3 inline-flex min-h-10 items-center rounded-lg bg-gold px-4 text-[0.86rem] font-semibold text-bg"
+              data-testid="server-home-connect"
+            >
+              Connect {name}
+            </button>
+          )}
+        </div>
       ) : kind === "emby" ? (
         <EmbyHomeEditor serviceId={serviceId} />
       ) : kind === "jellyfin" ? (

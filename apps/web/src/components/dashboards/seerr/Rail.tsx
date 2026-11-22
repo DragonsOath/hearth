@@ -69,6 +69,8 @@ export function Rail({
         onScroll={measure}
         tabIndex={0}
         aria-label={label}
+        // Scrolls sideways on its own, by design (the phone-fit check knows it by this).
+        data-strip=""
         className="-mx-1 flex snap-x gap-3 overflow-x-auto scroll-smooth px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {children}

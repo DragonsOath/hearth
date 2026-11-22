@@ -93,13 +93,26 @@ choose_channel() {
 }
 
 # Tests read the functions above without running the installer.
+# Where Hearth is. Run from inside an install (its own app/deploy/get.sh, as the goodbye line
+# says), it is that install, never the default one: a second Hearth's --uninstall must not remove
+# the first (11-21).
+install_home() {
+  if [[ -n "${HEARTH_HOME:-}" ]]; then echo "$HEARTH_HOME"; return; fi
+  local src="${BASH_SOURCE[0]:-}" own=""
+  if [[ -f "$src" ]]; then
+    own="$(cd "$(dirname "$(readlink -f "$src")")/../.." 2>/dev/null && pwd)"
+    [[ -f "$own/install.json" ]] && { echo "$own"; return; }
+  fi
+  echo "$HOME/hearth"
+}
+
 [[ -z "${HEARTH_GET_FUNCTIONS_ONLY:-}" ]] || return 0
 
 [[ "$(uname -s)" == Linux ]] || fail "This installer is for Linux. On Windows, use deploy/get.ps1."
 [[ "$(id -u)" != 0 ]] || fail "Run this as your everyday account, not root."
 command -v systemctl >/dev/null || fail "Hearth needs systemd to run as a service, and this machine does not have it."
 
-home="${HEARTH_HOME:-$HOME/hearth}"
+home="$(install_home)"
 app="$home/app"
 units="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
 service="${HEARTH_SERVICE:-}"
@@ -123,7 +136,7 @@ if [[ -n "$uninstall" ]]; then
     echo ""
   fi
   [[ -d "$home" ]] || fail "Hearth is not installed in $home."
-  say "Removing Hearth"
+  say "Removing Hearth ($service, in $home)"
   systemctl --user disable --now "$service" 2>/dev/null || true
   rm -f "$units/$service.service"
   systemctl --user daemon-reload
@@ -372,9 +385,11 @@ cat >"$home/open-hearth" <<'OPEN'
 # Its own browser profile makes it its own app: the taskbar shows Hearth's icon (it can be pinned)
 # instead of filing the window under the browser. Signing in there is remembered there.
 dir="$(dirname "$(readlink -f "$0")")"
-url="$(cat "$dir/app-url")"
+url="${1:-$(cat "$dir/app-url")}"
+# Marks Hearth's own window, so Hearth knows it is not a browser tab (never the fallback tab).
+case "$url" in *\?*) own="$url&window=app" ;; *) own="$url?window=app" ;; esac
 for b in google-chrome google-chrome-stable chromium chromium-browser microsoft-edge microsoft-edge-stable brave-browser; do
-  command -v "$b" >/dev/null && exec "$b" --user-data-dir="$dir/app-window" --no-first-run --no-default-browser-check --autoplay-policy=no-user-gesture-required --class=Hearth --app="$url"
+  command -v "$b" >/dev/null && exec "$b" --user-data-dir="$dir/app-window" --no-first-run --no-default-browser-check --autoplay-policy=no-user-gesture-required --class=Hearth --app="$own"
 done
 exec xdg-open "$url"
 OPEN
@@ -387,7 +402,7 @@ Comment=Your homelab, with Ember
 Exec=$home/open-hearth
 Icon=$data_home/icons/$service.png
 Terminal=false
-Categories=System;Network;
+Categories=System;
 StartupWMClass=Hearth
 DESKTOP
 desktop_dir="$(xdg-user-dir DESKTOP 2>/dev/null || echo "$HOME/Desktop")"
@@ -411,8 +426,10 @@ elif [[ -f "$home/data/setup-code.txt" ]]; then
   link="http://localhost:$port/setup?code=$(cat "$home/data/setup-code.txt")"
   say "Hearth is running. Finish setting it up here:"
   printf '\n    %s\n\n' "$link"
-  if [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]] && command -v xdg-open >/dev/null; then
-    xdg-open "$link" >/dev/null 2>&1 || true
+  # In Hearth's own window (the desktop icon's), not a browser tab: setting up and signing in
+  # there is remembered there, so the icon opens Hearth ready to use (11-22).
+  if [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]]; then
+    (nohup "$home/open-hearth" "$link" >/dev/null 2>&1 &) || true
   fi
 else
   say "Hearth is updated and running. Sign in as usual."

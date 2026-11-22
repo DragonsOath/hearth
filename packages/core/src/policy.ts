@@ -122,7 +122,8 @@ export type ActionKind =
   | "build-docker"
   | "build-tailscale"
   | "build-app"
-  | "build-connect";
+  | "build-connect"
+  | "build-confirm";
 
 export const ACTION_KINDS: readonly ActionKind[] = [
   "run-check",
@@ -237,6 +238,7 @@ export const ACTION_KINDS: readonly ActionKind[] = [
   "build-tailscale",
   "build-app",
   "build-connect",
+  "build-confirm",
 ];
 
 /**
@@ -477,6 +479,7 @@ export const BUILD_ACTIONS: readonly ActionKind[] = [
   "build-tailscale",
   "build-app",
   "build-connect",
+  "build-confirm",
 ];
 
 /** The service id a step uses when it acts on the machine rather than an existing service. */
@@ -1109,6 +1112,12 @@ export const ACTIONS: Record<ActionKind, ActionDefinition> = {
   "build-connect": {
     kind: "build-connect",
     describe: () => "Connect your new apps to each other",
+    changes: true,
+    guardrail: true,
+  },
+  "build-confirm": {
+    kind: "build-confirm",
+    describe: (name) => `You checked ${name} yourself: it works, so the build carries on`,
     changes: true,
     guardrail: true,
   },

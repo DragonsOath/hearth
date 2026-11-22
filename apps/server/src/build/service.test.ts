@@ -381,4 +381,73 @@ describe("Build my plan", () => {
     );
     expect((await builder.status()).steps.find((s) => s.id === "plex")!.status).toBe("done");
   });
+
+  it("no dead ends: a step that failed while the app works is marked done once the owner says so", async () => {
+    const { builder, jobs, root, vault } = await setup({
+      docker: true,
+      helper: ["docker.install"],
+    });
+    // Radarr's step failed (Hearth's own check), but Radarr runs and answers.
+    const radarrFailed = {
+      id: "jfail",
+      title: "Your homelab: set up Radarr",
+      status: "failed",
+      summary: "radarr did not keep the sign-in it was given.",
+      steps: [],
+    } as unknown as Job;
+    const get = jobs.get;
+    jobs.get = async (id: string) => (id === "jfail" ? radarrFailed : get(id));
+    await setSetting(handlesLast().db, "homelab_build", {
+      steps: {
+        docker: { done: "x" },
+        jellyfin: { done: "x" },
+        seerr: { done: "x" },
+        radarr: { jobId: "jfail" },
+      },
+      secrets: {},
+    });
+    (builder as unknown as { d: { setup: unknown } }).d.setup = {
+      fetch: (async () => new Response("ok", { status: 200 })) as typeof fetch,
+      wait: async () => undefined,
+    };
+    const failed = (await builder.status()).steps.find((s) => s.id === "radarr")!;
+    expect(failed).toMatchObject({ status: "failed", answering: true });
+    expect(failed.url).toMatch(/:7878$/);
+
+    // The owner checked it: a plan they approve, like any step.
+    await builder.confirm("radarr", { requestedBy: "you", conversationId: "c1" });
+    const made = jobs.made.at(-1)!;
+    expect(made.steps).toEqual([
+      { kind: "build-confirm", serviceId: "this-host", params: { app: "radarr" } },
+    ]);
+    const planned = await builder.planStep(made.steps[0]!);
+    expect(planned.policy).toBe("approve-first");
+
+    // Approved and run: it answers, its key is read into Secure Vault, and the step is done.
+    await fs.mkdir(path.join(root, "radarr", "config"), { recursive: true });
+    await fs.writeFile(
+      path.join(root, "radarr", "config", "config.xml"),
+      "<Config><ApiKey>0123456789abcdef0123456789abcdef</ApiKey></Config>",
+    );
+    const out = await builder.runStep({
+      kind: "build-confirm",
+      serviceId: "this-host",
+      params: { app: "radarr" },
+    } as never);
+    expect(out).toMatchObject({ ok: true });
+    expect(out.result).toMatch(/you checked it and it works/);
+    expect(out.result).toMatch(/API key is now in Secure Vault/);
+    expect([...vault.kept.values()].some((s) => s.name === "Radarr: API key")).toBe(true);
+    jobs.get = get;
+    const done = (await builder.status()).steps.find((s) => s.id === "radarr")!;
+    expect(done).toMatchObject({ status: "done", confirmedByOwner: true });
+    expect(done.detail).toMatch(/You checked it and said it works/);
+  });
+
+  it("a step that did not fail cannot be confirmed", async () => {
+    const { builder } = await setup({ docker: true, helper: ["docker.install"] });
+    await expect(builder.confirm("jellyfin", { requestedBy: "you" })).rejects.toThrow(
+      /did not fail/,
+    );
+  });
 });

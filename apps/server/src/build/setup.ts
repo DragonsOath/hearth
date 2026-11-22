@@ -211,7 +211,8 @@ export async function arrSignIn(
         body: new URLSearchParams({
           username: account.username,
           password: account.password,
-          rememberMe: "on",
+          // A real true or false: newer Radarr refuses a browser's "on" (400, 11-22).
+          rememberMe: "true",
         }).toString(),
         redirect: "manual",
         signal: AbortSignal.timeout(30_000),

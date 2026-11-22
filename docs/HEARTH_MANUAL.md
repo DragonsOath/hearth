@@ -182,6 +182,10 @@ is in Secure Vault). Hearth reads the app's API key itself and keeps it in Secur
 find or paste one. Then Ember proposes the next step. Under her latest message there is always
 one **Next** action: approve the card, **Continue: set up** the next app, **Open** one, or **Try
 again**. Ask her something else and she answers briefly, then brings you back to the build.
+Until the plan is built, this holds in every chat with Ember, after restarts too: she knows where
+the build is from your saved plan (what is done, what is stuck, what is next), every message ends
+with "Ready to continue with" the next app or what is blocking it and the way past, and a new chat
+starts with **Your build, where it left off**.
 
 **I checked it myself, it works: continue**: when a step fails but its app runs and answers,
 Hearth's own check may be what failed. Open the app and sign in; if it works, press this (under

@@ -63,16 +63,27 @@ function justDone(b: HomelabBuild): HomelabStep | undefined {
   return done.at(-1);
 }
 
+/** A build was started and is not finished: build mode, in every conversation (11-22). */
+export function buildUnfinished(b: HomelabBuild | undefined): b is HomelabBuild {
+  return Boolean(
+    b &&
+    b.steps.length &&
+    (b.conversationId || b.steps.some((s) => s.jobId || s.status === "done")) &&
+    b.steps.some((s) => s.status !== "done"),
+  );
+}
+
 /**
- * Under Ember's latest message in the build's conversation: the app just set up (Open it, and how
- * to sign in), and the one next action. Whatever Ember said, the next step is always here.
+ * Under Ember's latest message in any chat while a build is unfinished, and first in a new chat:
+ * the app just set up (Open it, and how to sign in), and the one next action, from the saved
+ * plan (never from what the chat remembers). Whatever Ember said, the next step is always here.
  */
-export function BuildNext({ conversationId }: { conversationId: string }) {
+export function BuildNext({ fresh = false }: { fresh?: boolean }) {
   const build = useHomelabBuild();
   const propose = useProposeBuildStep();
   const confirm = useConfirmBuildStep();
   const b = build.data;
-  if (!b || b.conversationId !== conversationId || !b.steps.length) return null;
+  if (!buildUnfinished(b)) return null;
   const a = nextAction(b);
   const ready = justDone(b);
   const showReady = ready && a.kind !== "built" && !(a.kind === "open" && a.step.id === ready.id);
@@ -92,7 +103,19 @@ export function BuildNext({ conversationId }: { conversationId: string }) {
         </div>
       )}
       <div className="rounded-xl border border-gold/40 bg-gold/5 px-3 py-2.5" role="status">
-        <p className="text-[0.72rem] tracking-[0.12em] text-gold uppercase">Next</p>
+        <p className="text-[0.72rem] tracking-[0.12em] text-gold uppercase">
+          {fresh ? "Your build, where it left off" : "Next"}
+        </p>
+        {fresh && (
+          <p className="mb-1 text-[0.84rem] text-muted" data-testid="build-where">
+            Done:{" "}
+            {b.steps
+              .filter((s) => s.status === "done")
+              .map((s) => s.name)
+              .join(", ") || "nothing yet"}
+            .
+          </p>
+        )}
         {a.kind === "approve" && (
           <p className="text-[0.9rem] text-ink">
             Approve {a.step.name}: its card is right above. Nothing happens until you do.
@@ -158,6 +181,9 @@ export function BuildNext({ conversationId }: { conversationId: string }) {
               Do it on the plan page
             </a>
           </p>
+        )}
+        {a.kind === "continue" && (
+          <p className="mb-2 text-[0.9rem] text-ink">Ready to continue with {a.step.name}?</p>
         )}
         {a.kind === "continue" && (
           <Button

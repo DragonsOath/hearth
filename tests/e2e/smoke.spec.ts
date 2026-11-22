@@ -1482,7 +1482,8 @@ test("qBittorrent dashboard: live torrents with moving progress bars, seeds and 
 test("Plex dashboard: libraries, who is watching what, direct play or transcode, buffering, and ask about a stream", async ({
   page,
 }, testInfo) => {
-  await page.goto("/?panels=service:plex");
+  // Overview by name: the Plex panel opens on Home (11-21).
+  await page.goto(`/?panels=${encodeURIComponent("service:plex@overview")}`);
   const dash = page.getByTestId("plex-dashboard");
   await expect(dash).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId("plex-totals")).toContainText("1,284");
@@ -2509,6 +2510,8 @@ test("command center: a service opens beside Ember with live and recorded facts"
   }
   const ws = page.getByTestId("service-workspace");
   await expect(ws.getByRole("heading", { name: "Jellyfin" })).toBeVisible();
+  // Jellyfin's panel opens on Home (11-21): its facts are on Overview.
+  await ws.getByRole("tab", { name: "Overview", exact: true }).click();
   await expect(ws.getByTestId("service-state")).toHaveText("Running");
   await expect(ws).toContainText("Recorded");
   await expect(ws.getByTestId("service-runtime")).toContainText(
@@ -2581,6 +2584,8 @@ test("command center: you stop a service on request and start it again", async (
   await page.goto("/?service=jellyfin");
   const ws = page.getByTestId("service-workspace");
   await expect(ws.getByTestId("service-state")).toHaveText("Running");
+  // Jellyfin's panel opens on Home (11-21): Stop is on Overview.
+  await ws.getByRole("tab", { name: "Overview", exact: true }).click();
   await ws.getByRole("button", { name: "Stop", exact: true }).click();
   const sheet = page.getByRole("dialog", { name: "Stop Jellyfin" });
   await expect(sheet).toContainText("It stays off");

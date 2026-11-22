@@ -310,8 +310,13 @@ export const APP_PANELS: Partial<Record<AppKind, AppPanel>> = {
         view: view(
           () => import("../homeRows/HomeRowsPanel"),
           (m) =>
-            function MediaHome({ serviceId }: AppViewProps) {
-              return <m.ServerHome serviceId={serviceId} />;
+            function MediaHome({ serviceId, onGo }: AppViewProps) {
+              return (
+                <m.ServerHome
+                  serviceId={serviceId}
+                  {...(onGo ? { onConnect: () => onGo("overview") } : {})}
+                />
+              );
             },
         ),
       },
@@ -1032,8 +1037,13 @@ export const APP_PANELS: Partial<Record<AppKind, AppPanel>> = {
         view: view(
           () => import("../homeRows/HomeRowsPanel"),
           (m) =>
-            function MediaHome({ serviceId }: AppViewProps) {
-              return <m.ServerHome serviceId={serviceId} />;
+            function MediaHome({ serviceId, onGo }: AppViewProps) {
+              return (
+                <m.ServerHome
+                  serviceId={serviceId}
+                  {...(onGo ? { onConnect: () => onGo("overview") } : {})}
+                />
+              );
             },
         ),
       },
@@ -1129,8 +1139,13 @@ export const APP_PANELS: Partial<Record<AppKind, AppPanel>> = {
         view: view(
           () => import("../homeRows/HomeRowsPanel"),
           (m) =>
-            function MediaHome({ serviceId }: AppViewProps) {
-              return <m.ServerHome serviceId={serviceId} />;
+            function MediaHome({ serviceId, onGo }: AppViewProps) {
+              return (
+                <m.ServerHome
+                  serviceId={serviceId}
+                  {...(onGo ? { onConnect: () => onGo("overview") } : {})}
+                />
+              );
             },
         ),
       },

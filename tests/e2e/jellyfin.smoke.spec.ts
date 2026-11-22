@@ -23,7 +23,8 @@ test("Jellyfin panel: paste a key, see who is watching and why it converts, stop
   expect(res.status(), await res.text()).toBe(201);
   const jf = ((await res.json()) as { id: string }).id;
   try {
-    await page.goto(`/?service=${jf}`);
+    // Overview: Jellyfin's panel opens on Home (11-21), and this is about Overview.
+    await page.goto(`/?panels=${encodeURIComponent(`service:${jf}@overview`)}`);
     const ask = page.getByTestId("needs-key");
     await expect(ask).toBeVisible({ timeout: 20_000 });
     await expect(ask).toContainText("Dashboard, then API Keys");

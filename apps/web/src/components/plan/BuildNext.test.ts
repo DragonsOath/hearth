@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { HomelabBuild, HomelabStep, HomelabStepStatus } from "@dragon-control/core";
-import { nextAction, signInWords } from "./BuildNext";
+import { buildUnfinished, nextAction, signInWords } from "./BuildNext";
 
 /**
  * Build mode rule 1 (11-22): every message in a build ends with exactly one clear next action.
@@ -75,6 +75,14 @@ describe("the one next action of a build", () => {
         const next = nextAction(b);
         expect(next.kind, `${a} + ${c}`).toBeTruthy();
       }
+  });
+
+  it("build mode is on in every chat once a build started and until it is done", () => {
+    expect(buildUnfinished(build([step("docker", "ready")], { conversationId: undefined }))).toBe(
+      false,
+    );
+    expect(buildUnfinished(build([step("docker", "done"), step("jellyfin", "ready")]))).toBe(true);
+    expect(buildUnfinished(build([step("docker", "done"), step("jellyfin", "done")]))).toBe(false);
   });
 
   it("says how to sign in, the way the passwords were made", () => {

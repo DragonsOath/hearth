@@ -506,6 +506,8 @@ export function CaveChat({
           data-testid="cave-thread"
         >
           {conversationId && convo.isPending && <Skeleton className="h-24" />}
+          {/* A new chat with an unfinished build starts where it left off (11-22). */}
+          {!messages.length && !working && <BuildNext fresh />}
           {!messages.length && !working && (
             <li>
               {empty ?? (
@@ -570,10 +572,8 @@ export function CaveChat({
             </Fragment>
           ))}
           {conversationId && <ConversationPlans conversationId={conversationId} drawn={drawn} />}
-          {/* The build's conversation: always one next action under Ember's latest message. */}
-          {conversationId && !working && messages.at(-1)?.role === "agent" && (
-            <BuildNext conversationId={conversationId} />
-          )}
+          {/* An unfinished build: always one next action under Ember's latest message (any chat). */}
+          {!working && messages.at(-1)?.role === "agent" && <BuildNext />}
           {ask.isPending &&
             ask.variables &&
             !messages.some((m) => m.text === ask.variables!.text) && (

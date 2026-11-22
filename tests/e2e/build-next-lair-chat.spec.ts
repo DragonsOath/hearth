@@ -91,4 +91,14 @@ test("every Ember message in a build ends with one next action, and a false fail
     timeout: 20_000,
   });
   await expect(thread.getByTestId("build-continue")).toHaveText("Continue: set up Sonarr");
+  await expect(thread.getByTestId("build-next-action")).toContainText(
+    "Ready to continue with Sonarr?",
+  );
+
+  // A new chat starts where the build left off, from the saved plan.
+  await page.goto("/ask");
+  const fresh = page.getByTestId("cave-thread").getByTestId("build-next-action");
+  await expect(fresh).toContainText("Your build, where it left off", { timeout: 20_000 });
+  await expect(fresh.getByTestId("build-where")).toContainText("Done: Docker, Jellyfin, Radarr.");
+  await expect(fresh).toContainText("Ready to continue with Sonarr?");
 });

@@ -6,8 +6,9 @@ import { arrSignsIn, setupArr } from "./setup";
  * and comparing it failed a working sign-in for any name with a capital letter. Now Hearth signs
  * in on the app's own sign-in page, as the owner will.
  */
-function fakeRadarr(opts: { method?: string; login: "ok" | "fails" }) {
+function fakeRadarr(opts: { method?: string; login: "ok" | "fails" | "after-restart" }) {
   const calls: string[] = [];
+  let restarted = false;
   const fetch = (async (input: string | URL, init?: RequestInit) => {
     const url = new URL(String(input));
     calls.push(`${init?.method ?? "GET"} ${url.pathname}`);
@@ -19,9 +20,15 @@ function fakeRadarr(opts: { method?: string; login: "ok" | "fails" }) {
     if (url.pathname === "/api/v3/config/host")
       // Kept in lower case, as Radarr does.
       return json({ authenticationMethod: opts.method ?? "forms", username: "alexsmith" });
+    if (url.pathname === "/api/v3/system/restart") {
+      restarted = true;
+      return new Response("{}", { status: 200 });
+    }
     if (url.pathname === "/login") {
       const body = new URLSearchParams(String(init?.body));
-      const good = opts.login === "ok" && body.get("password") === "Pass-1";
+      // Like the real apps: a new sign-in method takes effect only after a restart.
+      const on = opts.login === "ok" || (opts.login === "after-restart" && restarted);
+      const good = on && body.get("password") === "Pass-1";
       return new Response(null, {
         status: 302,
         headers: good
@@ -47,10 +54,18 @@ describe("setupArr", () => {
     expect(r.calls).toContain("POST /api/v3/rootfolder");
   });
 
+  it("restarts the app once when the new sign-in is not on yet, then signs in (the real apps)", async () => {
+    const r = fakeRadarr({ login: "after-restart" });
+    await setupArr("radarr", "http://127.0.0.1:7878", "k", account, ["/data/Movies"], r);
+    expect(r.calls).toContain("POST /api/v3/system/restart");
+    expect(r.calls.filter((c) => c === "POST /login").length).toBeGreaterThan(1);
+    expect(r.calls).toContain("POST /api/v3/rootfolder");
+  });
+
   it("fails plainly when signing in does not work", async () => {
     const r = fakeRadarr({ login: "fails" });
     await expect(setupArr("radarr", "http://127.0.0.1:7878", "k", account, [], r)).rejects.toThrow(
-      "Radarr turned its sign-in on, but signing in as AlexSmith did not work.",
+      /^Radarr turned its sign-in on, but signing in as AlexSmith did not work \(it answered 302 to \/login \(loginFailed\), no cookie\)\.$/,
     );
   });
 

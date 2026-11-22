@@ -185,17 +185,25 @@ export async function arrKey(configXml: string, deps: SetupDeps = {}): Promise<s
   throw new SetupError(`No API key in ${configXml} yet.`);
 }
 
+/** What one sign-in try answered: whether it worked, and in words (never a cookie's value). */
+export interface SignInTry {
+  ok: boolean;
+  said: string;
+}
+
 /**
  * Signs in on the app's own sign-in page with the owner's account, as the owner would: the forms
- * login answers with a redirect home and its sign-in cookie, or back to the page with loginFailed.
+ * login answers with a redirect home and a sign-in cookie, or back to the page with loginFailed.
  * A few tries: the app may take a moment to start asking for the new sign-in.
  */
-export async function arrSignsIn(
+export async function arrSignIn(
   base: string,
   account: { username: string; password: string },
   deps: SetupDeps = {},
-): Promise<boolean> {
-  for (let i = 0; i < 5; i++) {
+  tries = 5,
+): Promise<SignInTry> {
+  let said = "it did not answer";
+  for (let i = 0; i < tries; i++) {
     try {
       const res = await (deps.fetch ?? fetch)(`${base}/login?returnUrl=%2F`, {
         method: "POST",
@@ -209,20 +217,29 @@ export async function arrSignsIn(
         signal: AbortSignal.timeout(30_000),
       });
       const to = res.headers.get("location") ?? "";
-      const cookie = res.headers.get("set-cookie") ?? "";
-      if (
-        res.status >= 300 &&
-        res.status < 400 &&
-        !/loginFailed/i.test(to) &&
-        /Auth=/i.test(cookie)
-      )
-        return true;
-    } catch {
-      /* not answering yet: try again */
+      const cookies = (res.headers.get("set-cookie") ?? "")
+        .split(/,(?=\s*[^;,=\s]+=)/)
+        .map((c) => c.split("=")[0]!.trim())
+        .filter(Boolean);
+      const failed = /loginFailed/i.test(to);
+      if (res.status >= 300 && res.status < 400 && !failed && cookies.length)
+        return { ok: true, said: `signed in (${res.status})` };
+      said = `${res.status}${to ? ` to ${to.replace(/\?.*/, "")}${failed ? " (loginFailed)" : ""}` : ""}${cookies.length ? `, cookies ${cookies.join(", ")}` : ", no cookie"}`;
+    } catch (e) {
+      said = e instanceof Error ? e.message : String(e);
     }
     await (deps.wait ?? sleep)(2_000);
   }
-  return false;
+  return { ok: false, said };
+}
+
+/** Whether the owner's account signs in on the app's own page. */
+export async function arrSignsIn(
+  base: string,
+  account: { username: string; password: string },
+  deps: SetupDeps = {},
+): Promise<boolean> {
+  return (await arrSignIn(base, account, deps)).ok;
 }
 
 /**
@@ -265,9 +282,23 @@ export async function setupArr(
   const name = ARR_NAMES[app];
   if (String(back.authenticationMethod).toLowerCase() !== "forms")
     throw new SetupError(`${name} did not turn its sign-in on.`);
-  if (!(await arrSignsIn(base, account, deps)))
+  // Radarr, Sonarr and Prowlarr take a new sign-in method only after a restart: when signing in
+  // does not work yet, Hearth restarts the app with its own API (it is Hearth's, just set up),
+  // waits for it, and signs in again (11-22, the real apps in CI).
+  let tried = await arrSignIn(base, account, deps, 2);
+  if (!tried.ok) {
+    await call(deps, `${base}/api/${v}/system/restart`, {
+      method: "POST",
+      headers: h,
+      ok: [200, 202],
+    });
+    await (deps.wait ?? sleep)(5_000);
+    await waitForApp(`${base}/api/${v}/system/status?apikey=${apiKey}`, deps);
+    tried = await arrSignIn(base, account, deps);
+  }
+  if (!tried.ok)
     throw new SetupError(
-      `${name} turned its sign-in on, but signing in as ${account.username} did not work.`,
+      `${name} turned its sign-in on, but signing in as ${account.username} did not work (it answered ${tried.said}).`,
     );
   if (app === "prowlarr") return;
   const have = parse<{ path: string }[]>(

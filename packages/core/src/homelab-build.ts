@@ -96,6 +96,10 @@ export interface HomelabBuild {
     keepItFree: boolean;
   };
   done: boolean;
+  /** When the last step finished (11-22: Hearth congratulates them, once). */
+  finishedAt?: string;
+  /** The owner closed the "everything is built" card. */
+  celebrated?: boolean;
 }
 
 export const HOMELAB_STEP_IDS: readonly HomelabStepId[] = [
@@ -110,3 +114,29 @@ export const HOMELAB_STEP_IDS: readonly HomelabStepId[] = [
   "connect",
   "tailscale",
 ];
+
+/**
+ * Ember's congratulations when every step is done (11-22, the owner: "have Ember say
+ * congratulations everything is built, I got nothing"): what was built, and the first thing to try.
+ */
+export function buildDoneText(b: Pick<HomelabBuild, "steps">): string {
+  const apps = b.steps
+    .filter((s) => !["docker", "connect", "tailscale"].includes(s.id))
+    .map((s) => s.name);
+  const list =
+    apps.length > 1 ? `${apps.slice(0, -1).join(", ")} and ${apps[apps.length - 1]}` : apps[0];
+  const media = b.steps.find((s) => s.id === "jellyfin" || s.id === "plex");
+  const seerr = b.steps.some((s) => s.id === "seerr");
+  const remote = b.steps.some((s) => s.id === "tailscale");
+  return [
+    "Congratulations, everything is built! Your homelab is up and running.",
+    list ? `${list}: each one set up, signed in and connected to the others.` : "",
+    media
+      ? `Try this first: open ${media.name} and play something.${seerr ? " Then ask for a movie in Seerr and watch it arrive on its own." : ""}`
+      : "",
+    remote ? "It works away from home too, through Tailscale." : "",
+    "I'm right here whenever you want to add more.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}

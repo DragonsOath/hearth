@@ -920,6 +920,29 @@ export class Agents {
       await this.db.select().from(t.jobSteps).where(eq(t.jobSteps.jobId, j.id))
     ).filter((s) => s.kind.startsWith("build-"));
     if (!steps.length || !j.conversationId) return;
+    // The last step: Ember congratulates them, in her own words every time, not left to the AI
+    // to remember (11-22, the owner: "I got nothing, I built it").
+    const finished = ok
+      ? await this.cave?.homelab?.announceDone().catch(() => undefined)
+      : undefined;
+    if (finished) {
+      const at = new Date().toISOString();
+      await withTransaction(this.handle, async () => {
+        await this.db.insert(t.conversationMessages).values({
+          conversationId: j.conversationId!,
+          role: "agent",
+          text: finished,
+          at,
+          meta: { mode: "status", reason: "Every step of the build is done." },
+        });
+        await this.db
+          .update(t.conversations)
+          .set({ updatedAt: at })
+          .where(eq(t.conversations.id, j.conversationId!));
+      });
+      this.onReply?.(j.conversationId);
+      return;
+    }
     const what = steps.map((s) => (s.result ?? s.label).replace(/[.\s]+$/, "")).join("; ");
     void this.track(
       this.converse({

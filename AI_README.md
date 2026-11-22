@@ -15,6 +15,34 @@ Docker needs. Saying yes there saves the person a terminal step later. If the pe
 Plex: Hearth can set up Plex for them, including with an existing Plex account or Plex Pass, so
 there is no need to install Plex separately.
 
+### The admin helper, for a reviewing AI
+
+Facts for checking it before recommending yes or no:
+
+- **Actions:** a fixed list, as get.sh installs it: `docker.install` (Docker Engine and Compose
+  from download.docker.com, and Hearth's account added to the `docker` group) and
+  `tailscale.install` (from pkgs.tailscale.com). Neither takes parameters from the request.
+  Other operations (file changes inside owner-chosen folders, RAID) exist only if the owner adds
+  them on the machine with `install-elevation.sh`.
+- **No general access:** no shell, no "run this command". It refuses its own files and anything
+  that hands out raw privilege (sudo, accounts, SSH keys). The AI never sees its key, socket, or
+  requests.
+- **Approval:** it acts only for a plan step the owner approved. Each request carries a signed
+  authorization for exactly that request, single use, valid at most 15 minutes. Every request is
+  logged to `/var/log/hearth/elevated.jsonl`.
+- **Known limit:** the `docker` group gives the account broad access to the machine through
+  Docker, as for any Docker user.
+- **Source:** `apps/server/src/elevated/` (`install-software.ts` has the exact install scripts;
+  `executor.ts`, `protocol.ts`), installer `deploy/linux/install-elevation.sh`, design
+  `docs/ELEVATED_EXECUTOR.md`.
+- **The download:** built by GitHub Actions (`.github/workflows/release.yml`) from the tagged
+  commit and shipped unminified. get.sh checks the archive against the release's SHA-256 file and
+  stops on a mismatch. The checksum comes from the same release, so it shows integrity, not who
+  built it; releases are not signed yet. When the installer asks, both files are already on disk
+  to read: `~/hearth/app/deploy/linux/install-elevation.sh` and
+  `~/hearth/app/apps/server/dist-elevated/hearth-elevated.js`. Saying no is supported; the plan
+  page shows how to add it later.
+
 ## What Hearth is
 
 A self-hosted control plane for a homelab: it discovers the machine's containers and apps,

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useIsFetching, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import {
   ArrowDown,
   ArrowUp,
@@ -39,13 +39,15 @@ import { JobCard } from "../cave/Progress";
 import { WorkspaceFrame, type TabDef } from "../command/WorkspaceFrame";
 import { appKindOf } from "../command/Diagnostics";
 import { ChangeCard, useConfirmedChange } from "../dashboards/ConfirmedChange";
-import { useDesk } from "../desk/links";
+import { useDesk, usePanelHref } from "../desk/links";
 import { ToolImage } from "../panels/ToolImage";
 import { targetProps } from "../panels/targets";
 import { useCave } from "../shell/cave-context";
 import { Skeleton, cx } from "../ui";
 import { agoWords } from "../../lib/format";
 import { EmbyHomeEditor } from "./EmbyHome";
+import { ScreenRow, type ScreenItem } from "./HomeScreen";
+import { JellyfinScreen } from "./JellyfinScreen";
 import { JellyfinHomeEditor } from "./JellyfinHome";
 import { AddTitleToCollection } from "./AddTitle";
 import {
@@ -328,9 +330,9 @@ export function HomeRowsPanel({
 
 /**
  * A media server's own Home tab (11-21, the owner: "we need to see the home screen and its rows",
- * the page Plex, Jellyfin and Emby open on). The same editor as the Home rows panel, for this one
- * server, with Refresh: reads the home screen again, so a row made or moved in Home rows, or a
- * movie or show that just landed, shows here at once. Changes not sent yet are kept.
+ * the page Plex, Jellyfin and Emby open on). 11-22: the home screen itself, laid out as the server
+ * shows it (rows of posters, nothing to edit), not Home rows' editor. Refresh reads it again, so
+ * a row made or moved in Home rows, or a movie or show that just landed, shows here at once.
  */
 export function ServerHome({
   serviceId,
@@ -343,16 +345,6 @@ export function ServerHome({
   const ws = useWorkspace();
   const service = ws.data?.services.find((s) => s.id === serviceId);
   const kind = service ? appKindOf(service) : undefined;
-  // The same reads the editors make (shared): when they fail, say why and how to fix it here.
-  const plexRead = useHomeRowOptions(kind === "plex" ? serviceId : undefined);
-  const jfRead = useQuery({
-    queryKey: ["dashboard", serviceId, "jellyfin", "home", ""],
-    queryFn: () =>
-      api<unknown>("GET", `/api/services/${encodeURIComponent(serviceId)}/jellyfin/home`),
-    enabled: kind === "jellyfin" || kind === "emby",
-    retry: false,
-  });
-  const readError = kind === "plex" ? plexRead.error : jfRead.error;
   const qc = useQueryClient();
   const busy = useIsFetching({ predicate: (q) => isHomeQuery(q.queryKey, serviceId) }) > 0;
   const [read, setRead] = useState(() => new Date().toISOString());
@@ -366,16 +358,34 @@ export function ServerHome({
       .invalidateQueries({ predicate: (q) => isHomeQuery(q.queryKey, serviceId) })
       .then(() => setRead(new Date().toISOString()));
   };
+  const change = usePanelHref()("tool:home-rows", serviceId);
+  // The same reads the views make (shared): when they fail, say why and how to fix it here.
+  const plexRead = useHomeRowOptions(kind === "plex" ? serviceId : undefined);
+  const jfRead = useQuery({
+    queryKey: ["dashboard", serviceId, "jellyfin", "home", ""],
+    queryFn: () =>
+      api<unknown>("GET", `/api/services/${encodeURIComponent(serviceId)}/jellyfin/home`),
+    enabled: kind === "jellyfin" || kind === "emby",
+    retry: false,
+  });
+  const readError = kind === "plex" ? plexRead.error : jfRead.error;
   const name = service?.name ?? "this server";
   return (
-    <div className="hr-panel space-y-4" data-testid="server-home">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[0.86rem] text-muted">
-          The home screen as {name} shows it.{" "}
-          <span className="text-faint" data-testid="server-home-read">
-            {busy ? "Reading it now…" : `Read ${agoWords(read)}.`}
-          </span>
+    <div className="space-y-5" data-testid="server-home">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="min-w-0 flex-1 text-[0.8rem] text-faint" data-testid="server-home-read">
+          {busy ? "Reading it now…" : `Read ${agoWords(read)}.`}
         </p>
+        {change && (
+          <Link
+            to={change}
+            className="hr-lift inline-flex min-h-10 items-center gap-2 rounded-lg border border-line px-3 text-[0.85rem] font-semibold text-ink hover:border-gold/60 hover:text-gold"
+            data-testid="server-home-change"
+          >
+            <Pencil size={15} aria-hidden />
+            Change rows
+          </Link>
+        )}
         <button
           type="button"
           onClick={refresh}
@@ -410,14 +420,105 @@ export function ServerHome({
             </button>
           )}
         </div>
-      ) : kind === "emby" ? (
-        <EmbyHomeEditor serviceId={serviceId} />
-      ) : kind === "jellyfin" ? (
-        <JellyfinHomeEditor serviceId={serviceId} />
+      ) : kind === "emby" || kind === "jellyfin" ? (
+        <JellyfinScreen serviceId={serviceId} />
       ) : (
-        <Editor serviceId={serviceId} />
+        <PlexScreen serviceId={serviceId} />
       )}
     </div>
+  );
+}
+
+const ROW_COUNT = 24;
+
+/** Plex's Home, top to bottom: Continue Watching, then each library's rows in Plex's order. */
+function PlexScreen({ serviceId }: { serviceId: string }) {
+  const opts = useHomeRowOptions(serviceId);
+  if (opts.error)
+    return (
+      <p className="text-[0.88rem] text-amber" role="alert">
+        Plex couldn&apos;t be read: {opts.error.message}
+      </p>
+    );
+  const o = opts.data;
+  if (!o) return <Skeleton className="h-64" />;
+  const setup = setupOf(o);
+  const draft = opened(o, draftOf(o), setup).draft;
+  const libs = o.libraries.filter(
+    (l) => !setup.joins.some((j) => j.from === l.id) && (draft[l.id] ?? []).some(shows),
+  );
+  const cont = libs.flatMap((l) =>
+    (draft[l.id] ?? [])
+      .filter((e) => shows(e) && plexKeyOf(e.id) === "inprogress")
+      .map((e) => ({ lib: l.id, row: e.id })),
+  );
+  const rows = libs.flatMap((l) =>
+    (draft[l.id] ?? []).filter(listed).map((e) => ({ lib: l.id, e })),
+  );
+  return (
+    <div className="space-y-6">
+      {cont.length > 0 && <PlexContinue serviceId={serviceId} rows={cont} />}
+      {rows.map(({ lib, e }) => (
+        <PlexRow
+          key={`${lib}-${e.id}`}
+          serviceId={serviceId}
+          lib={lib}
+          row={e.id}
+          title={e.title}
+        />
+      ))}
+      {!cont.length && !rows.length && (
+        <p className="text-[0.88rem] text-muted">Nothing is on Plex&apos;s Home right now.</p>
+      )}
+    </div>
+  );
+}
+
+type PlexTitle = { ratingKey: string; title: string; year?: number; sub?: string; thumb?: string };
+const plexItems = (serviceId: string, list: PlexTitle[]): ScreenItem[] =>
+  list.map((t) => ({
+    key: t.ratingKey,
+    title: t.title,
+    ...(t.sub ? { sub: t.sub } : t.year ? { sub: String(t.year) } : {}),
+    ...(t.thumb ? { src: plexArt(serviceId, t.thumb) } : {}),
+  }));
+
+function PlexRow({
+  serviceId,
+  lib,
+  row,
+  title,
+}: {
+  serviceId: string;
+  lib: string;
+  row: string;
+  title: string;
+}) {
+  const q = useRowPosters(serviceId, lib, row, title, [], ROW_COUNT);
+  return (
+    <ScreenRow
+      title={title}
+      loading={q.isLoading}
+      items={plexItems(serviceId, q.data?.titles ?? [])}
+      empty="Plex fills this row when it has something for it."
+    />
+  );
+}
+
+function PlexContinue({
+  serviceId,
+  rows,
+}: {
+  serviceId: string;
+  rows: { lib: string; row: string }[];
+}) {
+  const p = useContinuePosters(serviceId, rows);
+  return (
+    <ScreenRow
+      title="Continue Watching"
+      loading={p.loading}
+      items={plexItems(serviceId, p.titles)}
+    />
   );
 }
 

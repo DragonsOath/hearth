@@ -2452,6 +2452,7 @@ export async function buildApp({
       row?: string;
       title?: string;
       with?: string;
+      count?: string;
     };
   }>("/api/home-rows/posters", async (request) => {
     if (!request.session) throw new ForbiddenAuthError("Sign in to do this.");
@@ -2466,6 +2467,7 @@ export async function buildApp({
           .split(",")
           .filter(Boolean)
           .slice(0, 20),
+        Number(q.count) || 10,
       ),
     );
   });

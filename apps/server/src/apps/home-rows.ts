@@ -1379,14 +1379,17 @@ export class HomeRows {
     title = "",
     /** Libraries a change not saved yet merges into this one (11-13): the row as it will be. */
     withIds: string[] = [],
+    /** How many: a few for the editor, a full row for the server's Home tab (11-22). */
+    count = 10,
   ) {
+    const n = Math.max(1, Math.min(40, Math.floor(count) || 10));
     const service = await this.plexService(serviceId);
     if (!/^\d+$/.test(libraryId) || !rowId) return { titles: [] };
     const kind = /\.(recentlyadded|recentlyreleased)(\.\d+)?$/.exec(rowId)?.[1];
     const others = withIds.filter((x) => /^\d+$/.test(x) && x !== libraryId);
     if (kind && others.length)
       return this.use(service, "show a merged Home row's posters", "read", (token) =>
-        this.mergedPosters(service.localUrl, token, [libraryId, ...others], kind),
+        this.mergedPosters(service.localUrl, token, [libraryId, ...others], kind, n),
       );
     return this.use(service, "show a Home row's posters", "read", async (token) => {
       const base = service.localUrl;
@@ -1397,11 +1400,18 @@ export class HomeRows {
         grandparentThumb?: string;
         grandparentTitle?: string;
         type?: string;
+        year?: number;
+        index?: number;
+        parentIndex?: number;
       };
       const shape = (list: M[]) =>
-        list.slice(0, 10).map((m) => ({
+        list.slice(0, n).map((m) => ({
           ratingKey: String(m.ratingKey ?? ""),
           title: (m.type === "episode" && m.grandparentTitle) || m.title || "",
+          ...(m.year ? { year: m.year } : {}),
+          ...(m.type === "episode" && m.index !== undefined
+            ? { sub: `S${m.parentIndex ?? 1} · E${m.index}` }
+            : {}),
           ...(((m.type === "episode" ? m.grandparentThumb : m.thumb) ?? m.thumb)
             ? { thumb: (m.type === "episode" ? m.grandparentThumb : m.thumb) ?? m.thumb }
             : {}),
@@ -1413,7 +1423,7 @@ export class HomeRows {
         const r = await this.json<{ MediaContainer?: { Metadata?: M[] } }>(
           base,
           token,
-          `/library/collections/${encodeURIComponent(key)}/children?X-Plex-Container-Start=0&X-Plex-Container-Size=10`,
+          `/library/collections/${encodeURIComponent(key)}/children?X-Plex-Container-Start=0&X-Plex-Container-Size=${n}`,
         );
         return { titles: shape(r.MediaContainer?.Metadata ?? []) };
       }
@@ -1423,7 +1433,7 @@ export class HomeRows {
         MediaContainer?: {
           Hub?: { hubIdentifier?: string; title?: string; Metadata?: M[]; Directory?: M[] }[];
         };
-      }>(base, token, `/hubs/sections/${encodeURIComponent(libraryId)}?count=10`).catch(() => ({
+      }>(base, token, `/hubs/sections/${encodeURIComponent(libraryId)}?count=${n}`).catch(() => ({
         MediaContainer: { Hub: [] },
       }));
       const bare = (id: string) => id.replace(/\.\d+$/, "");
@@ -1439,7 +1449,7 @@ export class HomeRows {
       const type = TYPE[lib?.type ?? "movie"] ?? 1;
       const kind = rowId.split(".")[1] ?? "";
       const sec = `/library/sections/${encodeURIComponent(libraryId)}`;
-      const size = "X-Plex-Container-Start=0&X-Plex-Container-Size=10";
+      const size = `X-Plex-Container-Start=0&X-Plex-Container-Size=${n}`;
       const path: Record<string, string> = {
         recentlyadded: `${sec}/all?type=${type}&sort=addedAt:desc&${size}`,
         recentlyreleased: `${sec}/all?type=${type}&sort=originallyAvailableAt:desc&${size}`,
@@ -1466,11 +1476,12 @@ export class HomeRows {
    * library's films together, each film once, newest first. Added dates are each film's own (the
    * merge puts them back), so the order is the one Plex shows after saving.
    */
-  private async mergedPosters(base: string, token: string, libs: string[], kind: string) {
+  private async mergedPosters(base: string, token: string, libs: string[], kind: string, n = 10) {
     type M = {
       ratingKey?: string;
       title?: string;
       thumb?: string;
+      year?: number;
       addedAt?: number;
       originallyAvailableAt?: string;
       guid?: string;
@@ -1497,9 +1508,10 @@ export class HomeRows {
       kind === "recentlyadded" ? b.at - a.at : b.out.localeCompare(a.out),
     );
     return {
-      titles: list.slice(0, 10).map((m) => ({
+      titles: list.slice(0, n).map((m) => ({
         ratingKey: String(m.ratingKey ?? ""),
         title: m.title ?? "",
+        ...(m.year ? { year: m.year } : {}),
         ...(m.thumb ? { thumb: m.thumb } : {}),
       })),
     };

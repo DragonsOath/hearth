@@ -151,6 +151,7 @@ export async function readHome(call: JellyfinCallFn, userId: string) {
 interface Poster {
   id: string;
   title: string;
+  year?: number;
 }
 type RawItem = {
   Id: string;
@@ -159,11 +160,13 @@ type RawItem = {
   SeriesId?: string;
   SeriesName?: string;
   ImageTags?: { Primary?: string };
+  ProductionYear?: number;
 };
 /** An episode shows its show's poster, as Jellyfin's rows do. */
 const poster = (x: RawItem): Poster => ({
   id: x.Type === "Episode" && x.SeriesId ? x.SeriesId : x.Id,
   title: x.Type === "Episode" && x.SeriesName ? x.SeriesName : (x.Name ?? ""),
+  ...(x.Type !== "Episode" && x.ProductionYear ? { year: x.ProductionYear } : {}),
 });
 
 /** What each row would show this person right now: a few posters per row. */
@@ -178,28 +181,28 @@ async function readPreviews(
   const list = (r: { ok: boolean; data: unknown }) => {
     if (!r.ok) return [];
     const d = r.data as RawItem[] | { Items?: RawItem[] };
-    return (Array.isArray(d) ? d : (d?.Items ?? [])).slice(0, 8).map(poster);
+    return (Array.isArray(d) ? d : (d?.Items ?? [])).slice(0, 16).map(poster);
   };
   const jobs: Promise<void>[] = [];
   if (home.sections.includes("resume"))
     jobs.push(
       getEither(
         call,
-        `/UserItems/Resume?userId=${u}&limit=8&mediaTypes=Video`,
-        `/Users/${u}/Items/Resume?limit=8&mediaTypes=Video`,
+        `/UserItems/Resume?userId=${u}&limit=16&mediaTypes=Video`,
+        `/Users/${u}/Items/Resume?limit=16&mediaTypes=Video`,
       ).then((r) => void (out.resume = list(r))),
     );
   if (home.sections.includes("nextup"))
     jobs.push(
-      call("GET", `/Shows/NextUp?userId=${u}&limit=8`).then((r) => void (out.nextup = list(r))),
+      call("GET", `/Shows/NextUp?userId=${u}&limit=16`).then((r) => void (out.nextup = list(r))),
     );
   // Every library, so turning one's Recently Added row on shows its posters straight away.
   for (const l of libraries)
     jobs.push(
       getEither(
         call,
-        `/Items/Latest?userId=${u}&parentId=${enc(l.id)}&limit=8`,
-        `/Users/${u}/Items/Latest?parentId=${enc(l.id)}&limit=8`,
+        `/Items/Latest?userId=${u}&parentId=${enc(l.id)}&limit=16`,
+        `/Users/${u}/Items/Latest?parentId=${enc(l.id)}&limit=16`,
       ).then((r) => void (out[`latest:${l.id}`] = list(r))),
     );
   await Promise.all(jobs.map((j) => j.catch(() => undefined)));

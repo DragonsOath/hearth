@@ -42,7 +42,7 @@ export interface HomeRowsOptions {
 }
 
 export interface HomeRowPreview {
-  titles: { ratingKey: string; title: string; year?: number; thumb?: string }[];
+  titles: { ratingKey: string; title: string; year?: number; sub?: string; thumb?: string }[];
   total: number;
 }
 
@@ -168,10 +168,14 @@ export function useRowPosters(
   title = "",
   /** Libraries a change not saved yet merges into this one: the row as it will be (11-13). */
   merged: string[] = [],
+  /** A full row for the server's Home tab; the editor's few otherwise. */
+  count?: number,
 ) {
-  const extra = merged.length ? `&with=${encodeURIComponent(merged.join(","))}` : "";
+  const extra =
+    (merged.length ? `&with=${encodeURIComponent(merged.join(","))}` : "") +
+    (count ? `&count=${count}` : "");
   return useQuery({
-    queryKey: ["home-rows-posters", serviceId, libraryId, row, merged.join(",")],
+    queryKey: ["home-rows-posters", serviceId, libraryId, row, merged.join(","), count ?? 0],
     queryFn: () =>
       api<HomeRowPreview>(
         "GET",

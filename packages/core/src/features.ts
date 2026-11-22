@@ -1478,7 +1478,7 @@ export const FEATURES: Feature[] = [
     id: "media-home-tab",
     name: "Home tab of Plex, Jellyfin and Emby",
     summary:
-      "Plex, Jellyfin and Emby panels open on Home: the server's home screen row by row with posters, in Home rows' editor for that server, with Refresh to read it again (a row just made or moved, a title that just landed). Changes not sent yet are kept.",
+      "Plex, Jellyfin and Emby panels open on Home: the server's home screen laid out as the server shows it, each row a line of posters with titles and years that scrolls sideways (Jellyfin and Emby: pick whose home). Change rows opens Home rows; Refresh reads it again (a row just made or moved, a title that just landed).",
     aliases: [
       "plex home screen",
       "jellyfin home screen",

@@ -412,15 +412,24 @@ export function Desk({ ws }: { ws: Workspace }) {
   const panelArea = width - dockWidth - (dock.mode === "docked" ? 16 : 0);
   const totalWeight = visible.reduce((n, p) => n + (weights[keyOf(p)] ?? 1), 0) || 1;
 
+  // No panels open (11-22, the owner: "if I open the lair and there are no open panels have
+  // ember open to full screen"): Ember fills the Lair, with the systems and the Lair's bar still
+  // along the top. Turning a system on goes back to Ember beside its panel.
+  const empty = panels.length === 0;
+
   return (
     <div
       ref={areaRef}
-      className="flex h-[calc(100dvh-7.5rem)] min-h-[32rem] w-full md:h-full md:min-h-[24rem]"
+      className={cx(
+        "flex h-[calc(100dvh-7.5rem)] min-h-[32rem] w-full md:h-full md:min-h-[24rem]",
+        empty && "flex-col",
+      )}
       data-testid="desk"
       data-slots={slots}
+      data-empty={empty || undefined}
     >
       {/* The conversation dock */}
-      {dock.mode === "min" ? (
+      {dock.mode === "min" && !empty ? (
         <div
           className="flex w-16 shrink-0 flex-col items-center gap-3 rounded-2xl border border-gold/35 bg-panel/95 py-4"
           data-testid="desk-dock-rail"
@@ -445,8 +454,8 @@ export function Desk({ ws }: { ws: Workspace }) {
         </div>
       ) : (
         <div
-          className="flex shrink-0 flex-col"
-          style={{ width: dockWidth }}
+          className={cx("flex flex-col", empty ? "min-h-0 w-full flex-1" : "shrink-0")}
+          style={empty ? undefined : { width: dockWidth }}
           data-testid="desk-dock"
         >
           <div className="mb-2 flex items-center gap-1.5">
@@ -472,26 +481,30 @@ export function Desk({ ws }: { ws: Workspace }) {
                 <ProjectChatChip key={p.id} projectId={p.id} />
               ))}
             </div>
-            <button
-              type="button"
-              onClick={() => setDock({ ...dock, mode: dock.mode === "wide" ? "docked" : "wide" })}
-              aria-label={dock.mode === "wide" ? "Show the panels again" : `Widen ${aiName}`}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted hover:text-gold"
-            >
-              {dock.mode === "wide" ? (
-                <Minimize2 strokeWidth={1.5} className="h-4 w-4" />
-              ) : (
-                <MoveHorizontal strokeWidth={1.5} className="h-4 w-4" />
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => setDock({ ...dock, mode: "min" })}
-              aria-label={`Minimize ${aiName}`}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted hover:text-gold"
-            >
-              <PanelLeftClose strokeWidth={1.5} className="h-4 w-4" />
-            </button>
+            {!empty && (
+              <button
+                type="button"
+                onClick={() => setDock({ ...dock, mode: dock.mode === "wide" ? "docked" : "wide" })}
+                aria-label={dock.mode === "wide" ? "Show the panels again" : `Widen ${aiName}`}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted hover:text-gold"
+              >
+                {dock.mode === "wide" ? (
+                  <Minimize2 strokeWidth={1.5} className="h-4 w-4" />
+                ) : (
+                  <MoveHorizontal strokeWidth={1.5} className="h-4 w-4" />
+                )}
+              </button>
+            )}
+            {!empty && (
+              <button
+                type="button"
+                onClick={() => setDock({ ...dock, mode: "min" })}
+                aria-label={`Minimize ${aiName}`}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted hover:text-gold"
+              >
+                <PanelLeftClose strokeWidth={1.5} className="h-4 w-4" />
+              </button>
+            )}
           </div>
           <CavePanel
             className="min-h-0 flex-1"
@@ -513,11 +526,11 @@ export function Desk({ ws }: { ws: Workspace }) {
           }}
         />
       )}
-      {dock.mode === "min" && <div className="w-4 shrink-0" />}
+      {dock.mode === "min" && !empty && <div className="w-4 shrink-0" />}
 
       {/* The panels */}
-      {dock.mode !== "wide" && (
-        <div className="flex min-w-0 flex-1 flex-col">
+      {(dock.mode !== "wide" || empty) && (
+        <div className={cx("flex min-w-0 flex-col", empty ? "order-first shrink-0" : "flex-1")}>
           <LairSystems ws={ws} open={panels.map(keyOf)} />
           <div className="mb-2 flex min-h-8 items-center gap-2" data-testid="desk-strip">
             <LayoutGrid strokeWidth={1.35} className="h-4 w-4 shrink-0 text-gold" />
@@ -637,8 +650,11 @@ export function Desk({ ws }: { ws: Workspace }) {
               </div>
             )}
           </div>
-          <div className="relative flex min-h-0 flex-1" data-expanded={expanded ?? undefined}>
-            {visible.length === 0 && <LairStart aiName={aiName} />}
+          <div
+            className={cx("relative flex min-h-0 flex-1", empty && "hidden")}
+            data-expanded={expanded ?? undefined}
+          >
+            {visible.length === 0 && !empty && <LairStart aiName={aiName} />}
             {visible.map((p, i) => {
               const key = keyOf(p);
               const share = (weights[key] ?? 1) / totalWeight;

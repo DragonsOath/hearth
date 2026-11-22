@@ -142,6 +142,8 @@ if [[ -n "$uninstall" ]]; then
   systemctl --user daemon-reload
   # Its app menu entry and desktop icon.
   data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
+  wl_host="$(sed -E 's#^[a-z]+://##; s#[:/].*$##' "$home/app-url" 2>/dev/null || true)"
+  [[ -n "$wl_host" ]] && rm -f "$data_home/applications/chrome-${wl_host}__-Default.desktop"
   rm -f "$data_home/applications/$service.desktop" "$data_home/icons/$service.png" \
     "$(xdg-user-dir DESKTOP 2>/dev/null || echo "$HOME/Desktop")/$service.desktop"
   echo "Stopped Hearth and removed its service ($service) and its app icon."
@@ -411,6 +413,17 @@ if [[ -d "$desktop_dir" ]]; then
   chmod +x "$desktop_dir/$service.desktop"
   gio set "$desktop_dir/$service.desktop" metadata::trusted true 2>/dev/null || true
 fi
+# On Wayland the taskbar knows Chrome's app window by Chrome's own name for it, not --class:
+# a hidden entry by that name gives the window Hearth's icon, not a generic one (11-22).
+wl_host="$(printf '%s' "$app_url" | sed -E 's#^[a-z]+://##; s#[:/].*$##')"
+cat >"$data_home/applications/chrome-${wl_host}__-Default.desktop" <<WAYLAND
+[Desktop Entry]
+Type=Application
+Name=Hearth
+Exec=$home/open-hearth
+Icon=$data_home/icons/$service.png
+NoDisplay=true
+WAYLAND
 update-desktop-database "$data_home/applications" 2>/dev/null || true
 echo "Hearth is in your app menu$([[ -d "$desktop_dir" ]] && echo " and on your desktop"): it opens in its own window."
 

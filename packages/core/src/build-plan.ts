@@ -1948,3 +1948,23 @@ export function includeAnywayEffects(
     gained: changes.gained.filter(other),
   };
 }
+
+/** Where each VPN shows the login its VPN connections use (not the account sign-in). */
+export const VPN_LOGIN_PAGES: Partial<Record<VpnProvider, { url: string; where: string }>> = {
+  proton: {
+    url: "https://account.proton.me/u/0/vpn/OpenVpnIKEv2",
+    where: 'the "OpenVPN / IKEv2 username" and "OpenVPN / IKEv2 password" on that page',
+  },
+  nord: {
+    url: "https://my.nordaccount.com/dashboard/nordvpn/manual-configuration/",
+    where: "the service credentials (username and password) on that page",
+  },
+  surfshark: {
+    url: "https://my.surfshark.com/vpn/manual-setup/main/openvpn",
+    where: "the service credentials (username and password) on that page",
+  },
+  pia: {
+    url: "https://www.privateinternetaccess.com/account/client-control-panel",
+    where: "your PIA username (it starts with p) and its password",
+  },
+};

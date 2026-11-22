@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import {
+  VPN_LOGIN_PAGES,
   VPN_PROVIDERS,
   type HomelabNeed,
   type HomelabStep,
@@ -160,9 +161,33 @@ function VpnNeed({ provider: given }: { provider?: VpnProvider }) {
     >
       <p className="mb-2 text-[0.82rem] leading-relaxed text-muted">
         qBittorrent downloads only through your VPN. Its login goes straight into Secure Vault: your
-        AI never sees it. Find it in your VPN account: most call it the OpenVPN (or manual setup)
-        username and password, which is not the password you sign in with.
+        AI never sees it.
       </p>
+      {/* The usual mix-up (11-22): the VPN app's sign-in is not the pair VPN connections use. */}
+      <div
+        className="mb-3 rounded-lg border border-gold/40 bg-gold/5 p-3 text-[0.84rem] text-ink"
+        data-testid="vpn-login-where"
+      >
+        <p>
+          This is <strong>not</strong> the username and password you sign in to{" "}
+          {VPN_PROVIDERS[provider].name} with. {VPN_PROVIDERS[provider].name} gives VPN connections
+          a separate pair
+          {VPN_LOGIN_PAGES[provider]
+            ? `: ${VPN_LOGIN_PAGES[provider]!.where}.`
+            : " (often under OpenVPN or manual setup)."}
+        </p>
+        {VPN_LOGIN_PAGES[provider] && (
+          <a
+            href={VPN_LOGIN_PAGES[provider]!.url}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 inline-flex min-h-10 items-center rounded-lg border border-gold px-3 text-[0.84rem] font-semibold text-gold"
+          >
+            Open {VPN_PROVIDERS[provider].name}&apos;s page for it
+          </a>
+        )}
+        <p className="mt-2 text-[0.78rem] text-muted">Copy each one there and paste it here.</p>
+      </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-[0.82rem] text-muted">
           Your VPN
@@ -192,22 +217,40 @@ function VpnNeed({ provider: given }: { provider?: VpnProvider }) {
           </label>
         )}
         <label className="block text-[0.82rem] text-muted">
-          {t === "wireguard" ? "WireGuard private key" : "OpenVPN username"}
+          {t === "wireguard"
+            ? "WireGuard private key"
+            : provider === "proton"
+              ? "OpenVPN / IKEv2 username"
+              : "OpenVPN username"}
           <input
             value={a}
             onChange={(e) => setA(e.target.value)}
             type={t === "wireguard" ? "password" : "text"}
+            // Never the browser's saved login for Hearth (11-22: Chrome filled the owner's own
+            // email and password here, and Gluetun got those instead of the VPN's login).
+            name="vpn-login-user"
             autoComplete="off"
+            data-lpignore="true"
+            data-1p-ignore=""
+            data-testid="vpn-user"
             className={field}
           />
         </label>
         <label className="block text-[0.82rem] text-muted">
-          {t === "wireguard" ? "Address (if your VPN gives one)" : "OpenVPN password"}
+          {t === "wireguard"
+            ? "Address (if your VPN gives one)"
+            : provider === "proton"
+              ? "OpenVPN / IKEv2 password"
+              : "OpenVPN password"}
           <input
             value={b}
             onChange={(e) => setB(e.target.value)}
             type={t === "wireguard" ? "text" : "password"}
-            autoComplete="off"
+            name="vpn-login-secret"
+            autoComplete="new-password"
+            data-lpignore="true"
+            data-1p-ignore=""
+            data-testid="vpn-pass"
             className={field}
           />
         </label>

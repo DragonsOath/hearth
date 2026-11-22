@@ -19,6 +19,7 @@ import {
   type Requester,
   type StepChange,
   type VpnProvider,
+  VPN_LOGIN_PAGES,
 } from "@dragon-control/core";
 import type { DbHandle } from "../db/client";
 import type { Vault } from "../auth/vault";
@@ -223,6 +224,21 @@ async function answers(url: string, f: typeof fetch = fetch): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Why the VPN did not come up, from Gluetun's own log, in plain words: the provider refused the
+ * login (the usual one: the account sign-in instead of the VPN's own pair), or a WireGuard key it
+ * did not accept. Undefined when the log does not say.
+ */
+export function vpnWhy(log: string, provider?: VpnProvider): string | undefined {
+  const name = provider ? VPN_PROVIDERS[provider].name : "Your VPN";
+  const page = provider ? VPN_LOGIN_PAGES[provider] : undefined;
+  if (/AUTH_FAILED|auth(entication)? failed/i.test(log))
+    return `${name} turned down the VPN login, so qBittorrent was not started (nothing downloads without the VPN). ${name}'s VPN connections use their own username and password, a separate pair from the one you sign in to ${name} with${page ? `: ${page.where} (${page.url})` : ""}. Put that pair in "Your VPN login" on the plan page, and Hearth tries again.`;
+  if (/handshake did not complete|wireguard.*(key|handshake)/i.test(log))
+    return `${name} did not accept the WireGuard key, so qBittorrent was not started (nothing downloads without the VPN). Make a new WireGuard configuration in your ${name} account and put its private key in "Your VPN login" on the plan page.`;
+  return undefined;
 }
 
 export class HomelabBuilder {
@@ -667,12 +683,20 @@ export class HomelabBuilder {
         : { OPENVPN_USER: input.username ?? "", OPENVPN_PASSWORD: input.password ?? "" };
     if (Object.values(values).some((v) => !v.trim()))
       throw new SetupError("Fill in every field of the VPN login.");
+    // A VPN's OpenVPN login is never an email address: an email is the account sign-in (often
+    // filled in by the browser), which the VPN turns away. Say so now, not as a failed start.
+    if (input.type === "openvpn" && input.username?.includes("@"))
+      throw new SetupError(
+        `That looks like your ${VPN_PROVIDERS[input.provider].name} account email. The VPN needs its own OpenVPN username and password, a separate pair shown in your ${VPN_PROVIDERS[input.provider].name} account (often on a page called OpenVPN, manual setup, or service credentials). If the boxes filled in by themselves, your browser put your saved login there: clear them and paste the OpenVPN pair.`,
+      );
     const before = (await this.ledger()).vpn;
     const ids: Record<string, string> = {};
     for (const [envName, value] of Object.entries(values)) {
       const s = await this.d.vault.add({
         name: `VPN for downloads: ${envName.toLowerCase().replaceAll("_", " ")}`,
         kind: envName.includes("USER") ? "login" : "password",
+        // Shown as the entry's username too, so the box and the value never disagree.
+        ...(envName === "OPENVPN_USER" ? { username: value.trim() } : {}),
         tier: "automation",
         value: value.trim(),
         category: "Homelab plan",
@@ -1175,9 +1199,16 @@ export class HomelabBuilder {
           if (name === "WIREGUARD_ADDRESSES") continue;
           return { ok: false, result: `${name} is not in Secure Vault: add your VPN login again.` };
         }
-        const v = await this.d.vault.use(id, `Start ${recipe.name} for your homelab plan`, {
+        let v = await this.d.vault.use(id, `Start ${recipe.name} for your homelab plan`, {
           actor: "dragon-control",
         });
+        // The VPN username is that entry's value; an owner who fixes it in Secure Vault types it
+        // in the entry's Username box, which wins (11-22: the box said one thing, the VPN got
+        // the old value).
+        if (name === "OPENVPN_USER") {
+          const shown = (await this.d.vault.list()).find((x) => x.id === id)?.username?.trim();
+          if (shown) v = shown;
+        }
         // Compose reads .env values literally when single-quoted; a quote is escaped out.
         lines.push(`${name}='${v.replaceAll("'", "'\\''")}'`);
       }
@@ -1201,10 +1232,21 @@ export class HomelabBuilder {
     }
     const up = await applyCompose(this.d.run, file, this.d.wait);
     if (!up.ok) {
+      // The VPN's own words first, before its container goes: a refused login is the owner's to
+      // fix and says so plainly, not as Compose's wall of text (11-22, the laptop retest).
+      const vpn =
+        app === "qbittorrent"
+          ? vpnWhy(
+              (await this.d.run("docker", ["logs", "--tail", "300", "gluetun"], 20_000)).out,
+              ctx.vpn?.provider,
+            )
+          : undefined;
       await this.d.run("docker", ["compose", "-f", file, "down"], 120_000).catch(() => undefined);
       return {
         ok: false,
-        result: `${recipe.name} did not start cleanly (${up.detail}). Its containers were removed again; ${dir} stays.`,
+        result:
+          vpn ??
+          `${recipe.name} did not start cleanly (${up.detail}). Its containers were removed again; ${dir} stays.`,
       };
     }
     // Accounts, through the app's own API.

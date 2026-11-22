@@ -21,6 +21,32 @@ password once so it keeps running while nobody is signed in):
 curl -fsSL https://raw.githubusercontent.com/DragonsOath/hearth/main/deploy/get.sh | bash
 ```
 
+**The admin helper (Linux).** The installer asks once whether to set up a small admin helper.
+Hearth itself runs as your account, never as root. The helper is a root-owned program with a
+fixed list of actions; as the installer sets it up, that list is two:
+
+- install Docker Engine and Compose from Docker's own package repository, and add your account
+  to the `docker` group
+- install Tailscale from Tailscale's own package repository
+
+Neither action takes settings from the request. It has no shell and runs no general commands.
+It acts only for a plan step you approved, and each use carries a one-time signed authorization
+that expires after 15 minutes. More actions (file changes in folders you choose, RAID) exist only
+if you add them yourself on the machine. One limit: being in the `docker` group gives your account
+broad access to the machine through Docker, as it does for anyone who uses Docker.
+
+Its source is in [`apps/server/src/elevated/`](apps/server/src/elevated/)
+(`install-software.ts` holds the exact Docker and Tailscale scripts), its installer is
+[`deploy/linux/install-elevation.sh`](deploy/linux/install-elevation.sh), and its design is in
+[docs/ELEVATED_EXECUTOR.md](docs/ELEVATED_EXECUTOR.md). The program is part of the release
+download, built by GitHub Actions ([release.yml](.github/workflows/release.yml)) from the tagged
+commit, unminified. The installer checks the download against the SHA-256 file published with the
+release and stops if they differ. That checksum shows the download arrived intact; releases are
+not signed yet. Both files are on disk before you answer, to read first:
+`~/hearth/app/deploy/linux/install-elevation.sh` and
+`~/hearth/app/apps/server/dist-elevated/hearth-elevated.js`. Answering no is fine; Hearth's plan
+page shows how to add it later.
+
 **Windows** (PowerShell; no administrator rights needed):
 
 ```powershell

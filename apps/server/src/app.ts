@@ -2476,6 +2476,19 @@ export async function buildApp({
       ),
     );
   });
+  // Plex's Continue Watching, across every library, as its Home shows it (11-22).
+  app.get<{ Querystring: { serviceId?: string; count?: string } }>(
+    "/api/home-rows/continue",
+    async (request) => {
+      if (!request.session) throw new ForbiddenAuthError("Sign in to do this.");
+      return plainly(() =>
+        homeRows.continueWatching(
+          String(request.query.serviceId ?? ""),
+          Number(request.query.count) || 24,
+        ),
+      );
+    },
+  );
   app.put("/api/home-rows/library-order", async (request) => {
     if (!request.session) throw new ForbiddenAuthError("Sign in to do this.");
     const b = (request.body ?? {}) as { serviceId?: unknown; order?: unknown };

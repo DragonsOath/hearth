@@ -206,6 +206,20 @@ export function useContinuePosters(serviceId: string, rows: { lib: string; row: 
   };
 }
 
+/** Plex's Continue Watching across every library, as its Home shows it (11-22). */
+export function usePlexContinue(serviceId: string, count = 24) {
+  return useQuery({
+    queryKey: ["home-rows-continue", serviceId, count],
+    queryFn: () =>
+      api<HomeRowPreview>(
+        "GET",
+        `/api/home-rows/continue?${q(serviceId)}&count=${encodeURIComponent(String(count))}`,
+      ),
+    staleTime: 60_000,
+    retry: false,
+  });
+}
+
 /** Home's library order, as the owner's Plex sidebar has it (Hearth only; Plex is not changed). */
 export function useLibraryOrder() {
   const qc = useQueryClient();

@@ -1,11 +1,12 @@
-# Announces a published release on the public Hearth Discord server: the full notes in
+# Announces a stable release on the public Hearth Discord server: the full notes in
 # #announcements and Ember's heads-up in #general (services/ember-bot/src/announce.ts). Releases
-# start as drafts, so this runs only when the owner publishes one.
+# start as drafts, then go out as prereleases (the fast channel); "released" fires when one is
+# published as stable or a prerelease is marked stable, once (docs/RELEASES.md).
 name: discord-release
 
 on:
   release:
-    types: [published]
+    types: [released]
 
 permissions:
   contents: read

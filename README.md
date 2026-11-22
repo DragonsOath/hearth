@@ -2,12 +2,12 @@
 
 A self-hosted control plane for your homelab, with an AI administrator that works for you.
 
-**New to all this?** Hearth is the place to start, even with nothing set up yet. It asks what you
-want in plain words, looks at your computer (changing nothing), and plans a media server that
-suits it. Then Ember, its AI, builds it with you: Docker, Jellyfin or Plex, Seerr, Radarr, Sonarr,
-Prowlarr, qBittorrent through your VPN, and Tailscale, one step at a time, each only after you
-approve it (on Linux for now). If an AI assistant is helping you install, point it at
-[AI_README.md](AI_README.md).
+**New to all this?** Hearth can start on a computer with nothing set up yet. It asks what you
+want in plain words, looks at your computer (changing nothing), and plans a media server for it.
+Ember, its AI, then sets up each piece after you approve it: Docker, a media server (Jellyfin or
+Plex), Seerr, Radarr, Sonarr, Prowlarr, qBittorrent through your VPN, and Tailscale. Building is
+on Linux for now. The media apps are meant for media you have the rights to. If an AI assistant
+is helping you install, point it at [AI_README.md](AI_README.md).
 
 ## Install
 
@@ -21,31 +21,39 @@ password once so it keeps running while nobody is signed in):
 curl -fsSL https://raw.githubusercontent.com/DragonsOath/hearth/main/deploy/get.sh | bash
 ```
 
-**The admin helper (Linux).** The installer asks once whether to set up a small admin helper.
-Hearth itself runs as your account, never as root. The helper is a root-owned program with a
-fixed list of actions; as the installer sets it up, that list is two:
+The installer asks one question in a terminal: whether other devices on your home network may
+open Hearth. Run with no terminal (by a script or an AI assistant), it takes no, stays on this
+computer only, and prints that. Set `HEARTH_NETWORK=yes` or `no` to choose
+(`... | HEARTH_NETWORK=yes bash`).
 
-- install Docker Engine and Compose from Docker's own package repository, and add your account
-  to the `docker` group
-- install Tailscale from Tailscale's own package repository
+**The admin helper (Linux, optional).** The admin helper is a root service that runs Hearth's
+approved operations from a fixed list. As Hearth sets it up, the list is: install Docker Engine
+and Compose from Docker's package repository (and add your account to the `docker` group), and
+install Tailscale from Tailscale's package repository. It has no general command or shell, and
+you approve every use. Without it, Hearth shows the official commands for you to run yourself.
+It is not set up during install: Hearth's plan page asks the first time a plan needs Docker or
+Tailscale, with the reason, and offers both ways. Either way, the `docker` group gives your
+account broad access to the machine through Docker. Its source is
+[`apps/server/src/elevated/`](apps/server/src/elevated/) (`install-software.ts` holds the exact
+install scripts), its installer [`deploy/linux/install-elevation.sh`](deploy/linux/install-elevation.sh),
+and its design [docs/ELEVATED_EXECUTOR.md](docs/ELEVATED_EXECUTOR.md).
 
-Neither action takes settings from the request. It has no shell and runs no general commands.
-It acts only for a plan step you approved, and each use carries a one-time signed authorization
-that expires after 15 minutes. More actions (file changes in folders you choose, RAID) exist only
-if you add them yourself on the machine. One limit: being in the `docker` group gives your account
-broad access to the machine through Docker, as it does for anyone who uses Docker.
+**Checking the download.** Each Linux release archive is built by GitHub Actions
+([release.yml](.github/workflows/release.yml)) from its tagged commit and carries a build
+provenance attestation. To confirm a download came from that build:
 
-Its source is in [`apps/server/src/elevated/`](apps/server/src/elevated/)
-(`install-software.ts` holds the exact Docker and Tailscale scripts), its installer is
-[`deploy/linux/install-elevation.sh`](deploy/linux/install-elevation.sh), and its design is in
-[docs/ELEVATED_EXECUTOR.md](docs/ELEVATED_EXECUTOR.md). The program is part of the release
-download, built by GitHub Actions ([release.yml](.github/workflows/release.yml)) from the tagged
-commit, unminified. The installer checks the download against the SHA-256 file published with the
-release and stops if they differ. That checksum shows the download arrived intact; releases are
-not signed yet. Both files are on disk before you answer, to read first:
-`~/hearth/app/deploy/linux/install-elevation.sh` and
-`~/hearth/app/apps/server/dist-elevated/hearth-elevated.js`. Answering no is fine; Hearth's plan
-page shows how to add it later.
+```sh
+gh attestation verify hearth-<version>-linux.tar.gz -R DragonsOath/hearth
+```
+
+The installer also checks the archive against its published SHA-256. Releases before 0.88.0 have
+the checksum only. On Windows, the installer builds Hearth on the PC from the release's tagged
+source.
+
+**Release channels.** New installs follow **stable**: releases marked stable after they have run
+on the fast channel first. **Fast** gets every release as soon as it is out
+(`... | HEARTH_CHANNEL=fast bash`, or `$env:HEARTH_CHANNEL = "fast"` on Windows). Switch any time
+in Settings, About. An update never moves Hearth to an older release.
 
 **Windows** (PowerShell; no administrator rights needed):
 

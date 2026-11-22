@@ -15,11 +15,15 @@
 # never as root. The only sudo it may ask for, once, lets that service run while nobody is
 # signed in (loginctl enable-linger).
 #
-# Settings (all optional): HEARTH_HOME, HEARTH_VERSION (like 0.29.0; default the newest),
-# HEARTH_NETWORK=yes|no (open it to other devices on your home network), HEARTH_PORT (7600),
-# HEARTH_SERVICE (the service's name, default hearth), HEARTH_JOIN (a join link),
-# HEARTH_HELPER=yes|no (set up the small admin helper that lets Hearth's AI install Docker and
-# Tailscale for your homelab plan, each time you approve; asked when not set).
+# Settings (all optional): HEARTH_HOME, HEARTH_VERSION (like 0.29.0; default the newest on the
+# channel), HEARTH_CHANNEL=stable|fast (stable when not set: releases marked stable; fast: every
+# release as soon as it is out), HEARTH_NETWORK=yes|no (open it to other devices on your home
+# network), HEARTH_PORT (7600), HEARTH_SERVICE (the service's name, default hearth), HEARTH_JOIN
+# (a join link), HEARTH_HELPER=yes|no (set up the admin helper now; when not set it is not set up
+# here, and Hearth asks inside its plan page the first time a plan needs Docker or Tailscale).
+#
+# With no terminal to ask in (run by a script or an AI assistant), every question takes "no" and
+# the installer prints what it chose. Pass HEARTH_NETWORK and HEARTH_HELPER to choose instead.
 set -euo pipefail
 
 REPO="DragonsOath/hearth"
@@ -36,12 +40,60 @@ done
 say() { printf '\n\033[1;33m== %s\033[0m\n' "$*"; }
 fail() { printf '\n\033[1;31m%s\033[0m\n' "$*" >&2; exit 1; }
 # Questions read from the terminal, so they work when this script is piped into bash.
+has_tty() { { true </dev/tty; } 2>/dev/null; }
 ask() {
   local question="$1" default="$2" answer=""
-  # No terminal (run over plain ssh, or by a script): the default answer, quietly.
   { read -r -p "$question " answer </dev/tty; } 2>/dev/null || true
   echo "${answer:-$default}"
 }
+
+# Open to the home network? HEARTH_NETWORK when given; a joining PC never (it dials out); asked
+# when there is a terminal; with none, no (this computer only). Prints the choice either way.
+choose_network() {
+  local n="${HEARTH_NETWORK:-}"
+  case "$n" in
+    [yY]*) n=yes ;;
+    [nN]*) n=no ;;
+    "")
+      if [[ -n "${HEARTH_JOIN:-}" ]]; then
+        n=no
+      elif has_tty; then
+        say "One question" >&2
+        echo "Open Hearth to your other devices (phone, laptop) on your home network?" >&2
+        echo "No keeps it to this computer only. You can change it later." >&2
+        case "$(ask "Open to your home network? [Y/n]" y)" in [nN]*) n=no ;; *) n=yes ;; esac
+      else
+        n=no
+        echo "No terminal to ask in, so Hearth stays on this computer only (home network: no)." >&2
+        echo "To open it to your home network, run this again with HEARTH_NETWORK=yes." >&2
+      fi
+      ;;
+    *) fail "HEARTH_NETWORK is yes or no, not '$n'." ;;
+  esac
+  echo "Home network: $n" >&2
+  echo "$n"
+}
+
+# Set up the admin helper now? Only when HEARTH_HELPER=yes. Otherwise Hearth asks inside its plan
+# page, with the reason, the first time a plan needs Docker or Tailscale.
+choose_helper() {
+  case "${HEARTH_HELPER:-}" in
+    [yY]*) echo yes ;;
+    "" | [nN]*) echo no ;;
+    *) fail "HEARTH_HELPER is yes or no, not '${HEARTH_HELPER}'." ;;
+  esac
+}
+
+# stable (the default) or fast.
+choose_channel() {
+  case "${HEARTH_CHANNEL:-stable}" in
+    stable | fast) echo "${HEARTH_CHANNEL:-stable}" ;;
+    *) fail "HEARTH_CHANNEL is stable or fast, not '${HEARTH_CHANNEL}'." ;;
+  esac
+}
+
+# Tests read the functions above without running the installer.
+[[ -z "${HEARTH_GET_FUNCTIONS_ONLY:-}" ]] || return 0
 
 [[ "$(uname -s)" == Linux ]] || fail "This installer is for Linux. On Windows, use deploy/get.ps1."
 [[ "$(id -u)" != 0 ]] || fail "Run this as your everyday account, not root."
@@ -134,21 +186,41 @@ command -v node >/dev/null && echo "Node.js $(node -v)"
 # --- The release ----------------------------------------------------------------------------------
 say "Downloading Hearth"
 version="${HEARTH_VERSION:-}"
-if command -v gh >/dev/null && gh auth status >/dev/null 2>&1; then
-  if [[ -z "$version" ]]; then
-    # The highest version (the list is in the order releases were made): Hearth releases only
-    # (other releases, like the voices, have other names), never a draft.
-    tag="$(gh release list -R "$REPO" --limit 100 --json tagName,isDraft -q '.[] | select((.isDraft | not) and (.tagName | test("^v[0-9]+[.][0-9]+[.][0-9]+$"))) | .tagName' | sort -V | tail -1)"
-  else
-    tag="v${version#v}"
+channel="$(choose_channel)"
+# Stable: releases marked stable (GitHub's non-prerelease ones). Fast: every published release.
+use_gh=""
+command -v gh >/dev/null && gh auth status >/dev/null 2>&1 && use_gh=1
+if [[ -n "$version" ]]; then
+  tag="v${version#v}"
+elif [[ -n "$use_gh" ]]; then
+  # The highest version (the list is in the order releases were made): Hearth releases only
+  # (other releases, like the voices, have other names), never a draft.
+  pick='.[] | select((.isDraft | not) and (.tagName | test("^v[0-9]+[.][0-9]+[.][0-9]+$")))'
+  [[ "$channel" == stable ]] && pick="$pick | select(.isPrerelease | not)"
+  tag="$(gh release list -R "$REPO" --limit 100 --json tagName,isDraft,isPrerelease -q "$pick | .tagName" | sort -V | tail -1)"
+elif [[ "$channel" == stable ]]; then
+  # A public repository needs no sign-in. GitHub's "latest" is never a prerelease or a draft.
+  tag="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null | grep -o '"tag_name": *"[^"]*"' | head -1 | cut -d'"' -f4 || true)"
+else
+  # The public list never shows drafts to someone signed out.
+  tag="$(curl -fsSL "https://api.github.com/repos/$REPO/releases?per_page=100" 2>/dev/null | grep -o '"tag_name": *"v[0-9]*\.[0-9]*\.[0-9]*"' | cut -d'"' -f4 | sort -V | tail -1 || true)"
+fi
+[[ -n "$tag" ]] || fail "Could not find a Hearth release. Check this machine can reach github.com, then run this again."
+version="${tag#v}"
+echo "Channel: $channel (Hearth $version)"
+# An update never moves to an older release on its own (a fast install run again on stable).
+if [[ -z "${HEARTH_VERSION:-}" && -f "$app/RELEASE" ]]; then
+  have="$(sed -n 's/^version=//p' "$app/RELEASE")"
+  if [[ -n "$have" && "$have" != "$version" && "$(printf '%s\n%s\n' "$have" "$version" | sort -V | tail -1)" == "$have" ]]; then
+    echo "This Hearth ($have) is newer than the newest $channel release ($version), so it stays as it is."
+    echo "To follow every release, run this again with HEARTH_CHANNEL=fast."
+    exit 0
   fi
-  [[ -n "$tag" ]] || fail "No Hearth release found on GitHub yet."
+fi
+if [[ -n "$use_gh" ]]; then
   gh release download "$tag" -R "$REPO" -p 'hearth-*-linux.tar.gz*' -D "$work"
 else
-  # A public repository needs no sign-in.
-  api="https://api.github.com/repos/$REPO/releases/${version:+tags/v${version#v}}"
-  [[ -n "$version" ]] || api="${api}latest"
-  urls="$(curl -fsSL "$api" 2>/dev/null | grep -o '"browser_download_url": *"[^"]*linux.tar.gz[^"]*"' | cut -d'"' -f4 || true)"
+  urls="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/tags/$tag" 2>/dev/null | grep -o '"browser_download_url": *"[^"]*linux.tar.gz[^"]*"' | cut -d'"' -f4 || true)"
   [[ -n "$urls" ]] || fail "Could not download Hearth. Check this machine can reach github.com, then run this again."
   for u in $urls; do curl -fsSL "$u" -o "$work/$(basename "$u")"; done
 fi
@@ -161,18 +233,7 @@ echo "Hearth $(sed -n 's/^version=//p' "$fresh/RELEASE")"
 # --- Settings: kept on an update; a new install asks one question --------------------------------
 envfile="$home/hearth.env"
 if [[ -z "$update" || ! -f "$envfile" ]]; then
-  network="${HEARTH_NETWORK:-}"
-  if [[ -z "$network" ]]; then
-    if [[ -n "${HEARTH_JOIN:-}" ]]; then
-      # A PC joining your Hearth dials out to it; nothing needs to reach this PC.
-      network=no
-    else
-      say "One question"
-      echo "Open Hearth to your other devices (phone, laptop) on your home network?"
-      echo "No keeps it to this computer only. You can change it later."
-      case "$(ask "Open to your home network? [Y/n]" y)" in [nN]*) network=no ;; *) network=yes ;; esac
-    fi
-  fi
+  network="$(choose_network)"
   port="${HEARTH_PORT:-7600}"
   # Another program already on that port: take the next free one.
   while (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; do port=$((port + 1)); done
@@ -213,7 +274,7 @@ ENV
   chmod 600 "$envfile"
 fi
 cat >"$home/install.json" <<JSON
-{ "kind": "linux-user-service", "home": "$home", "service": "$service" }
+{ "kind": "linux-user-service", "home": "$home", "service": "$service", "channel": "$channel" }
 JSON
 # A join link from your Hearth's "Add a PC": Hearth joins with it when it starts.
 if [[ -n "${HEARTH_JOIN:-}" ]]; then
@@ -272,28 +333,21 @@ if ! curl -sf "http://127.0.0.1:$port/api/health" >/dev/null; then
 fi
 rm -rf "$home/app.previous"
 
-# --- The admin helper: lets Ember install Docker and Tailscale for your plan, each time you approve.
-# Hearth itself never runs as root; the helper does one approved, fixed task at a time
-# (docs/ELEVATED_EXECUTOR.md). Asked once; run this installer again to be asked again.
+# --- The admin helper: set up here only when HEARTH_HELPER=yes. Otherwise Hearth asks inside its
+# plan page, with the reason, the first time a plan needs Docker or Tailscale (and shows the
+# official install command instead, for anyone who would rather run it themselves). It is a
+# root-owned program with a fixed list of operations (docs/ELEVATED_EXECUTOR.md).
 helper_cfg=/etc/hearth/elevation.json
 if [[ -z "$dry_run" && -z "${HEARTH_JOIN:-}" ]] && ! grep -qs '"docker.install"' "$helper_cfg"; then
-  want="${HEARTH_HELPER:-}"
-  if [[ -z "$want" ]]; then
-    echo
-    echo "Hearth's AI can install Docker and Tailscale for your homelab plan, asking you each time."
-    echo "That needs a small admin helper, set up now with your password (once)."
-    if { true </dev/tty; } 2>/dev/null; then want="$(ask "Set up the admin helper? [Y/n]" yes)"
-    else want=skip; fi
+  if [[ "$(choose_helper)" == yes ]]; then
+    if [[ -f "$helper_cfg" ]]; then helper_args=(--add-operation build)
+    else helper_args=(--operations docker.install,tailscale.install); fi
+    sudo bash "$app/deploy/linux/install-elevation.sh" --service "$service" --user-service "${helper_args[@]}" \
+      || echo "The admin helper was not set up. Hearth works without it; its plan page shows how to add it later."
+    echo "Admin helper: yes"
+  else
+    echo "Admin helper: not set up. If a plan needs Docker or Tailscale, Hearth's plan page asks then."
   fi
-  case "$want" in
-    [Yy]*|"")
-      if [[ -f "$helper_cfg" ]]; then helper_args=(--add-operation build)
-      else helper_args=(--operations docker.install,tailscale.install); fi
-      sudo bash "$app/deploy/linux/install-elevation.sh" --service "$service" --user-service "${helper_args[@]}"         || echo "The admin helper was not set up. Hearth works without it; its plan page shows how to add it later."
-      ;;
-    skip) echo "Skipped the admin helper (no terminal to ask in). Hearth's plan page shows how to add it." ;;
-    *) echo "Skipped the admin helper. Hearth's plan page shows how to add it later." ;;
-  esac
 fi
 if ! id -nG | grep -qw docker && command -v docker >/dev/null; then
   echo "Note: your account is not in the docker group, so Hearth can't see your containers yet."

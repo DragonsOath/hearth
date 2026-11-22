@@ -12,7 +12,10 @@
 # Everything lives in one folder (HEARTH_HOME, default %LOCALAPPDATA%\Hearth): the app in app\,
 # your data, vault key, and backups beside it, and hearth.ps1 to start, stop, or check it.
 # Settings (all optional, as environment variables): HEARTH_HOME, HEARTH_VERSION (like 0.28.0),
-# HEARTH_NETWORK=yes|no (open it to other devices on your home network), HEARTH_PORT (7600).
+# HEARTH_CHANNEL=stable|fast (stable when not set: releases marked stable; fast: every release as
+# soon as it is out), HEARTH_NETWORK=yes|no (open it to other devices on your home network),
+# HEARTH_PORT (7600). With no one to ask (run by a script or an AI assistant), the question takes
+# "no" and the installer prints what it chose.
 param([switch]$DryRun, [switch]$Uninstall)
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
@@ -165,17 +168,31 @@ try {
   } catch {
     Fail "Could not reach Hearth on GitHub. Check this PC can reach github.com, then run this again."
   }
+  $Channel = if ($env:HEARTH_CHANNEL) { $env:HEARTH_CHANNEL } else { "stable" }
+  if ($Channel -ne "stable" -and $Channel -ne "fast") { Fail "HEARTH_CHANNEL is stable or fast, not '$Channel'." }
   $release = if ($env:HEARTH_VERSION) {
     $releases | Where-Object { $_.tag_name -eq ("v" + $env:HEARTH_VERSION.TrimStart("v")) } | Select-Object -First 1
   } else {
     # The highest version (GitHub's list order is not always newest first): Hearth releases
-    # only (other releases, like the voices, have other names), never a draft.
-    $releases | Where-Object { -not $_.draft -and $_.tag_name -match '^v\d+\.\d+\.\d+$' } |
+    # only (other releases, like the voices, have other names), never a draft. Stable: only
+    # releases marked stable (not prereleases). Fast: every published release.
+    $releases | Where-Object { -not $_.draft -and $_.tag_name -match '^v\d+\.\d+\.\d+$' -and ($Channel -eq "fast" -or -not $_.prerelease) } |
       Sort-Object { [version]$_.tag_name.TrimStart("v") } -Descending |
       Select-Object -First 1
   }
   if (-not $release) { Fail "No Hearth release found on GitHub yet." }
   $version = $release.tag_name.TrimStart("v")
+  Write-Host "Channel: $Channel (Hearth $version)"
+  # An update never moves to an older release on its own (a fast install run again on stable).
+  $HaveFile = Join-Path $App "RELEASE"
+  if (-not $env:HEARTH_VERSION -and (Test-Path $HaveFile)) {
+    $have = ((Get-Content $HaveFile) -match '^version=' | Select-Object -First 1) -replace '^version=', ''
+    if ($have -and $have -ne $version -and ([version]$have -gt [version]$version)) {
+      Write-Host "This Hearth ($have) is newer than the newest $Channel release ($version), so it stays as it is."
+      Write-Host 'To follow every release, set $env:HEARTH_CHANNEL = "fast" and run this again.'
+      return
+    }
+  }
   # Exactly that release's code (its tag), not whatever its branch has now.
   $commit = $release.tag_name
   Write-Host "Hearth $version"
@@ -191,13 +208,25 @@ try {
   if (-not $Update) {
     # A PC joining your Hearth dials out to it; nothing needs to reach this PC.
     if (-not $Network -and $env:HEARTH_JOIN) { $Network = "no" }
+    if ($Network -match "^[yY]") { $Network = "yes" } elseif ($Network -match "^[nN]") { $Network = "no" }
+    elseif ($Network) { Fail "HEARTH_NETWORK is yes or no, not '$Network'." }
     if (-not $Network) {
-      Say "One question"
-      Write-Host "Open Hearth to your other devices (phone, laptop) on your home network?"
-      Write-Host "No keeps it to this PC only. You can change it later. (Windows may ask once to allow it.)"
-      $a = Read-Host "Open to your home network? [y/N]"
+      # No one to ask (a script, an AI assistant, a non-interactive shell): this PC only.
+      $interactive = [Environment]::UserInteractive -and -not ([Environment]::GetCommandLineArgs() -match '^-NonI')
+      $a = $null
+      if ($interactive) {
+        Say "One question"
+        Write-Host "Open Hearth to your other devices (phone, laptop) on your home network?"
+        Write-Host "No keeps it to this PC only. You can change it later. (Windows may ask once to allow it.)"
+        try { $a = Read-Host "Open to your home network? [y/N]" } catch { $interactive = $false }
+      }
+      if (-not $interactive) {
+        Write-Host "No one to ask, so Hearth stays on this PC only (home network: no)."
+        Write-Host 'To open it to your home network, set $env:HEARTH_NETWORK = "yes" and run this again.'
+      }
       $Network = if ($a -match "^[yY]") { "yes" } else { "no" }
     }
+    Write-Host "Home network: $Network"
     # Another program already on that port: take the next free one.
     while ($true) {
       $c = New-Object Net.Sockets.TcpClient
@@ -296,7 +325,7 @@ switch (`$Do) {
 
   # How it was installed, so Hearth can also remove itself (from any of your devices).
   # Written without a byte-order mark (Windows PowerShell's "utf8" adds one, which breaks JSON readers).
-  $installJson = @{ kind = "windows-sign-in-task"; home = $HearthHome; service = "Hearth" } | ConvertTo-Json
+  $installJson = @{ kind = "windows-sign-in-task"; home = $HearthHome; service = "Hearth"; channel = $Channel } | ConvertTo-Json
   [IO.File]::WriteAllText((Join-Path $HearthHome "install.json"), $installJson, (New-Object System.Text.UTF8Encoding $false))
   # A join link from your Hearth's "Add a PC": Hearth joins with it when it starts.
   if ($env:HEARTH_JOIN) {

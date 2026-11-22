@@ -1,5 +1,13 @@
-import { describe, expect, it } from "vitest";
-import { Updates, compareVersions, plainNotes, updatePlan, type Release } from "./service";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  Updates,
+  compareVersions,
+  githubReleases,
+  onChannel,
+  plainNotes,
+  updatePlan,
+  type Release,
+} from "./service";
 import { decodedScript } from "../pcs/windows-launch";
 
 describe("compareVersions", () => {
@@ -67,11 +75,98 @@ describe("updatePlan", () => {
     }
   });
 
+  it("installs exactly the version the check found, never another channel's newer one", () => {
+    const linux = updatePlan(
+      { kind: "linux-user-service", home: "/home/alex/hearth", service: "hearth" },
+      "linux",
+      "0.88.0",
+    );
+    expect(linux.ok && linux.args.join(" ")).toContain("HEARTH_VERSION='0.88.0'");
+    const win = updatePlan(
+      { kind: "windows-sign-in-task", home: "C:\\Users\\alex\\Hearth", service: "Hearth" },
+      "win32",
+      "0.88.0",
+    );
+    expect(win.ok && decodedScript(win.args)).toContain("$env:HEARTH_VERSION = '0.88.0'");
+    expect(
+      updatePlan({ kind: "linux-user-service", home: "/x", service: "hearth" }, "linux", "1; rm"),
+    ).toMatchObject({ ok: false });
+  });
+
   it("says what to do when Hearth can't update itself", () => {
     expect(updatePlan(null, "linux")).toMatchObject({ ok: false });
     expect(
       updatePlan({ kind: "linux-user-service", home: "/x", service: "bad name;" }, "linux"),
     ).toMatchObject({ ok: false });
+  });
+});
+
+describe("release channels", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("stable takes only releases marked stable; fast takes every published one", () => {
+    const pre = { draft: false, prerelease: true, tag: "v0.88.0" };
+    const stable = { draft: false, prerelease: false, tag: "v0.87.1" };
+    expect(onChannel(pre, "stable")).toBe(false);
+    expect(onChannel(pre, "fast")).toBe(true);
+    expect(onChannel(stable, "stable")).toBe(true);
+    expect(onChannel({ ...stable, draft: true }, "fast")).toBe(false);
+    expect(onChannel({ ...stable, tag: "voices-v2" }, "fast")).toBe(false);
+  });
+
+  it("the check asks GitHub and picks the newest release on the channel", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => [
+          { tag_name: "v0.88.0", draft: false, prerelease: true, body: "Fast one." },
+          { tag_name: "v0.87.1", draft: false, prerelease: false, body: "Stable one." },
+          { tag_name: "v0.89.0", draft: true, prerelease: true, body: "Draft." },
+        ],
+      })),
+    );
+    expect((await githubReleases("stable"))?.version).toBe("0.87.1");
+    expect((await githubReleases("fast"))?.version).toBe("0.88.0");
+  });
+
+  it("follows the chosen channel, says which, and Update now pins that version", async () => {
+    const asked: string[] = [];
+    const launched: string[][] = [];
+    const u = new Updates({
+      current: () => "0.87.1",
+      install: () => ({ kind: "linux-user-service", home: "/home/alex/hearth", service: "hearth" }),
+      source: async (channel) => {
+        asked.push(channel);
+        return channel === "fast"
+          ? { version: "0.88.0", notes: "", url: "" }
+          : { version: "0.87.1", notes: "", url: "" };
+      },
+      announce: async () => {},
+      announced: async () => undefined,
+      remember: async () => {},
+      launch: (_cmd, args) => launched.push(args),
+      platform: "linux",
+      channel: async () => "fast",
+    });
+    expect(await u.state()).toMatchObject({ channel: "fast", available: true });
+    expect(asked).toEqual(["fast"]);
+    await u.install();
+    expect(launched[0]!.join(" ")).toContain("HEARTH_VERSION='0.88.0'");
+  });
+
+  it("is stable when nothing is chosen", async () => {
+    const u = new Updates({
+      current: () => "0.87.1",
+      install: () => null,
+      source: async () => null,
+      announce: async () => {},
+      announced: async () => undefined,
+      remember: async () => {},
+    });
+    expect((await u.state()).channel).toBe("stable");
   });
 });
 

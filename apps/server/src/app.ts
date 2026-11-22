@@ -1099,6 +1099,9 @@ export async function buildApp({
       notifier.announceHearthUpdate({ version: release.version, notes: release.notes, current }),
     announced: () => getSetting(db, "update_announced"),
     auto: async () => (await getSetting(db, "update_check_auto")) !== false,
+    // The owner's choice; else the channel the installer was run with; else stable.
+    channel: async () =>
+      (await getSetting(db, "update_channel")) ?? readInstallInfo()?.channel ?? "stable",
     remember: (v) => setSetting(db, "update_announced", v),
     ...(fakeUpdate ? { launch: () => undefined } : {}),
     // What an update (a restart) would cut off: Ember answering in the Lair, War Room tasks.
@@ -1151,6 +1154,25 @@ export async function buildApp({
       action: on ? "Turned on Check for updates" : "Turned off Check for updates",
       target: "updates",
     });
+    return updates.state();
+  });
+  // Release channel (Settings, About): stable, or fast (every release as soon as it is out).
+  app.post("/api/updates/channel", async (request) => {
+    if (!request.session) throw new ForbiddenAuthError("Sign in to do this.");
+    const { channel } = z
+      .object({ channel: z.enum(["stable", "fast"]) })
+      .strict()
+      .parse(request.body ?? {});
+    await setSetting(db, "update_channel", channel);
+    await recordAudit(db, {
+      actor: "you",
+      action:
+        channel === "fast"
+          ? "Switched to the fast release channel"
+          : "Switched to the stable release channel",
+      target: "updates",
+    });
+    await updates.check();
     return updates.state();
   });
   app.post("/api/updates/install", async (request) => {

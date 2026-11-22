@@ -67,3 +67,30 @@ test("no update: nothing in the top bar; Settings says it is the newest", async 
   // Checking again is a real button, easy to find (11-10).
   await expect(updates.getByRole("button", { name: "Check for updates" })).toBeVisible();
 });
+
+test("release channel: stable by default, fast when chosen, saved on the server", async ({
+  page,
+}, testInfo) => {
+  let channel = "stable";
+  await page.route("**/api/updates", (r) =>
+    r.fulfill({ json: state({ current: "0.32.0", available: false, channel }) }),
+  );
+  await page.route("**/api/updates/channel", async (r) => {
+    channel = (r.request().postDataJSON() as { channel: string }).channel;
+    return r.fulfill({ json: state({ current: "0.32.0", available: false, channel }) });
+  });
+  await page.goto("/settings#about");
+  const picker = page.getByRole("radiogroup", { name: "Release channel" });
+  await expect(picker.getByRole("radio", { name: "Stable" })).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
+  await expect(page.getByTestId("update-channel")).toContainText("only releases marked stable");
+  await picker.getByRole("radio", { name: "Fast" }).click();
+  await expect(picker.getByRole("radio", { name: "Fast" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByTestId("update-channel")).toContainText("as soon as it is out");
+  expect(channel).toBe("fast");
+  await page.getByRole("region", { name: "Updates" }).screenshot({
+    path: `test-results/screens/${testInfo.project.name}/updates-channel.png`,
+  });
+});

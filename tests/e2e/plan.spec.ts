@@ -197,6 +197,79 @@ test("help me build: human questions, a look at this computer when allowed, and 
   expect(gs.items.find((i: { id: string }) => i.id === "plan").done).toBe(true);
 });
 
+test("Docker without the admin helper: the reason, then the helper or Docker's own commands", async ({
+  page,
+}, testInfo) => {
+  await page.request.delete("/api/plan");
+  await page.request.post("/api/plan/scan", { data: {} });
+  await page.request.put("/api/plan", {
+    data: { answers: { wants: ["watch", "request"], devices: [] }, removed: [], confirmed: true },
+  });
+  await page.request.put("/api/plan/accounts", {
+    data: { email: "sam@example.com", username: "sam", passwords: "generate" },
+  });
+  // Docker needs root: the step says why and shows both ways, the admin helper (its fixed list
+  // and its source) or Docker's own commands. A stand-in answer for this machine.
+  await page.route("**/api/plan/build", (r) =>
+    r.fulfill({
+      json: {
+        steps: [
+          {
+            id: "docker",
+            name: "Docker",
+            what: "Runs each app in its own box.",
+            status: "needs-you",
+            detail:
+              "Your plan's apps run in Docker, and Docker isn't on this computer yet. Installing it needs administrator rights, which Hearth's own account doesn't have. Choose one of the two ways below, then come back.",
+            need: {
+              kind: "helper",
+              command:
+                'sudo bash "/home/sam/hearth/app/deploy/linux/install-elevation.sh" --service hearth --user-service --operations docker.install,tailscale.install',
+              reason: "Docker isn't on this computer yet.",
+              helper: {
+                can: [
+                  "Install Docker Engine and Compose from Docker's own package repository, and let Hearth's account use Docker",
+                  "Install Tailscale from Tailscale's own package repository",
+                ],
+                source: "https://github.com/DragonsOath/hearth/tree/main/apps/server/src/elevated",
+              },
+              yourself: {
+                commands: [
+                  "curl -fsSL https://get.docker.com | sudo sh",
+                  "sudo usermod -aG docker $USER",
+                ],
+                after: "Then restart this computer, so Hearth's account can use Docker.",
+                docs: "https://docs.docker.com/engine/install/",
+              },
+            },
+          },
+        ],
+        notBuilt: [],
+        downloads: { setUp: false, wanted: false, vpn: "not asked", keepItFree: true },
+      },
+    }),
+  );
+  await page.goto("/plan?step=7");
+  const choice = page.getByTestId("helper-choice");
+  await expect(choice).toBeVisible();
+  await expect(page.getByTestId("build-steps")).toContainText("Docker isn't on this computer yet");
+  const helper = choice.getByRole("region", { name: "Set up the admin helper" });
+  await expect(helper).toContainText("Install Tailscale from Tailscale's own package repository");
+  await expect(helper).toContainText("It has no shell and runs no other commands.");
+  await expect(helper.getByRole("link", { name: "Its source" })).toHaveAttribute(
+    "href",
+    /apps\/server\/src\/elevated$/,
+  );
+  const yourself = choice.getByRole("region", { name: "Install it yourself" });
+  await expect(yourself).toContainText("curl -fsSL https://get.docker.com | sudo sh");
+  await expect(yourself.getByRole("button", { name: "Copy the commands" })).toBeVisible();
+  expect(await seriousViolations(page)).toEqual([]);
+  await expectNoOverflow(page);
+  await page.getByTestId("build-progress").screenshot({
+    path: `test-results/screens/${testInfo.project.name}/plan-8-helper-choice.png`,
+  });
+});
+
 test("help me build: they rank what matters most, the plan follows, and says what changed", async ({
   page,
 }, testInfo) => {

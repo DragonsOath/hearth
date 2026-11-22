@@ -17,6 +17,8 @@ export interface UpdateState {
   busy?: string[];
   /** Hearth checks for updates on its own (off: only when Check now is pressed). */
   auto?: boolean;
+  /** Which releases it follows: stable (marked stable) or fast (every release). */
+  channel?: "stable" | "fast";
 }
 
 /** Update now's answer; refused with what is running unless "update anyway". */
@@ -48,6 +50,16 @@ export function useUpdateAuto() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (on: boolean) => api<UpdateState>("POST", "/api/updates/auto", { on }),
+    onSuccess: (s) => qc.setQueryData(["updates"], s),
+  });
+}
+
+/** The release channel (Settings, About). */
+export function useUpdateChannel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (channel: "stable" | "fast") =>
+      api<UpdateState>("POST", "/api/updates/channel", { channel }),
     onSuccess: (s) => qc.setQueryData(["updates"], s),
   });
 }

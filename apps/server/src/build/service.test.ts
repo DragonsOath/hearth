@@ -163,15 +163,49 @@ describe("Build my plan", () => {
     );
   });
 
-  it("asks for the admin helper's one command before Docker, for a get.sh install", async () => {
+  it("asks about the admin helper only when Docker is needed, with the reason and both ways", async () => {
     const { builder } = await setup();
     const docker = (await builder.status()).steps[0]!;
     expect(docker.status).toBe("needs-you");
-    expect(docker.need).toEqual({
-      kind: "helper",
-      command:
-        'sudo bash "/home/alex/hearth/app/deploy/linux/install-elevation.sh" --service hearth --user-service --operations docker.install,tailscale.install',
-    });
+    expect(docker.detail).toMatch(/Docker isn't on this computer yet/);
+    expect(docker.detail).toMatch(/administrator rights/);
+    const need = docker.need;
+    if (need?.kind !== "helper") throw new Error("expected the helper choice");
+    expect(need.command).toBe(
+      'sudo bash "/home/alex/hearth/app/deploy/linux/install-elevation.sh" --service hearth --user-service --operations docker.install,tailscale.install',
+    );
+    // The helper's fixed list and its source, for checking before choosing.
+    expect(need.helper.can).toHaveLength(2);
+    expect(need.helper.source).toBe(
+      "https://github.com/DragonsOath/hearth/tree/main/apps/server/src/elevated",
+    );
+    // The other way: Docker's own commands, run once by the person.
+    expect(need.yourself.commands).toEqual([
+      "curl -fsSL https://get.docker.com | sudo sh",
+      "sudo usermod -aG docker $USER",
+    ]);
+    expect(need.yourself.after).toMatch(/restart this computer/);
+    expect(need.yourself.docs).toBe("https://docs.docker.com/engine/install/");
+  });
+
+  it("with Docker installed but not usable yet, the way yourself only adds the account", async () => {
+    const { builder } = await setup();
+    // docker --version works; docker version (the daemon) does not answer this account.
+    (builder as unknown as { d: { run: unknown } }).d.run = async (cmd: string, args: string[]) =>
+      cmd === "docker" && args[0] === "--version"
+        ? { code: 0, out: "Docker version 29.1.0" }
+        : { code: 1, out: "" };
+    const docker = (await builder.status()).steps[0]!;
+    expect(docker.detail).toMatch(/Docker is on this computer, but Hearth's account can't use it/);
+    if (docker.need?.kind !== "helper") throw new Error("expected the helper choice");
+    expect(docker.need.yourself.commands).toEqual(["sudo usermod -aG docker $USER"]);
+  });
+
+  it("with the helper set up, Docker is a step to propose, not a question", async () => {
+    const { builder } = await setup({ helper: ["docker.install", "tailscale.install"] });
+    const docker = (await builder.status()).steps[0]!;
+    expect(docker.status).toBe("ready");
+    expect(docker.need).toBeUndefined();
   });
 
   it("waits for the account details before anything", async () => {

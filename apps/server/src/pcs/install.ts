@@ -23,6 +23,7 @@ export function readInstallInfo(appDir = process.cwd()): InstallInfo | null {
       kind: j.kind,
       ...(typeof j.home === "string" ? { home: j.home } : {}),
       ...(typeof j.service === "string" ? { service: j.service } : {}),
+      ...(j.channel === "stable" || j.channel === "fast" ? { channel: j.channel } : {}),
     };
   } catch {
     return null;

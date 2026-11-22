@@ -205,6 +205,10 @@ function portInUse(port: number): Promise<boolean> {
   });
 }
 
+/** The admin helper's source, for anyone checking what it can do before setting it up. */
+export const HELPER_SOURCE_URL =
+  "https://github.com/DragonsOath/hearth/tree/main/apps/server/src/elevated";
+
 export class HomelabBuilder {
   constructor(private readonly d: HomelabBuildDeps) {}
 
@@ -272,6 +276,64 @@ export class HomelabBuilder {
       ? "--add-operation build"
       : "--operations docker.install,tailscale.install";
     return `sudo bash ${JSON.stringify(script)} --service ${this.d.install.service}${this.d.install.userService ? " --user-service" : ""} ${ops}`;
+  }
+
+  /**
+   * Docker or Tailscale, the first time a plan needs it and the admin helper is not set up: the
+   * reason, what the helper could do, and the vendor's own commands to run once instead.
+   */
+  private async helperNeed(
+    app: "docker" | "tailscale",
+  ): Promise<{ detail: string; need: Extract<HomelabStep["need"], { kind: "helper" }> }> {
+    const command = await this.helperCommand();
+    const helper = {
+      can: [
+        "Install Docker Engine and Compose from Docker's own package repository, and let Hearth's account use Docker",
+        "Install Tailscale from Tailscale's own package repository",
+      ],
+      source: HELPER_SOURCE_URL,
+    };
+    if (app === "docker") {
+      const installed = await this.dockerInstalled();
+      const reason = installed
+        ? "Docker is on this computer, but Hearth's account can't use it yet. Giving it access needs administrator rights, which Hearth's own account doesn't have."
+        : "Your plan's apps run in Docker, and Docker isn't on this computer yet. Installing it needs administrator rights, which Hearth's own account doesn't have.";
+      return {
+        detail: `${reason} Choose one of the two ways below, then come back.`,
+        need: {
+          kind: "helper",
+          command,
+          reason,
+          helper,
+          yourself: {
+            commands: [
+              ...(installed ? [] : ["curl -fsSL https://get.docker.com | sudo sh"]),
+              "sudo usermod -aG docker $USER",
+            ],
+            after:
+              "Then restart this computer, so Hearth's account can use Docker. Hearth sees it and moves on.",
+            docs: "https://docs.docker.com/engine/install/",
+          },
+        },
+      };
+    }
+    const reason =
+      "Your plan includes Tailscale, for reaching Hearth away from home, and it isn't on this computer yet. Installing it needs administrator rights, which Hearth's own account doesn't have.";
+    return {
+      detail: `${reason} Choose one of the two ways below, then come back.`,
+      need: {
+        kind: "helper",
+        command,
+        reason,
+        helper,
+        yourself: {
+          commands: ["curl -fsSL https://tailscale.com/install.sh | sh", "sudo tailscale up"],
+          after:
+            "The second command prints a link: open it and sign in to Tailscale. Hearth sees it running and moves on.",
+          docs: "https://tailscale.com/kb/1031/install-linux",
+        },
+      },
+    };
   }
 
   private async tailscaleState(): Promise<"running" | "needs-login" | "absent"> {
@@ -404,9 +466,7 @@ export class HomelabBuilder {
         step = {
           ...base,
           status: "needs-you",
-          detail:
-            "Installing this needs Hearth's admin helper, set up once with your password. Run the command below on this computer, then come back.",
-          need: { kind: "helper", command: await this.helperCommand() },
+          ...(await this.helperNeed(id === "docker" ? "docker" : "tailscale")),
         };
       else if (job && ["failed", "rolled-back", "interrupted", "refused"].includes(job.status))
         step = {

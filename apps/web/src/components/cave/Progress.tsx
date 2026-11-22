@@ -233,7 +233,15 @@ export function JobCard({
           )}
         </div>
       )}
-      <ol className="mt-2 space-y-1.5">
+      {/* A long plan scrolls inside its own list, so Approve stays in view on a laptop (11-22). */}
+      <ol
+        className={cx(
+          "mt-2 space-y-1.5",
+          j.steps.length > 4 && "max-h-[min(40dvh,22rem)] overflow-y-auto pr-1",
+        )}
+        {...(j.steps.length > 4 ? { tabIndex: 0, "aria-label": "The plan's steps, scrolls" } : {})}
+        data-testid="job-steps"
+      >
         {j.steps.map((s) => {
           const tone = stepTone(s);
           return (

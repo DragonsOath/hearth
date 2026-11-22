@@ -52,11 +52,11 @@ export function ApprovalDock() {
   };
   return (
     <aside
-      className="fixed inset-x-0 bottom-0 z-[75] max-h-[75vh] overflow-y-auto rounded-t-2xl border-t border-gold/50 bg-panel p-3 shadow-2xl md:inset-x-auto md:right-4 md:bottom-4 md:w-[420px] md:rounded-2xl md:border"
+      className="fixed inset-x-0 bottom-0 z-[75] max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-t-2xl border-t border-gold/50 bg-panel p-3 shadow-2xl md:inset-x-auto md:right-4 md:bottom-4 md:w-[420px] md:rounded-2xl md:border"
       aria-label="Needs your approval"
       data-testid="approval-dock"
     >
-      <p className="mb-2 px-1 text-[0.72rem] tracking-[0.12em] text-gold uppercase">
+      <p className="mb-1 px-1 text-[0.72rem] tracking-[0.12em] text-gold uppercase">
         {visible.some((id) => byId.get(id)?.status === "awaiting-approval")
           ? "Needs your approval"
           : "Your plans"}
@@ -68,8 +68,8 @@ export function ApprovalDock() {
           const done = JOB_DONE.includes(j.status);
           return (
             <div key={id} className="relative" data-testid="approval-dock-plan">
-              <JobCard id={id} dock />
-              <div className="mt-1 flex justify-end">
+              {/* Close sits at the top, so it is never below the fold on a laptop (11-22). */}
+              <div className="mb-1 flex justify-end">
                 <button
                   type="button"
                   onClick={() => close(id, waiting)}
@@ -80,6 +80,7 @@ export function ApprovalDock() {
                   {waiting ? "Later (it stays in Jobs)" : done ? "Close" : "Hide"}
                 </button>
               </div>
+              <JobCard id={id} dock />
             </div>
           );
         })}

@@ -1170,15 +1170,6 @@ export function PlanPage() {
                 </ul>
               </div>
               <div className="flex flex-wrap gap-3">
-                <Button
-                  tone="primary"
-                  disabled={save.isPending}
-                  onClick={() =>
-                    void persist(true).then(() => setParams({ step: String(HOMELAB_STEP) }))
-                  }
-                >
-                  Next: your apps and accounts
-                </Button>
                 <Button disabled={save.isPending} onClick={() => void persist(true)}>
                   {saved?.confirmed ? "Plan saved" : "Save this plan"}
                 </Button>
@@ -1217,7 +1208,12 @@ export function PlanPage() {
             </Button>
           )}
         </section>
-        <nav aria-label="Plan steps" className="mt-6 flex items-center justify-between gap-3">
+        {/* Back and Next stay on screen while the step scrolls, so a laptop never has to scroll
+            down to move on (11-22). */}
+        <nav
+          aria-label="Plan steps"
+          className="sticky bottom-0 z-10 mt-4 flex items-center justify-between gap-3 border-t border-line bg-bg/95 py-3 backdrop-blur-sm"
+        >
           <div className="flex flex-wrap gap-2">
             <Button disabled={step === 1} onClick={() => go(step - 1)}>
               Back
@@ -1247,6 +1243,17 @@ export function PlanPage() {
               onClick={() => go(step + 1)}
             >
               {step === LOOK_STEP ? "See my plan" : "Next"}
+            </Button>
+          )}
+          {step === PLAN_STEP && result && (
+            <Button
+              tone="primary"
+              disabled={save.isPending}
+              onClick={() =>
+                void persist(true).then(() => setParams({ step: String(HOMELAB_STEP) }))
+              }
+            >
+              Next: your apps and accounts
             </Button>
           )}
         </nav>

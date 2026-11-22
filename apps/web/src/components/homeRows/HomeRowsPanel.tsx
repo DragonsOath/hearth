@@ -29,6 +29,7 @@ import {
   useLibraryOrder,
   useRenameLayout,
   useContinuePosters,
+  usePlexContinue,
   useRowPosters,
   useSaveLayout,
   isHomeQuery,
@@ -450,17 +451,12 @@ function PlexScreen({ serviceId }: { serviceId: string }) {
   const libs = o.libraries.filter(
     (l) => !setup.joins.some((j) => j.from === l.id) && (draft[l.id] ?? []).some(shows),
   );
-  const cont = libs.flatMap((l) =>
-    (draft[l.id] ?? [])
-      .filter((e) => shows(e) && plexKeyOf(e.id) === "inprogress")
-      .map((e) => ({ lib: l.id, row: e.id })),
-  );
   const rows = libs.flatMap((l) =>
     (draft[l.id] ?? []).filter(listed).map((e) => ({ lib: l.id, e })),
   );
   return (
     <div className="space-y-6">
-      {cont.length > 0 && <PlexContinue serviceId={serviceId} rows={cont} />}
+      <PlexContinue serviceId={serviceId} />
       {rows.map(({ lib, e }) => (
         <PlexRow
           key={`${lib}-${e.id}`}
@@ -470,7 +466,7 @@ function PlexScreen({ serviceId }: { serviceId: string }) {
           title={e.title}
         />
       ))}
-      {!cont.length && !rows.length && (
+      {!rows.length && (
         <p className="text-[0.88rem] text-muted">Nothing is on Plex&apos;s Home right now.</p>
       )}
     </div>
@@ -508,19 +504,20 @@ function PlexRow({
   );
 }
 
-function PlexContinue({
-  serviceId,
-  rows,
-}: {
-  serviceId: string;
-  rows: { lib: string; row: string }[];
-}) {
-  const p = useContinuePosters(serviceId, rows);
+/**
+ * Continue Watching, first, as Plex's Home has it (11-22): one row across every library, read
+ * from Plex's Home rather than from a library's rows (where it is not listed). Hidden when there
+ * is nothing to continue, as Plex hides it.
+ */
+function PlexContinue({ serviceId }: { serviceId: string }) {
+  const p = usePlexContinue(serviceId, ROW_COUNT);
+  const titles = p.data?.titles ?? [];
+  if (!p.isLoading && !titles.length) return null;
   return (
     <ScreenRow
       title="Continue Watching"
-      loading={p.loading}
-      items={plexItems(serviceId, p.titles)}
+      loading={p.isLoading}
+      items={plexItems(serviceId, titles)}
     />
   );
 }

@@ -53,6 +53,8 @@ test("Plex opens on its home screen, and Refresh reads it again", async ({ page 
     const rows = home.getByTestId("screen-row");
     await expect(rows.first()).toBeVisible({ timeout: 20_000 });
     await expect(rows.first().getByTestId("screen-poster").first()).toBeVisible();
+    // Continue Watching first, from Plex's Home, as Plex shows it (11-22).
+    await expect(rows.first().getByRole("heading").first()).toHaveText("Continue Watching");
     // Nothing to edit here: Home rows does that, one click away.
     await expect(home.getByTestId("home-row")).toHaveCount(0);
     await expect(home.getByTestId("server-home-change")).toBeVisible();

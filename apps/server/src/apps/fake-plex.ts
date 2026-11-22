@@ -865,6 +865,22 @@ export function fakePlex(opts: { newReleases?: boolean } = {}): FakePlex {
         },
       });
     }
+    // Plex's Home Continue Watching (11-22): one hub across every library.
+    if (p === "/hubs/continueWatching")
+      return reply(200, {
+        MediaContainer: {
+          Hub: [
+            {
+              hubIdentifier: "home.continue",
+              title: "Continue Watching",
+              Metadata: items
+                .filter((x) => x.type === "movie")
+                .slice(0, 3)
+                .map(meta),
+            },
+          ],
+        },
+      });
     if (p === "/library/recentlyAdded")
       return reply(200, {
         MediaContainer: {

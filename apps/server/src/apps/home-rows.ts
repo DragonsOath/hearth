@@ -1471,6 +1471,71 @@ export class HomeRows {
   }
 
   /**
+   * Plex's Continue Watching as its Home shows it (11-22, the owner: the Home tab showed none
+   * while Plex had a row of them). It is one row across every library, not a library's own row,
+   * so it is read from Plex's Home: the continueWatching hub where Plex has it, then Home's own
+   * hubs, then On Deck for older servers. Reads only.
+   */
+  async continueWatching(serviceId: string, count = 24) {
+    const n = Math.max(1, Math.min(40, Math.floor(count) || 24));
+    const service = await this.plexService(serviceId);
+    return this.use(service, "show Continue Watching", "read", async (token) => {
+      const base = service.localUrl;
+      type M = {
+        ratingKey?: string;
+        title?: string;
+        thumb?: string;
+        grandparentThumb?: string;
+        grandparentTitle?: string;
+        type?: string;
+        year?: number;
+        index?: number;
+        parentIndex?: number;
+      };
+      type Hub = { hubIdentifier?: string; Metadata?: M[] };
+      type R = { MediaContainer?: { Hub?: Hub[]; Metadata?: M[] } };
+      const read = (path: string) => this.json<R>(base, token, path).catch(() => undefined);
+      const size = `X-Plex-Container-Start=0&X-Plex-Container-Size=${n}`;
+      const fromHubs = (r: R | undefined, pick?: (h: Hub) => boolean) =>
+        (r?.MediaContainer?.Hub ?? [])
+          .filter((h) => !pick || pick(h))
+          .flatMap((h) => h.Metadata ?? []);
+      let got = fromHubs(await read(`/hubs/continueWatching?count=${n}`));
+      if (!got.length) got = fromHubs(await read(`/hubs/home/continueWatching?count=${n}`));
+      if (!got.length)
+        got = fromHubs(await read(`/hubs?count=${n}`), (h) =>
+          /^home\.(continue|ondeck)/.test(h.hubIdentifier ?? ""),
+        );
+      if (!got.length)
+        got = (await read(`/library/onDeck?${size}`))?.MediaContainer?.Metadata ?? [];
+      const seen = new Set<string>();
+      return {
+        titles: got
+          .filter((m) => {
+            const k = String(m.ratingKey ?? "");
+            if (!k || seen.has(k)) return false;
+            seen.add(k);
+            return true;
+          })
+          .slice(0, n)
+          .map((m) => {
+            const ep = m.type === "episode";
+            const thumb = (ep ? m.grandparentThumb : m.thumb) ?? m.thumb;
+            return {
+              ratingKey: String(m.ratingKey ?? ""),
+              title: (ep && m.grandparentTitle) || m.title || "",
+              ...(m.year ? { year: m.year } : {}),
+              ...(ep && m.index !== undefined
+                ? { sub: `S${m.parentIndex ?? 1} · E${m.index}` }
+                : {}),
+              ...(thumb ? { thumb } : {}),
+            };
+          }),
+      };
+    });
+  }
+
+  /**
    * A merged Recently Added or Recently Released row as Plex will show it once saved (11-13, the
    * owner: "if it's not showing the same thing in Home rows then my panel is useless"): every
    * library's films together, each film once, newest first. Added dates are each film's own (the

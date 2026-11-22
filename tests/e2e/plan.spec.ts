@@ -98,6 +98,11 @@ test("help me build: human questions, a look at this computer when allowed, and 
   await expect(media.getByRole("radio", { name: /Jellyfin/ })).toBeChecked();
   await expect(media).toContainText("Recommended for you");
   await expect(media).toContainText("It's your call.");
+  // Downloads need a VPN, and keeping it free means the owner says which way (the VPN rule).
+  await page
+    .getByTestId("plan-choice-vpn-needed")
+    .getByRole("radio", { name: /I'll get a VPN/ })
+    .check();
   for (const id of ["jellyfin", "seerr", "radarr", "sonarr", "prowlarr", "qbittorrent"])
     await expect(result.getByTestId(`plan-item-${id}`)).toBeVisible();
   await expect(result.getByTestId("plan-item-qbittorrent")).toContainText("A VPN that allows P2P");
@@ -117,7 +122,7 @@ test("help me build: human questions, a look at this computer when allowed, and 
   ).toBeChecked();
   const vpn = page.getByTestId("plan-choice-vpn");
   await expect(vpn.getByRole("radio", { name: /Proton VPN/ })).toBeChecked();
-  await expect(vpn).toContainText("no good free option");
+  await expect(vpn).toContainText("There's no free VPN Hearth will use for this");
   // A second opinion from the AI, ready to ask.
   await expect(page.getByRole("link", { name: "Have Ember review my plan" })).toHaveAttribute(
     "href",
@@ -180,9 +185,7 @@ test("help me build: human questions, a look at this computer when allowed, and 
   await expect(page.getByTestId("accounts-saved")).toContainText(
     "Your password is in Secure Vault.",
   );
-  await expect(page.getByTestId("accounts-saved")).toContainText(
-    "nothing has been installed or created",
-  );
+  await expect(page.getByTestId("accounts-saved")).toContainText("Nothing has been installed yet.");
   const acct = await (await page.request.get("/api/plan/accounts")).text();
   expect(acct).toContain("sam@example.com");
   expect(acct).not.toContain("correct horse");

@@ -2744,7 +2744,9 @@ test.describe("desktop desk", () => {
     await expect(panels).toHaveCount(1);
     await expect(page.getByRole("region", { name: "Service: Radarr" })).toBeVisible();
     await page.getByRole("button", { name: "Close Radarr" }).click();
-    await expect(page.getByTestId("cave-hub")).toBeVisible();
+    // The last one closed: still the Lair, Ember across the whole space (11-22), not Home.
+    await expect(page.getByTestId("desk")).toHaveAttribute("data-empty", "true");
+    await expect(page.getByTestId("desk-dock")).toBeVisible();
   });
 
   test("the dock minimizes, widens, and keeps the conversation", async ({ page }) => {

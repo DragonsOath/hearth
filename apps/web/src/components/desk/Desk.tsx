@@ -318,8 +318,11 @@ export function Desk({ ws }: { ws: Workspace }) {
   }, [expanded, setExpanded]);
 
   const commit = (next: Panel[], nextFocus?: string, replace = false) => {
-    const s = deskSearch(params, next, nextFocus);
-    setParams(new URLSearchParams(s.startsWith("?") ? s.slice(1) : s), { replace });
+    const s = new URLSearchParams(deskSearch(params, next, nextFocus).replace(/^\?/, ""));
+    // The last panel closed: stay in the Lair, Ember across the whole space (11-22, the owner:
+    // "if I close all the panels it should just be full ember", not Home).
+    if (!next.length) s.set("panels", "");
+    setParams(s, { replace });
   };
   const touch = (key: string) => {
     setRecent((r) => [key, ...r.filter((k) => k !== key)].slice(0, 24));

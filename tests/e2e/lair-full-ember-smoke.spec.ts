@@ -29,4 +29,13 @@ test("an empty Lair is Ember across the whole space; picking a system splits it"
   await expect(page.getByRole("region", { name: `Service: ${name}` })).toBeVisible();
   await expect(desk).not.toHaveAttribute("data-empty", "true");
   expect((await dock.boundingBox())!.width).toBeLessThan(d.width * 0.7);
+
+  // Close that last panel with its own X: still the Lair, Ember full again (not Home).
+  await page
+    .getByRole("button", { name: `Close ${name}` })
+    .first()
+    .click();
+  await expect(desk).toHaveAttribute("data-empty", "true");
+  await expect(page).toHaveURL(/[?&]panels=/);
+  await expect(strip).toBeVisible();
 });

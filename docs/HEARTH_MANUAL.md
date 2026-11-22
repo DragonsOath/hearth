@@ -1087,8 +1087,8 @@ cinemas**, **Digital** release dates, and what Radarr or Sonarr is doing. Filter
 <!-- feature: jellyfin-panel -->
 ### Jellyfin's own tabs
 
-Jellyfin's panel has its own tabs after **Overview** (totals, who is watching, libraries, recently
-added), laid out like Plex's: **Library**, **Tasks** (scheduled tasks), **People**, **Devices**,
+Jellyfin's panel opens on **Home** (its home screen, above) and has its own tabs after
+**Overview** (totals, who is watching, libraries, recently added), laid out like Plex's: **Library**, **Tasks** (scheduled tasks), **People**, **Devices**,
 **Activity**, **Manage**, **Plugins**, **Settings** and **Logs**.
 Every change shows the exact before and after for your approval and is read back afterwards;
 Ember uses the same steps. Passwords, API keys and networking settings stay in Jellyfin.
@@ -1134,10 +1134,21 @@ plugin off (remove it instead), **Settings** shows the settings Emby has (it nam
 and lacks a few), and Emby's plugin catalog is read from Emby's site, so installing from it needs
 Emby to reach the internet.
 
+<!-- feature: media-home-tab -->
+### Home: the home screen, where Plex, Jellyfin and Emby open
+
+The Plex, Jellyfin and Emby panels open on **Home**: the home screen as that server shows it,
+row by row with posters, in the same editor as **Home rows** (move, take off and add rows, then
+send them). **Refresh** reads it again from the server, so a row you just made or moved in Home
+rows, or a movie or show that just landed in Recently Added, shows at once. Changes you have not
+sent yet are kept. Under it, **Read just now** (or how long ago) says when it was read.
+**Overview** is the next tab.
+
 <!-- feature: plex-panel -->
 ### Plex's own tabs
 
-Plex's panel has its own tabs after **Overview** (who is watching, libraries, scans, duplicates).
+Plex's panel has its own tabs after **Home** and **Overview** (who is watching, libraries, scans,
+duplicates).
 Every change shows the exact before and after for your approval and is read back afterwards;
 Ember uses the same steps. Sharing, users and remote access need your plex.tv account, and
 networking settings and anything with a password stay in Plex (shown locked, with a link).
@@ -1167,7 +1178,8 @@ networking settings and anything with a password stay in Plex (shown locked, wit
 ### Home rows
 
 Build your Plex home screen. Open **Home rows** in the Lair (or **Design it in Home rows** on
-the Plex panel's Manage tab). On a wide panel you see both halves; on a narrow one they are two
+the Plex panel's Manage tab). The same editor is the **Home** tab of the Plex, Jellyfin and Emby
+panels, for that one server. On a wide panel you see both halves; on a narrow one they are two
 tabs, **Your Home** and **Add a row**.
 
 **Your Home** shows every row in the order Plex shows it, library by library, with posters.

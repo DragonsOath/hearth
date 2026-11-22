@@ -293,6 +293,8 @@ export const APP_PANELS: Partial<Record<AppKind, AppPanel>> = {
     ],
   },
   plex: {
+    // Opens on Home, the home screen and its rows (11-21); Overview is one tab away.
+    start: "home",
     overview: view(
       () => import("../dashboards/PlexDashboard"),
       (m) =>
@@ -301,6 +303,18 @@ export const APP_PANELS: Partial<Record<AppKind, AppPanel>> = {
         },
     ),
     tabs: [
+      {
+        // Opens here (11-21): the home screen and its rows, with Refresh.
+        id: "home",
+        label: "Home",
+        view: view(
+          () => import("../homeRows/HomeRowsPanel"),
+          (m) =>
+            function MediaHome({ serviceId }: AppViewProps) {
+              return <m.ServerHome serviceId={serviceId} />;
+            },
+        ),
+      },
       {
         id: "library",
         label: "Library",
@@ -1003,12 +1017,26 @@ export const APP_PANELS: Partial<Record<AppKind, AppPanel>> = {
     ],
   },
   jellyfin: {
+    // Opens on Home, the home screen and its rows (11-21); Overview is one tab away.
+    start: "home",
     overview: view(
       () => import("../dashboards/JellyfinDashboard"),
       (m) => m.JellyfinDashboard,
     ),
     // Laid out like Plex's (11-04): Library, then Manage, Plugins and Settings beside the rest.
     tabs: [
+      {
+        // Opens here (11-21): the home screen and its rows, with Refresh.
+        id: "home",
+        label: "Home",
+        view: view(
+          () => import("../homeRows/HomeRowsPanel"),
+          (m) =>
+            function MediaHome({ serviceId }: AppViewProps) {
+              return <m.ServerHome serviceId={serviceId} />;
+            },
+        ),
+      },
       {
         id: "library",
         label: "Library",
@@ -1086,12 +1114,26 @@ export const APP_PANELS: Partial<Record<AppKind, AppPanel>> = {
   },
   // Emby speaks Jellyfin's API (Jellyfin began as Emby's free version): the same views.
   emby: {
+    // Opens on Home, the home screen and its rows (11-21); Overview is one tab away.
+    start: "home",
     overview: view(
       () => import("../dashboards/JellyfinDashboard"),
       (m) => m.JellyfinDashboard,
     ),
     // Laid out like Plex's (11-04): Library, then Manage, Plugins and Settings beside the rest.
     tabs: [
+      {
+        // Opens here (11-21): the home screen and its rows, with Refresh.
+        id: "home",
+        label: "Home",
+        view: view(
+          () => import("../homeRows/HomeRowsPanel"),
+          (m) =>
+            function MediaHome({ serviceId }: AppViewProps) {
+              return <m.ServerHome serviceId={serviceId} />;
+            },
+        ),
+      },
       {
         id: "library",
         label: "Library",

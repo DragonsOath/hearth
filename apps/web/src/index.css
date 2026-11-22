@@ -74,17 +74,46 @@
     overscroll-behavior-x: none;
   }
   /*
-   * Scrollbars in the theme's own colors, thin, with no arrow buttons (10-20: the browser's
-   * grey and white bars clashed). Built from the theme tokens, so every theme follows.
+   * Scrollbars in the theme's own colors, with no arrow buttons (10-20: the browser's grey and
+   * white bars clashed). Wide enough to grab with a mouse or trackpad, hold and drag (11-22, the
+   * owner on a laptop: "if you do need a scroll make it easy to grab the bar and hold and
+   * scroll"). Built from the theme tokens, so every theme follows; a theme can set --sb-thumb.
    */
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: color-mix(in oklab, var(--color-gold) 45%, var(--color-line-strong))
-      transparent;
+  :root {
+    --sb-thumb: color-mix(in oklab, var(--color-gold) 50%, var(--color-line-strong));
+    --sb-thumb-hover: color-mix(in oklab, var(--color-gold) 85%, var(--color-line-strong));
   }
-  *:hover {
-    scrollbar-color: color-mix(in oklab, var(--color-gold) 75%, var(--color-line-strong))
-      transparent;
+  ::-webkit-scrollbar {
+    width: 14px;
+    height: 14px;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-button {
+    display: none;
+  }
+  ::-webkit-scrollbar-thumb {
+    min-height: 48px;
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background: var(--sb-thumb) padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover,
+  ::-webkit-scrollbar-thumb:active {
+    border-width: 2px;
+    background: var(--sb-thumb-hover) padding-box;
+  }
+  /* Browsers without those (Firefox): their standard bar, full width, in the theme colors. */
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: auto;
+      scrollbar-color: var(--sb-thumb) transparent;
+    }
+    *:hover {
+      scrollbar-color: var(--sb-thumb-hover) transparent;
+    }
   }
   /*
    * Every scrolling or clipping box is the reference box for what is positioned inside it.

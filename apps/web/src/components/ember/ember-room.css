@@ -1985,14 +1985,6 @@
   margin: 0;
   font-size: 12px;
 }
-.er ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-.er ::-webkit-scrollbar-thumb {
-  background: rgba(var(--line-rgb), 0.25);
-  border-radius: 4px;
-}
 @media (max-width: 1700px) and (min-width: 1200px) {
   .er .top {
     gap: 12px;

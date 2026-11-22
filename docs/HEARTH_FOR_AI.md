@@ -169,7 +169,7 @@ Vault, which take keys safely.
   library; **Search releases** shows each release with the app's verdict. An app with no panel
   gets a basic one (status, logs, **Ask Ember**, **Request it**; full panels: **Request a
   feature**): reach its API with app_api.
-- Plex, Jellyfin, Emby open on **Home**: home screen rows (Home rows' editor), **Refresh**.
+- Plex, Jellyfin, Emby open on **Home**: the home screen as the server shows it (rows of posters, read only), **Change rows** (opens Home rows), **Refresh**.
 - **Home dashboard** (Home Assistant's **Home** tab): owner taps act at once; yours are plans.
   Speakers: rename by right-click or pencil; **Reset name**.
 - **Immich**: album tabs; **Select**, **Put in an album**; full view **Edit**. **Files and

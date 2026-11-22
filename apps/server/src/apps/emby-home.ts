@@ -243,6 +243,7 @@ type RawItem = {
 const poster = (x: RawItem) => ({
   id: x.Type === "Episode" && x.SeriesId ? x.SeriesId : x.Id,
   title: x.Type === "Episode" && x.SeriesName ? x.SeriesName : (x.Name ?? ""),
+  ...(x.Type !== "Episode" && x.ProductionYear ? { year: x.ProductionYear } : {}),
 });
 const itemsOf = (r: { ok: boolean; data: unknown }) => {
   if (!r.ok) return [] as RawItem[];
@@ -260,13 +261,13 @@ async function readPreviews(call: JellyfinCallFn, userId: string) {
       .filter((s) => s.SectionType !== "userviews")
       .map(async (s) => {
         const items = itemsOf(
-          await call("GET", `/Users/${enc(userId)}/Sections/${enc(s.Id)}/Items?Limit=8`).catch(
+          await call("GET", `/Users/${enc(userId)}/Sections/${enc(s.Id)}/Items?Limit=16`).catch(
             () => ({ ok: false, status: 0, data: undefined }),
           ),
         );
         // Latest Media is one block in edit mode and a row per library on the home screen.
         const key = s.SectionType === "latestmedia" && s.ParentId ? `latest:${s.ParentId}` : s.Id;
-        out[key] = items.slice(0, 8).map(poster);
+        out[key] = items.slice(0, 16).map(poster);
       }),
   );
   return out;

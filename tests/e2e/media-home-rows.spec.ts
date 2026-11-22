@@ -4,6 +4,7 @@ import { expect, test, type Page } from "@playwright/test";
 // Plex, Jellyfin and Emby panels open on Home (11-21, the owner: "we need to see the home screen
 // and its rows ... that should be the default page it opens to"), against the stand-in servers.
 // Refresh reads the home screen again, so a row made elsewhere or a title that just landed shows.
+// 11-22: the home screen itself, rows of posters as the server shows them, not the editor.
 
 const host = (end: number) =>
   `10.${1 + Math.floor(Math.random() * 250)}.${1 + Math.floor(Math.random() * 250)}.${end}`;
@@ -49,9 +50,12 @@ test("Plex opens on its home screen, and Refresh reads it again", async ({ page 
   try {
     const panel = await openPanel(page, id);
     const home = panel.getByTestId("server-home");
-    const rows = home.getByTestId("home-rows-home").getByTestId("home-row");
+    const rows = home.getByTestId("screen-row");
     await expect(rows.first()).toBeVisible({ timeout: 20_000 });
-    await expect(home).toContainText("The home screen as");
+    await expect(rows.first().getByTestId("screen-poster").first()).toBeVisible();
+    // Nothing to edit here: Home rows does that, one click away.
+    await expect(home.getByTestId("home-row")).toHaveCount(0);
+    await expect(home.getByTestId("server-home-change")).toBeVisible();
 
     // Refresh asks the server again for its rows and their posters.
     const asked = page.waitForRequest((r) => r.url().includes("/api/home-rows/options"));
@@ -87,15 +91,18 @@ test("Jellyfin and Emby open on their home screens too", async ({ page }, testIn
   const emby = await add(page, `Emby ${run}`, 8096, 95, "e2e-home-tab-emby");
   try {
     let panel = await openPanel(page, jf);
-    await expect(panel.getByTestId("server-home").getByTestId("jf-home")).toBeVisible({
+    await expect(panel.getByTestId("server-home").getByTestId("screen-row").first()).toBeVisible({
       timeout: 20_000,
+    });
+    await panel.getByTestId("server-home").screenshot({
+      path: `test-results/screens/${testInfo.project.name}/jellyfin-home-tab.png`,
     });
     const asked = page.waitForRequest((r) => r.url().includes(`/api/services/${jf}/jellyfin/home`));
     await panel.getByTestId("server-home-refresh").click();
     await asked;
 
     panel = await openPanel(page, emby);
-    await expect(panel.getByTestId("server-home").getByTestId("emby-home")).toBeVisible({
+    await expect(panel.getByTestId("server-home").getByTestId("screen-row").first()).toBeVisible({
       timeout: 20_000,
     });
   } finally {

@@ -98,3 +98,19 @@ export function useIssuerAction() {
     onSuccess: () => refresh(qc),
   });
 }
+
+/**
+ * The Premium tour (11-22): a new conversation where Ember shows each Premium extra on screen with
+ * Show & Tell. The same tour from Welcome to Premium and from Settings, Premium, any time.
+ */
+export function usePremiumTour() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api<{ conversationId: string }>("POST", "/api/premium/tour", {}),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["premium"] });
+      void qc.invalidateQueries({ queryKey: ["show-settings"] });
+      void qc.invalidateQueries({ queryKey: ["conversations"] });
+    },
+  });
+}

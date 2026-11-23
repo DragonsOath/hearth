@@ -27,6 +27,27 @@ export function appLink(loc: { pathname: string; search: string } = window.locat
   return `hearth://open${loc.pathname}${loc.search}`;
 }
 
+/**
+ * How to move to the app (11-22, the owner: once setup is done, tell them to close the browser,
+ * search Hearth in their apps, open it, and pin it to their taskbar).
+ */
+export function AppWindowSteps({ className }: { className?: string }) {
+  return (
+    <ol
+      className={`list-decimal space-y-1 pl-5 text-[0.9rem] text-ink ${className ?? ""}`}
+      data-testid="app-window-steps"
+    >
+      <li>Close this browser.</li>
+      <li>
+        Search for <b>Hearth</b> in your apps and open it. Sign in once and it keeps you signed in.
+      </li>
+      <li>
+        Right-click Hearth&apos;s icon on your taskbar and pin it, so it&apos;s one click away.
+      </li>
+    </ol>
+  );
+}
+
 export function OpenInApp() {
   const [hidden, setHidden] = useState(() => inAppWindow() || isTouchOnly() || stayed());
   const [opened, setOpened] = useState(false);
@@ -68,18 +89,18 @@ export function OpenInApp() {
           Hearth is an app on this PC
         </h2>
         <p className="mt-2 text-[0.92rem] text-muted">
-          The installer put Hearth on your desktop and in your app menu. It opens in its own window
-          with its own icon, so you don&apos;t need this browser tab.
+          The installer put Hearth in your apps. It opens in its own window with its own icon, so
+          you don&apos;t need this browser:
         </p>
+        <AppWindowSteps className="mt-3" />
         {opened ? (
           <p
             className="mt-4 rounded-xl border border-line bg-bg/50 p-3 text-[0.88rem] text-ink"
             role="status"
             data-testid="open-in-app-opened"
           >
-            If your browser asks, choose <b>Open</b>. Sign in there once and it keeps you signed in.
-            Then you can close this tab. Nothing opened? Use the Hearth icon on your desktop or in
-            your app menu.
+            If your browser asks, choose <b>Open</b>. Then you can close this browser. Nothing
+            opened? Search for Hearth in your apps.
           </p>
         ) : null}
         <div className="mt-5 flex flex-wrap gap-2">

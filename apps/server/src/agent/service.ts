@@ -907,8 +907,49 @@ export class Agents {
         .where(eq(t.conversations.id, j.conversationId!));
     });
     this.onReply?.(j.conversationId);
-    if (ok) await this.carryOn(j);
+    if (ok) {
+      this.failedInARow.delete(j.conversationId);
+      await this.carryOn(j);
+    } else await this.carryOnFailed(j);
     await this.carryOnBuild(j, ok);
+  }
+
+  /** Plans that failed in a row in a conversation, for the guard below. */
+  private readonly failedInARow = new Map<string, number>();
+
+  /**
+   * A plan failed (11-22, the owner: "Ember doesn't find a solution when a plan fails, come back
+   * with a solution"): she looks into why with read-only checks and comes back on her own with a
+   * corrected plan for what's left (it waits for approval as always) or exactly what the owner
+   * needs to do. Twice in a row at most, so a fix that fails again can't loop.
+   */
+  private async carryOnFailed(j: typeof t.jobs.$inferSelect) {
+    if (!j.conversationId) return;
+    if (!["failed", "partial", "rolled-back"].includes(j.status)) return;
+    const steps = await this.db
+      .select()
+      .from(t.jobSteps)
+      .where(eq(t.jobSteps.jobId, j.id))
+      .orderBy(asc(t.jobSteps.seq));
+    // Build my plan's steps have their own follow-up (carryOnBuild).
+    if (steps.some((s) => s.kind.startsWith("build-"))) return;
+    const n = (this.failedInARow.get(j.conversationId) ?? 0) + 1;
+    this.failedInARow.set(j.conversationId, n);
+    if (n > 2) return;
+    const lines = steps
+      .filter((s) => s.status !== "succeeded")
+      .map((s) => `step ${s.seq} "${s.label}": ${s.status}${s.result ? `, ${s.result}` : ""}`)
+      .join("; ");
+    const done = steps.filter((s) => s.status === "succeeded").map((s) => `step ${s.seq}`);
+    void this.track(
+      this.converse({
+        text: `The plan "${j.title}" did not finish. ${done.length ? `Done: ${done.join(", ")}. ` : ""}Not done: ${lines}. Find out why with read-only checks (a step reported failed may have worked: check the real state first), then either propose a corrected plan for only what is left, or say exactly what the owner needs to do. Don't just repeat the error.`,
+        conversationId: j.conversationId,
+        source: "app",
+        waitMs: 0,
+        carryOn: true,
+      }).catch(() => undefined),
+    );
   }
 
   /**

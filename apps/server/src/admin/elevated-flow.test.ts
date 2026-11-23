@@ -60,7 +60,7 @@ interface World {
   calls: string[];
 }
 
-async function setup(opts: { elevated?: boolean } = {}) {
+async function setup(opts: { elevated?: boolean; memory?: unknown } = {}) {
   const handle = openDatabase(":memory:");
   await runMigrations(handle, path.join(SERVER_ROOT, "drizzle"));
   handles.push(handle);
@@ -273,6 +273,7 @@ async function setup(opts: { elevated?: boolean } = {}) {
     backupRoot: path.join(root, "backups"),
     run,
     ...(elevation ? { elevation } : {}),
+    ...(opts.memory ? { memory: opts.memory as never } : {}),
     // No waiting between container checks in tests.
     wait: async () => undefined,
   });
@@ -490,6 +491,26 @@ describe("Compose administration", () => {
       "agent",
     );
     expect(taken.policy).toBe("refuse");
+  });
+
+  it("a new app that installed and runs is remembered without failing the step (11-22)", async () => {
+    // With Hearth's memory on (as in production), recording the install looked up a service
+    // "this-host", which doesn't exist: the install worked but the step said it failed.
+    const remembered: { machine?: string }[] = [];
+    const memory = {
+      recordSystem: async (_db: unknown, m: { machine?: string }) => void remembered.push(m),
+    };
+    const { approve, composeRoot, world } = await setup({ memory });
+    process.env.DC_COMPOSE_ROOT = fwd(composeRoot);
+    world.registry.set("ghcr.io/example/app:1", "sha256:eee555eee555eee5");
+    const compose = "services:\n  app:\n    image: ghcr.io/example/app:1\n";
+    const ok = await approve([
+      { kind: "compose-install", serviceId: THIS_HOST, params: { project: "remembered", compose } },
+    ]);
+    expect(ok.steps[0]!.status).toBe("succeeded");
+    expect(ok.steps[0]!.result).not.toMatch(/No service/);
+    expect(remembered).toHaveLength(1);
+    expect(remembered[0]!.machine).toBeTruthy();
   });
 
   it("removes a project's containers, keeping its file, and starts it again on undo", async () => {

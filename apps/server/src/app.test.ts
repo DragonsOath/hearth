@@ -147,6 +147,7 @@ import {
   hosts as hostsTable,
   volumeUsageDaily,
   jobs as jobsTable,
+  jobSteps as jobStepsTable,
 } from "./db/schema";
 import { eq, sql } from "drizzle-orm";
 
@@ -11870,6 +11871,69 @@ describe("the AI operator", () => {
       .find((j) => j.title === "Check Jellyfin")!;
     expect(job.conversationId).toBe(first.conversationId);
     expect(note.activity?.some((a) => a.kind === "job" && a.ref === `job:${job.id}`)).toBe(true);
+  });
+
+  it("a plan that fails: Ember looks into why on her own and comes back with a fix, twice at most (11-22)", async () => {
+    const app = await connected();
+    agentScript = async () => "Looking into it.";
+    const first = (
+      await app.call("POST", "/api/agent/conversations", { text: "Add FlareSolverr to Prowlarr" })
+    ).json<{ conversationId: string }>();
+    await app.agents.idle();
+    const fail = async (n: number) => {
+      const id = `job-failed-${n}`;
+      const at = new Date().toISOString();
+      await app.handle.db.insert(jobsTable).values({
+        id,
+        title: "Add FlareSolverr and 1337x to Prowlarr",
+        reason: "",
+        impact: "",
+        requestedBy: "agent",
+        status: "failed",
+        summary: 'Stopped at step 1 of 3: No service "this-host".',
+        conversationId: first.conversationId,
+        createdAt: at,
+        finishedAt: at,
+      } as never);
+      await app.handle.db.insert(jobStepsTable).values([
+        {
+          jobId: id,
+          seq: 1,
+          kind: "compose-install",
+          serviceId: "this-host",
+          serviceName: "This machine",
+          label: "Install flaresolverr as a new Compose project",
+          policy: "approve-first",
+          policyReason: "",
+          status: "failed",
+          result: 'No service "this-host".',
+        },
+        {
+          jobId: id,
+          seq: 2,
+          kind: "app-prowlarr-proxy",
+          serviceId: "prowlarr",
+          serviceName: "Prowlarr",
+          label: "Add the indexer proxy FlareSolverr to Prowlarr",
+          policy: "approve-first",
+          policyReason: "",
+          status: "skipped",
+        },
+      ] as never);
+      const before = agentPrompts.length;
+      await app.agents.postJobResult(id);
+      await app.agents.idle();
+      return agentPrompts.slice(before);
+    };
+    const prompts = await fail(1);
+    expect(prompts).toHaveLength(1);
+    expect(prompts[0]).toMatch(/did not finish/);
+    expect(prompts[0]).toMatch(/step 1 "Install flaresolverr as a new Compose project": failed/);
+    expect(prompts[0]).toMatch(/check the real state first/);
+    expect(prompts[0]).toMatch(/propose a corrected plan for only what is left/);
+    // A second failure in a row: once more. A third: no loop.
+    expect(await fail(2)).toHaveLength(1);
+    expect(await fail(3)).toHaveLength(0);
   });
 
   it("a plan proposed in a conversation posts its result there; a limit-stopped answer states where plans stand", async () => {

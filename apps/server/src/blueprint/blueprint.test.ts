@@ -409,6 +409,45 @@ describe("the Lab Blueprint service", () => {
     expect(r).toEqual({ added: [], skipped: ["Sonarr API key"] }); // already in this vault
     expect((await s.bp.imported())?.markdown).toContain("# Lab blueprint: home-server");
   });
+
+  it("carries this Hearth's Premium, never in what Ember reads, and moves it only when asked", async () => {
+    const s = await setupService();
+    const moves: { tokens: string[]; from: string }[] = [];
+    s.bp.premium = {
+      licences: async () => ["HEARTHL1.licence-a.sig"],
+      describe: async (t) =>
+        t === "HEARTHL1.licence-a.sig" ? { features: ["ember_show_and_tell"] } : null,
+      move: async (tokens, from) => {
+        moves.push({ tokens, from });
+        return { state: "moved", features: ["ember_show_and_tell"] };
+      },
+    };
+    const { recoveryKey } = await s.bp.startSetup({ folder: s.dir }, s.session);
+    const st = await s.bp.confirmSetup(recoveryKey, s.session);
+    const bytes = readFileSync(path.join(s.dir, st.versions[0]!.file));
+    const pkg = await decryptPackage(bytes, recoveryKey);
+    expect(pkg.licences).toEqual(["HEARTHL1.licence-a.sig"]);
+    expect(pkg.markdown).not.toContain("HEARTHL1");
+    const preview = await s.bp.openImport(bytes, recoveryKey, s.session);
+    expect(preview.premium).toEqual({ features: ["ember_show_and_tell"] });
+    expect(JSON.stringify(preview)).not.toContain("HEARTHL1");
+    // Left unticked: Premium stays where it is.
+    const kept = await s.bp.applyImport(preview.id, [], s.session, { movePremium: false });
+    expect(kept.premium).toBeUndefined();
+    expect(moves).toEqual([]);
+    const again = await s.bp.openImport(bytes, recoveryKey, s.session);
+    const r = await s.bp.applyImport(again.id, [], s.session, { movePremium: true });
+    expect(r.premium).toEqual({ state: "moved", features: ["ember_show_and_tell"] });
+    expect(moves).toEqual([{ tokens: ["HEARTHL1.licence-a.sig"], from: "home-server" }]);
+    // A move that fails is said, and the rest of the import still counts.
+    s.bp.premium.move = async () => {
+      throw new Error("That licence was taken back.");
+    };
+    const third = await s.bp.openImport(bytes, recoveryKey, s.session);
+    const failed = await s.bp.applyImport(third.id, [], s.session, { movePremium: true });
+    expect(failed.premium).toEqual({ state: "failed", detail: "That licence was taken back." });
+    expect(await s.bp.imported()).not.toBeNull();
+  });
 });
 
 describe("cloud storage", () => {

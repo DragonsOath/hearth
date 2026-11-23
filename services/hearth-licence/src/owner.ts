@@ -563,8 +563,11 @@ export async function owner(
       const ids = await store.licencesOf(b.id);
       if (!ids.length)
         return refuse(409, "Nobody has redeemed that code yet. Switch it off instead.");
-      if (b.undo === true) for (const l of ids) await store.unrevoke(l);
-      else await store.revoke(ids, iso);
+      // A licence moved to a new Hearth (move.ts) is taken back there too; given back, only
+      // where it is now.
+      const { movedOn, newestOf } = await import("./move");
+      if (b.undo === true) for (const l of await newestOf(store, ids)) await store.unrevoke(l);
+      else await store.revoke(await movedOn(store, ids), iso);
       return json(200, { ok: true });
     }
 
@@ -599,8 +602,10 @@ export async function owner(
       const b = await body();
       if (typeof b.licenceId !== "string" || !ID.test(b.licenceId))
         return refuse(400, "Which licence?");
-      if (b.takeBack === false) await store.unrevoke(b.licenceId);
-      else await store.revoke([b.licenceId], iso);
+      const { movedOn, newestOf } = await import("./move");
+      if (b.takeBack === false)
+        for (const l of await newestOf(store, [b.licenceId])) await store.unrevoke(l);
+      else await store.revoke(await movedOn(store, [b.licenceId]), iso);
       return json(200, { ok: true });
     }
   } catch {

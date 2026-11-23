@@ -140,6 +140,25 @@ from its own (`premium` setting, `linked`, by source), still checks the signatur
 revocation of each, and forgets them when the PC is removed or leaves. Licence keys stay bound to
 one installation; only their reach changed.
 
+## Moving to a new Hearth (the owner, 11-23)
+
+"Install a new Hearth on a new machine, put in your recovery key, nothing is lost." Each Lab
+Blueprint version carries this Hearth's own licence keys (`licences`, read only by Hearth, never
+in the markdown Ember reads). Importing it on a new Hearth shows the Premium it carries and offers
+**Move Premium to this Hearth**, ticked. Moving sends the old licence to the licence service
+(`POST /v1/move {licence, install}`), which signs the same Premium (features, start, end, label)
+for the new installation and takes the old one back: one Hearth at a time, as before; linking is
+how one purchase covers several.
+
+- Holding the licence is the proof: it only leaves a Hearth inside a blueprint encrypted to the
+  owner's recovery key.
+- Asked again for the same Hearth, the same licence comes back. An older blueprint (written before
+  a move) follows Premium to where it is now.
+- At most 3 moves a year per licence (by its first licence, `root`); past that, by hand.
+- Taking a code's Premium back reaches wherever it moved; giving it back reinstates only the
+  newest. Moves are kept in the `moves` table (`schema.sql`).
+- A move that fails never undoes the import; importing again tries once more.
+
 ## When a licence ends or is taken back
 
 New premium actions stop. Nothing else changes: links stay recorded and their live connection

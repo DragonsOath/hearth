@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
+  BlueprintImportResult,
   BlueprintCloud,
   BlueprintImportPreview,
   BlueprintStatus,
@@ -101,9 +102,14 @@ export function useBlueprintImportOpen() {
 
 export function useBlueprintImportApply() {
   const refresh = useRefresh();
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { id: string; names: string[] }) =>
-      api<{ added: string[]; skipped: string[] }>("POST", "/api/blueprint/import/apply", v),
-    onSuccess: refresh,
+    mutationFn: (v: { id: string; names: string[]; movePremium?: boolean }) =>
+      api<BlueprintImportResult>("POST", "/api/blueprint/import/apply", v),
+    onSuccess: (r) => {
+      refresh();
+      // Premium moved here: its setup (package, reload, Welcome) shows on every page.
+      if (r.premium?.state === "moved") void qc.invalidateQueries({ queryKey: ["premium"] });
+    },
   });
 }

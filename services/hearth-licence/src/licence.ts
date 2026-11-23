@@ -144,6 +144,21 @@ export interface Redemption {
   ends: string | null;
 }
 
+/**
+ * Premium moved to a new Hearth (move.ts): the licence `fromId` was replaced by `toId` for another
+ * installation and taken back. `root` is the licence first given (a code's or the owner's).
+ */
+export interface Move {
+  fromId: string;
+  toId: string;
+  root: string;
+  fromInstall: string;
+  toInstall: string;
+  at: string;
+  /** The licence given, so asking again (a lost answer) gets the same one. */
+  licence: string;
+}
+
 export interface Store {
   codeByHash(hash: string): Promise<Code | null>;
   codeById(id: string): Promise<Code | null>;
@@ -175,6 +190,14 @@ export interface Store {
   setNote(codeId: string, note: string | null): Promise<boolean>;
   grants(): Promise<Grant[]>;
   putGrant(g: Grant): Promise<void>;
+  /** Where a licence was moved to, if it was. */
+  moveFrom(id: string): Promise<Move | null>;
+  /** The move that made a licence, if one did. */
+  moveTo(id: string): Promise<Move | null>;
+  /** Records a move; false when that licence was already moved (two at once: one wins). */
+  putMove(m: Move): Promise<boolean>;
+  /** How many moves a licence (by its root) had since then (ISO). */
+  movesSince(root: string, since: string): Promise<number>;
 }
 
 import type { Denial, FounderStore } from "./founder";
@@ -250,7 +273,7 @@ export async function signLicence(
     id: string;
     install: string;
     features: string[];
-    kind: "complimentary";
+    kind: string;
     start: string;
     end?: string;
     issued: string;
@@ -331,6 +354,12 @@ export async function handle(
   if (req.method === "POST" && path === "/v1/package") {
     const { deliverPackage } = await import("./package");
     return deliverPackage(req, env, store, now, fetchImpl);
+  }
+
+  // Premium moving to a new Hearth with its Lab Blueprint (move.ts).
+  if (req.method === "POST" && path === "/v1/move") {
+    const { moveLicence } = await import("./move");
+    return moveLicence(req, env, store, now);
   }
 
   if (req.method === "POST" && path === "/v1/redeem") {
@@ -460,18 +489,22 @@ export async function handle(
           !ids.every((x) => typeof x === "string" && ID.test(x))
         )
           return refuse(400, "Which licences?");
-        await store.revoke(ids as string[], new Date(t).toISOString());
+        // A licence taken back is taken back wherever it was moved to.
+        const { movedOn } = await import("./move");
+        await store.revoke(await movedOn(store, ids as string[]), new Date(t).toISOString());
         return json(200, { ok: true });
       }
       case "revoke-code": {
         if (typeof body.id !== "string") return refuse(400, "Which code?");
-        const ids = await store.licencesOf(body.id);
+        const { movedOn } = await import("./move");
+        const ids = await movedOn(store, await store.licencesOf(body.id));
         if (ids.length) await store.revoke(ids, new Date(t).toISOString());
         return json(200, { ok: true, revoked: ids.length });
       }
       case "unrevoke": {
         if (typeof body.id !== "string") return refuse(400, "Which licence?");
-        await store.unrevoke(body.id);
+        const { newestOf } = await import("./move");
+        for (const l of await newestOf(store, [body.id])) await store.unrevoke(l);
         return json(200, { ok: true });
       }
       case "list": {
@@ -498,6 +531,7 @@ export function memoryStore(): Store & { all: { codes: Map<string, Code> } } {
   const tries: { install: string; at: number }[] = [];
   const campaigns = new Map<string, Campaign>();
   const grants: Grant[] = [];
+  const moves: Move[] = [];
   return {
     all: { codes },
     async codeByHash(hash) {
@@ -553,6 +587,20 @@ export function memoryStore(): Store & { all: { codes: Map<string, Code> } } {
     },
     async putGrant(g) {
       grants.push(g);
+    },
+    async moveFrom(id) {
+      return moves.find((m) => m.fromId === id) ?? null;
+    },
+    async moveTo(id) {
+      return moves.find((m) => m.toId === id) ?? null;
+    },
+    async putMove(m) {
+      if (moves.some((x) => x.fromId === m.fromId)) return false;
+      moves.push({ ...m });
+      return true;
+    },
+    async movesSince(root, since) {
+      return moves.filter((m) => m.root === root && m.at >= since).length;
     },
     async setActive(id, active) {
       const c = codes.get(id);

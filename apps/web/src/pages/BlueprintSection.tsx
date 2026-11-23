@@ -1,5 +1,11 @@
 import { useState, type ReactNode } from "react";
-import type { BlueprintCloud, BlueprintImportPreview, BlueprintStatus } from "@dragon-control/core";
+import {
+  PREMIUM_INFO,
+  type BlueprintCloud,
+  type BlueprintImportPreview,
+  type BlueprintStatus,
+  type PremiumFeature,
+} from "@dragon-control/core";
 import { Button, Section, Tag } from "../components/ui";
 import { ApiError } from "../data/api";
 import {
@@ -534,6 +540,7 @@ function Import({ status }: { status: BlueprintStatus }) {
   const [file, setFile] = useState<File>();
   const [key, setKey] = useState("");
   const [chosen, setChosen] = useState<Set<string>>(new Set());
+  const [movePremium, setMovePremium] = useState(true);
   const open = useBlueprintImportOpen();
   const apply = useBlueprintImportApply();
   const owner = useOwnerStep();
@@ -549,6 +556,23 @@ function Import({ status }: { status: BlueprintStatus }) {
             : ""}
           .
         </p>
+        {apply.data.premium?.state === "moved" && (
+          <p className="max-w-2xl text-[0.88rem] text-gold" data-testid="blueprint-premium-moved">
+            Premium moved to this Hearth. It turns on in a moment: Hearth gets the Premium package
+            and reloads itself once nothing is running. The old Hearth no longer has it.
+          </p>
+        )}
+        {apply.data.premium?.state === "already" && (
+          <p className="max-w-2xl text-[0.85rem] text-muted">
+            Premium was already this Hearth&apos;s.
+          </p>
+        )}
+        {apply.data.premium?.state === "failed" && (
+          <p className="max-w-2xl text-[0.85rem] text-bad" role="alert">
+            Premium didn&apos;t move: {apply.data.premium.detail} Everything else was imported;
+            import the blueprint again to try moving Premium once more.
+          </p>
+        )}
         <p className="max-w-2xl text-[0.85rem] text-muted">
           Ember can now read the imported blueprint. Ask it to plan the rebuild with you; nothing is
           installed or changed until you approve its plan.
@@ -594,13 +618,44 @@ function Import({ status }: { status: BlueprintStatus }) {
             made with Update now while the vault was unlocked.
           </p>
         )}
+        {preview.premium && (
+          <label
+            className="flex max-w-2xl items-start gap-3 rounded-xl border border-gold/50 p-3 text-[0.85rem] text-ink"
+            data-testid="blueprint-move-premium"
+          >
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={movePremium}
+              onChange={(e) => setMovePremium(e.target.checked)}
+            />
+            <span>
+              <span className="font-semibold">Move Premium to this Hearth</span>
+              <span className="mt-1 block text-muted">
+                This blueprint carries Premium (
+                {preview.premium.features
+                  .map((f) => PREMIUM_INFO[f as PremiumFeature]?.name ?? f)
+                  .join(", ")}
+                {preview.premium.end ? `, until ${dateTime(preview.premium.end)}` : ", for good"}).
+                Moving it gives this Hearth Premium, and {preview.host} stops having it. To keep
+                Premium on both, link the two Hearths instead. Premium can move 3 times a year.
+              </span>
+            </span>
+          </label>
+        )}
         {owner.confirm}
         <div className="flex flex-wrap gap-2">
           <Button
             tone="primary"
             disabled={apply.isPending || owner.waiting}
             onClick={() =>
-              owner.guard(() => apply.mutateAsync({ id: preview.id, names: [...chosen] }))
+              owner.guard(() =>
+                apply.mutateAsync({
+                  id: preview.id,
+                  names: [...chosen],
+                  ...(preview.premium ? { movePremium } : {}),
+                }),
+              )
             }
           >
             {apply.isPending ? "Importing" : "Import"}

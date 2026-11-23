@@ -14692,6 +14692,70 @@ describe("Hearth Premium at the action boundary (docs/design/PREMIUM.md)", () =>
     });
   }, 30_000);
 
+  it("Premium moves to a new Hearth with its Lab Blueprint and recovery key (11-23)", async () => {
+    const { mkdtempSync, readFileSync } = await import("node:fs");
+    const os = await import("node:os");
+    const { handle, memoryStore, codeHash } =
+      await import("../../../services/hearth-licence/src/licence");
+    const { LicenceService } = await import("./premium/service");
+    // The real licence service, shared by the old and the new Hearth.
+    const store = memoryStore();
+    const code = "HRTH-MOVES-AAAAA-BBBBB-CCCCC";
+    await store.putCode({
+      id: "code-moves-1",
+      hash: await codeHash(code),
+      features: ["hearth_interconnectivity", "ember_show_and_tell", "panel_builder"],
+      maxUses: 1,
+      days: null,
+      redeemBy: null,
+      label: "Founder",
+      active: true,
+    });
+    const env = { SIGNING_KEY: TEST_SIGNER.privatePem, OWNER_KEY: "" };
+    const service = new LicenceService("https://licence.test", (async (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ) => handle(new Request(String(input), init), env, store, Date.now)) as typeof fetch);
+    const active = async (a: Awaited<ReturnType<typeof makeApp>>) =>
+      (await a.call("GET", "/api/premium"))
+        .json<{ features: { state: string }[] }>()
+        .features.filter((f) => f.state === "active").length;
+
+    const old = await makeApp({ licenceService: service });
+    expect((await old.call("POST", "/api/premium/redeem", { code })).statusCode).toBe(200);
+    const folder = mkdtempSync(path.join(os.tmpdir(), "hearth-bp-"));
+    const started = await old.call("POST", "/api/blueprint/setup/start", { destination: folder });
+    expect(started.statusCode).toBe(200);
+    const { recoveryKey } = started.json<{ recoveryKey: string }>();
+    const st = await old.call("POST", "/api/blueprint/setup/confirm", { recoveryKey });
+    expect(st.statusCode).toBe(200);
+    const file = st.json<{ versions: { file: string }[] }>().versions[0]!.file;
+    const bytes = readFileSync(path.join(folder, file)).toString("base64");
+
+    // A new machine: a fresh Hearth, the blueprint and the recovery key.
+    const fresh = await makeApp({ licenceService: service });
+    expect(await active(fresh)).toBe(0);
+    const opened = await fresh.call("POST", "/api/blueprint/import/open", {
+      file: bytes,
+      recoveryKey,
+    });
+    expect(opened.statusCode).toBe(200);
+    const preview = opened.json<{ id: string; premium?: { features: string[] } }>();
+    expect(preview.premium?.features).toHaveLength(3);
+    const applied = await fresh.call("POST", "/api/blueprint/import/apply", {
+      id: preview.id,
+      names: [],
+      movePremium: true,
+    });
+    expect(applied.statusCode).toBe(200);
+    expect(applied.json<{ premium: { state: string } }>().premium.state).toBe("moved");
+    expect(await active(fresh)).toBe(3);
+    // The old Hearth's licence is taken back: one Hearth at a time.
+    const oldId = (await old.call("GET", "/api/premium")).json<{ licenses: { id: string }[] }>()
+      .licenses[0]!.id;
+    expect(await store.revoked()).toEqual([oldId]);
+  }, 30_000);
+
   it("Learn about Premium needs an AI connected, and says so plainly (11-22)", async () => {
     const app = await makeApp();
     const r = await app.call("POST", "/api/premium/tour", {});

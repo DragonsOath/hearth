@@ -275,6 +275,52 @@ describe("a Hearth that already has a licence gets the package at startup, witho
     expect(t.asked).toHaveLength(1);
   });
 
+  it("installed but not loading after the reload: says why once, never reloads again (11-23)", async () => {
+    const t = await setup();
+    await t.pkg.startup();
+    expect(t.restarts).toHaveLength(1);
+    // Hearth came back, but the package was skipped: no second install, no second reload.
+    const pkg = new PremiumPackage({ ...t.deps, skipped: () => "It failed to load: clash" });
+    await pkg.startup();
+    expect(t.restarts).toHaveLength(1);
+    expect(t.asked).toHaveLength(1);
+    expect(await pkg.status()).toMatchObject({ state: "failed" });
+  });
+
+  it("a package update says Welcome to Premium no more once it was seen (11-23)", async () => {
+    const t = await setup();
+    await t.deps.memory.set({ version: "1.1.0", checkedFor: "0.88.0", welcome: false });
+    await t.pkg.startup();
+    expect(t.restarts).toHaveLength(1);
+    expect(t.memory()).toMatchObject({ version: "1.2.0", welcome: false });
+  });
+
+  it("the copy kept from before an update is never loaded beside the new one (11-23)", async () => {
+    const t = await setup();
+    await t.pkg.startup();
+    // A second install keeps the first as a hidden folder in the same place.
+    const { Addons } = await import("../addons");
+    const dir = t.dir;
+    const { cpSync } = await import("node:fs");
+    cpSync(path.join(dir, "hearth-premium"), path.join(dir, ".hearth-premium-previous"), {
+      recursive: true,
+    });
+    const addons = new Addons();
+    const names: string[] = [];
+    await addons.load(dir, {
+      coreVersion: "0.89.0",
+      app: { get: () => undefined, post: () => undefined } as never,
+      db: {} as never,
+      has: async () => true,
+      require: async () => undefined,
+      log: { info: (m: string) => void names.push(m), warn: (m: string) => void names.push(m) },
+    } as never);
+    // Only the installed package is looked at; the kept copy is left alone.
+    expect(addons.skipped.map((x) => x.folder)).not.toContain(".hearth-premium-previous");
+    expect(names.join(" ")).not.toContain(".hearth-premium-previous");
+    expect(addons.loaded.length + addons.skipped.length).toBe(1);
+  });
+
   it("no licence: never goes online", async () => {
     const t = await setup();
     const pkg = new PremiumPackage({ ...t.deps, licence: async () => undefined });

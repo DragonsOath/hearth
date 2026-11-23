@@ -375,6 +375,19 @@ test("walks all seven steps, saving each one as it goes", async () => {
   await expect(paths.getByRole("button", { name: "Meet Ember" })).toHaveCount(0);
   // The beginner's plan stays one click away.
   await expect(paths.getByRole("button", { name: "Build my setup" })).toBeVisible();
+  // Set up in a browser: Ember points them to the app, and how to pin it (11-22).
+  if (
+    !(await page.evaluate(
+      () =>
+        matchMedia("(any-pointer: coarse)").matches && !matchMedia("(any-pointer: fine)").matches,
+    ))
+  ) {
+    const app = page.getByTestId("welcome-app-window");
+    await expect(app).toContainText("Ember: You're all set up.");
+    await expect(app).toContainText("Close this browser.");
+    await expect(app).toContainText("Search for Hearth in your apps and open it.");
+    await expect(app).toContainText("pin it");
+  }
   expect(await seriousViolations(page)).toEqual([]);
   await shot("7-done");
   await page.getByRole("button", { name: "Enter Hearth" }).click();

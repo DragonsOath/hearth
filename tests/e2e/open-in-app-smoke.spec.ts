@@ -17,6 +17,11 @@ test("a browser tab on Hearth's PC offers the app, and Stay in the browser keeps
     "href",
     "hearth://open/plan",
   );
+  // Close the browser, search Hearth in your apps, pin it (11-22).
+  const steps = dialog.getByTestId("app-window-steps");
+  await expect(steps).toContainText("Close this browser.");
+  await expect(steps).toContainText("Search for Hearth in your apps");
+  await expect(steps).toContainText("pin it");
   await page.screenshot({ path: `test-results/screens/${testInfo.project.name}/open-in-app.png` });
   await dialog.getByRole("button", { name: "Stay in the browser" }).click();
   await expect(dialog).toHaveCount(0);

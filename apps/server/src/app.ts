@@ -5951,11 +5951,18 @@ export async function buildApp({
     await premiumPackage.welcomed();
     const show = await getSetting(db, "show_and_tell");
     const showOn = await entitlements.has("ember_show_and_tell");
-    if (showOn && (!show?.mode || show.mode === "off")) {
-      await setSetting(db, "show_and_tell", { ...show, mode: "show" });
+    // A tour is spoken (the owner, 11-22: "I'm not getting any vocals"): captions are read aloud
+    // too, on a device with a voice, unless the owner already turned that off themselves.
+    if (showOn && (!show?.mode || show.mode === "off" || show.speak === undefined)) {
+      await setSetting(db, "show_and_tell", {
+        ...show,
+        mode: !show?.mode || show.mode === "off" ? "show" : show.mode,
+        speak: show?.speak ?? true,
+        ...(show?.mode && show.mode !== "off" ? {} : { speak: true }),
+      });
       await recordAudit(db, {
         actor: "you",
-        action: "Turned on Show & Tell (Show me) for the Premium tour",
+        action: "Turned on Show & Tell with captions read aloud, for the Premium tour",
         target: "show-and-tell",
       });
     }

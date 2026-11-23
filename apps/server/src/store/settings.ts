@@ -148,6 +148,8 @@ export interface SettingValues {
   premium: import("../premium/entitlements").PremiumState;
   /** The owner's licence signing key, on the issuing Hearth only (its vault entry, public half). */
   premium_issuer: import("../premium/issuer").IssuerSetting;
+  /** The Premium package installed here, and the Hearth version it last asked about (11-22). */
+  premium_package: import("../premium/package").PackageMemory;
   /** The Crucible's saved rows, per Radarr or Sonarr service id (crucible-apply.ts). */
   crucible: Record<string, import("@dragon-control/core").CrucibleSetup>;
   /** The highest movie id the Crucible's keeper has handled, per Radarr (crucible-keeper.ts). */

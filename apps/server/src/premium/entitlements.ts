@@ -158,6 +158,21 @@ export class Entitlements {
     return [...out.values()].slice(0, 40);
   }
 
+  /**
+   * A licence key in force here, own or a linked Hearth's (what the Premium package is fetched
+   * with), or none.
+   */
+  async licenceInForce(): Promise<string | undefined> {
+    const st = await this.status(false, false);
+    const active = new Set(st.licenses.filter((l) => l.state === "active").map((l) => l.id));
+    if (!active.size) return undefined;
+    for (const token of await this.shareable()) {
+      const id = peekId(token);
+      if (id && active.has(id)) return token;
+    }
+    return undefined;
+  }
+
   /** Keeps what a linked Hearth shared (an empty list forgets it: unlinked, or none left). */
   async setLinked(source: string, tokens: string[]) {
     const s = await this.state();

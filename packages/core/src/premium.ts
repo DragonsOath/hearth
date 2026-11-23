@@ -131,8 +131,27 @@ export interface FeatureAccess {
   end?: string;
 }
 
+/**
+ * The Premium package on this Hearth (11-22: a redeem fetches it, checks its signature, installs
+ * it, and Hearth reloads itself once nothing is running).
+ */
+export type PremiumPackageState =
+  | { state: "idle" }
+  | { state: "ready"; version: string }
+  | { state: "downloading" }
+  | { state: "installing"; version: string }
+  /** Installed; Hearth reloads when this work is done (jobs, build steps, answers). */
+  | { state: "waiting"; version: string; busy: string[] }
+  | { state: "reloading"; version: string }
+  | { state: "restart-needed"; version: string; detail: string }
+  | { state: "failed"; detail: string };
+
 export interface PremiumStatus {
   installId: string;
+  /** The Premium package: absent where Premium has no licence here. */
+  package?: PremiumPackageState;
+  /** "Welcome to Premium" is still to be shown (once, after a redeem unlocks it). */
+  welcome?: boolean;
   /** Premium isn't switched on yet: every extra is open to every Hearth, as before Premium. */
   open?: boolean;
   features: FeatureAccess[];

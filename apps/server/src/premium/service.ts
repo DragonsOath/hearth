@@ -61,6 +61,47 @@ export class LicenceService {
     });
   }
 
+  /**
+   * The Premium package for a licence in force (11-22): "same" when `have` is already the newest
+   * for this add-on contract. The package's signature is checked by the caller, never trusted
+   * because it came from here.
+   */
+  async package(
+    licence: string,
+    api: number,
+    have?: string,
+  ): Promise<import("./package").PackageDelivery | "same"> {
+    let res: Response;
+    try {
+      res = await this.fetchImpl(`${this.url.replace(/\/+$/, "")}/v1/package`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ licence, api, ...(have ? { have } : {}) }),
+        signal: AbortSignal.timeout(120_000),
+      });
+    } catch {
+      throw new LicenceServiceError(
+        "Hearth's licence service can't be reached right now, so the Premium package can't be fetched. Hearth tries again when it next starts.",
+      );
+    }
+    if (res.status === 204) return "same";
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new LicenceServiceError(
+        body.error ?? `Hearth's licence service answered ${res.status} for the Premium package.`,
+      );
+    }
+    const header = res.headers.get("x-hearth-package");
+    if (!header) throw new LicenceServiceError("The Premium package came without its signature.");
+    let signed: import("./package").SignedPackage;
+    try {
+      signed = JSON.parse(Buffer.from(header, "base64url").toString("utf8"));
+    } catch {
+      throw new LicenceServiceError("The Premium package's signature is damaged.");
+    }
+    return { bytes: new Uint8Array(await res.arrayBuffer()), signed };
+  }
+
   /** The licences taken back, anywhere. */
   async revoked(): Promise<string[]> {
     return (await this.call<{ revoked: string[] }>("/v1/revoked")).revoked;

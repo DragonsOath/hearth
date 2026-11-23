@@ -73,6 +73,36 @@ package's screens fill named slots (`app.presenter`, `settings.showAndTell`, `de
 `panel.improve`, `panel.body`) and bring their own style sheet for classes the core doesn't have.
 The core's tests run without it and, with `DC_TEST_ADDONS_DIR` / `DC_E2E_ADDONS_DIR`, with it.
 
+## Premium package delivery (11-22)
+
+Launch-critical fix: a redeemed code installed the licence, so Settings, Premium said "Included",
+but nothing fetched the package, so every Premium screen kept its Premium card and Ember had no
+Premium tools. Now:
+
+- **When**: right after a code is redeemed or a licence key added; and at startup when a licensed
+  Hearth has no package that loads, or once after Hearth itself was updated (to get the package
+  built for the new version). Never on a schedule: this is the Pledge's one Premium call.
+- **From**: the licence service, `POST /v1/package {licence, api, have?}`
+  (`services/hearth-licence/src/package.ts`). It checks the licence (signed by the service or the
+  owner's key, in force, not taken back; 10 a minute and 30 an hour per licence), then passes on the
+  newest release of the private `DragonsOath/hearth-premium` repository tagged `v<version>-api<N>`
+  for that add-on contract, read with `PACKAGE_TOKEN` (fine-grained, Contents read-only on that
+  repository only, a Worker secret). 204 when `have` is already the newest.
+- **Checked**: every package is signed with the package key (Ed25519), whose public half is built
+  into Hearth (`PACKAGE_KEYS`, `apps/server/src/premium/package.ts`) and whose private half is only
+  on the owner's workstation. The licence service can pass a package on but can't make one Hearth
+  accepts. Hearth checks the key, the signature over version, add-on version and SHA-256, and the
+  file's SHA-256, and that it unpacks to `hearth-premium`; anything else is refused and nothing
+  is installed.
+- **Installed**: unpacked beside the old one, then swapped in (`<data>/addons/hearth-premium`; the
+  previous copy is kept as `.hearth-premium-previous` until the next one).
+- **Turned on**: Hearth reloads itself (its service restarts in the background) once nothing is
+  running: no job or build step, no answer being written, no agent task. Until then every page
+  says what it waits for. The page reloads when Hearth is back and says "Welcome to Premium" once.
+  A Hearth started by hand can't reload itself and says to restart it.
+- **Releasing a package**: in the package repository, `node scripts/release.mjs` builds, packs and
+  signs it into `release/`; `--publish` makes the GitHub release (the owner's OK first).
+
 ## Donations and skins (11-14, built locally, nothing deployed)
 
 - **Donate your panel** (Premium): the donor sees the exact file, accepts the contributor agreement

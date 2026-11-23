@@ -1140,18 +1140,19 @@ export class ConfigOperations {
       detail: { ...detail, verified },
     });
     if (verified && this.memory) {
-      const s = await this.scopes.service(serviceId);
-      const host = await this.handle.db
-        .select()
-        .from(t.hosts)
-        .where(eq(t.hosts.id, s.hostId))
-        .get();
+      // A new app on this machine (serviceId this-host) has no service row yet: remembering it
+      // must never turn a step that worked into a failure (11-22: FlareSolverr installed and
+      // ran, but the plan said "No service this-host" and skipped the rest).
+      const s = await this.scopes.service(serviceId).catch(() => undefined);
+      const host = s
+        ? await this.handle.db.select().from(t.hosts).where(eq(t.hosts.id, s.hostId)).get()
+        : undefined;
       await this.memory
         .recordSystem(this.handle.db, {
           title: step.change?.summary ?? `${serviceName}: configuration`,
           body: `${result} Approved as a step of a plan, then verified.`,
           happenedAt: new Date().toISOString(),
-          machine: host?.name,
+          machine: host?.name ?? (s ? undefined : os.hostname()),
           links: [{ label: serviceName, ref: `service:${serviceId}` }],
         })
         .catch(() => undefined);

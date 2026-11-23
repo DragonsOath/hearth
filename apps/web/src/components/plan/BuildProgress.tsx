@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router";
+import { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router";
 import {
   VPN_LOGIN_PAGES,
   VPN_PROVIDERS,
@@ -335,6 +335,15 @@ export function BuildProgress({
   const build = useHomelabBuild();
   const propose = useProposeBuildStep();
   const b = build.data;
+  const { hash } = useLocation();
+  const loaded = Boolean(b);
+  // A link to one step (#build-step-tailscale) lands on it, once the steps are on the page.
+  useEffect(() => {
+    if (!loaded || !hash.startsWith("#build-step-")) return;
+    const el = document.getElementById(hash.slice(1));
+    el?.scrollIntoView({ block: "center" });
+    el?.focus({ preventScroll: true });
+  }, [loaded, hash]);
   if (!b) return null;
   const next = b.steps.find((s) => s.id === b.next);
   return (
@@ -362,7 +371,9 @@ export function BuildProgress({
         {b.steps.map((s) => (
           <li
             key={s.id}
-            className="flex gap-3"
+            id={`build-step-${s.id}`}
+            tabIndex={-1}
+            className="flex scroll-mt-24 gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
             data-testid={`build-step-${s.id}`}
             data-status={s.status}
           >

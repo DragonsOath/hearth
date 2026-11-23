@@ -25,21 +25,22 @@ const json = (status: number, body: unknown) =>
   });
 const refuse = (status: number, error: string) => json(status, { error });
 
-interface LicencePayload {
+export interface LicencePayload {
   id?: unknown;
+  install?: unknown;
   key?: unknown;
+  kind?: unknown;
   start?: unknown;
   end?: unknown;
   features?: unknown;
+  label?: unknown;
 }
 
-/** The licence, if it is genuine (signed by this service or the owner's key) and in force. */
-async function licenceInForce(
-  token: string,
-  env: Env,
-  store: Store,
-  now: number,
-): Promise<{ id: string } | string> {
+/**
+ * The licence's statement, if it is genuine: signed by this service or the owner's key, with
+ * Premium features. Whether it is in force (dates, taken back) is checked by the caller.
+ */
+export async function genuineLicence(token: string, env: Env): Promise<LicencePayload | string> {
   const parts = token.trim().split(".");
   if (parts.length !== 3 || parts[0] !== PREFIX) return "That isn't a Hearth licence.";
   let p: LicencePayload;
@@ -54,7 +55,7 @@ async function licenceInForce(
     keys[pub.slice(0, 12)] = pub;
   }
   if (env.OWNER_KEY) keys[env.OWNER_KEY.slice(0, 12)] = env.OWNER_KEY;
-  const pub = typeof p.key === "string" ? keys[p.key] : undefined;
+  const pub = typeof p?.key === "string" ? keys[p.key] : undefined;
   if (!pub) return "That licence wasn't issued by Hearth.";
   try {
     const key = await crypto.subtle.importKey("raw", fromB64u(pub), { name: "Ed25519" }, false, [
@@ -72,11 +73,31 @@ async function licenceInForce(
   }
   if (typeof p.id !== "string" || !Array.isArray(p.features) || !p.features.length)
     return "That licence has no Premium features.";
+  return p;
+}
+
+/** Whether a genuine licence's dates hold now, or why not. */
+export function datesHold(p: LicencePayload, now: number): string | null {
   if (typeof p.start === "string" && Date.parse(p.start) > now)
     return "That licence hasn't started yet.";
   if (typeof p.end === "string" && Date.parse(p.end) <= now) return "That licence has ended.";
-  if ((await store.revoked()).includes(p.id)) return "That licence was taken back.";
-  return { id: p.id };
+  return null;
+}
+
+/** The licence, if it is genuine (signed by this service or the owner's key) and in force. */
+async function licenceInForce(
+  token: string,
+  env: Env,
+  store: Store,
+  now: number,
+): Promise<{ id: string } | string> {
+  const p = await genuineLicence(token, env);
+  if (typeof p === "string") return p;
+  const dates = datesHold(p, now);
+  if (dates) return dates;
+  const id = p.id as string;
+  if ((await store.revoked()).includes(id)) return "That licence was taken back.";
+  return { id };
 }
 
 interface Release {

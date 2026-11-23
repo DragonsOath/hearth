@@ -19,6 +19,7 @@ import {
   type Code,
   type EmberSender,
   type Env,
+  type Move,
   type Picture,
   type Redemption,
   type Store,
@@ -95,6 +96,25 @@ const toCode = (r: CodeRow): Code => ({
   note: r.note ?? null,
   hint: r.hint ?? null,
   createdAt: r.created_at ?? null,
+});
+
+interface MoveRow {
+  from_id: string;
+  to_id: string;
+  root: string;
+  from_install: string;
+  to_install: string;
+  at: string;
+  licence: string;
+}
+const toMove = (r: MoveRow): Move => ({
+  fromId: r.from_id,
+  toId: r.to_id,
+  root: r.root,
+  fromInstall: r.from_install,
+  toInstall: r.to_install,
+  at: r.at,
+  licence: r.licence,
 });
 
 function d1Store(db: D1Database): Store {
@@ -294,6 +314,31 @@ function d1Store(db: D1Database): Store {
         .prepare("INSERT INTO grants (licence_id, install, label, at) VALUES (?, ?, ?, ?)")
         .bind(g.licenceId, g.install, g.label, g.at)
         .run();
+    },
+    async moveFrom(id) {
+      const r = await db.prepare("SELECT * FROM moves WHERE from_id = ?").bind(id).first<MoveRow>();
+      return r ? toMove(r) : null;
+    },
+    async moveTo(id) {
+      const r = await db.prepare("SELECT * FROM moves WHERE to_id = ?").bind(id).first<MoveRow>();
+      return r ? toMove(r) : null;
+    },
+    async putMove(m) {
+      // from_id is the key: a licence moves once, however many ask at the same moment.
+      const res = await db
+        .prepare(
+          "INSERT OR IGNORE INTO moves (from_id, to_id, root, from_install, to_install, at, licence) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(m.fromId, m.toId, m.root, m.fromInstall, m.toInstall, m.at, m.licence)
+        .run();
+      return (res.meta?.changes ?? 0) > 0;
+    },
+    async movesSince(root, since) {
+      const r = await db
+        .prepare("SELECT COUNT(*) AS n FROM moves WHERE root = ? AND at >= ?")
+        .bind(root, since)
+        .first<{ n: number }>();
+      return r?.n ?? 0;
     },
   };
 }

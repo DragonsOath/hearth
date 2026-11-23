@@ -180,6 +180,10 @@ export class Addons {
   ): Promise<void> {
     if (!dir || !existsSync(dir)) return;
     for (const folder of readdirSync(dir).sort()) {
+      // Hidden folders are Hearth's own: the copy kept from before the last Premium update, and
+      // downloads being unpacked. Loading the kept copy too made the new one clash with it,
+      // which read as a broken package, reinstalled, reloaded, again and again (11-23).
+      if (folder.startsWith(".")) continue;
       const root = path.join(dir, folder);
       try {
         if (!statSync(root).isDirectory()) continue;

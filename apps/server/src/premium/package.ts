@@ -222,6 +222,20 @@ export class PremiumPackage {
         };
       return;
     }
+    // Installed moments ago and still not loading: installing again can't help, and reloading
+    // again and again takes Hearth down every few seconds (11-23). Say why, and stop.
+    const justInstalled =
+      why === "startup" &&
+      !fits &&
+      memory.checkedFor === this.d.coreVersion &&
+      memory.installedAt !== undefined &&
+      Date.now() - Date.parse(memory.installedAt) < 15 * 60_000;
+    if (justInstalled) {
+      const detail = `The Premium package is installed but didn't load: ${this.d.skipped() ?? "Hearth didn't find it"}. Restart Hearth once; if it says this again, update Hearth.`;
+      this.d.log.warn(detail);
+      this.state = { state: "failed", detail };
+      return;
+    }
     this.state = { state: "downloading" };
     let delivery: PackageDelivery | "same";
     try {
@@ -266,7 +280,9 @@ export class PremiumPackage {
       version: signed.version,
       installedAt: new Date().toISOString(),
       checkedFor: this.d.coreVersion,
-      welcome: true,
+      // Welcome to Premium once: when Premium first arrives or a code is redeemed, never for a
+      // package update (11-23: it kept coming back). Learn about Premium shows the tour any time.
+      ...(!memory.version || why === "redeem" ? { welcome: true } : {}),
     });
     this.d.log.info(`Premium package ${signed.version} installed; Hearth reloads when idle.`);
     await this.reloadWhenIdle(signed.version);

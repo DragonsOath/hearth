@@ -137,6 +137,23 @@ export interface BlueprintImportPreview {
   apps: number;
   entries: { name: string; kind: string; tier: "automation" | "protected"; service?: string }[];
   protectedLeftOut: string[];
+  /**
+   * The Premium it carries (the licence the Hearth that wrote it held), by feature. Importing can
+   * move it here: this Hearth gets it and the old one stops having it.
+   */
+  premium?: { features: string[]; end?: string };
+}
+
+/** What moving Premium with an import did. */
+export type BlueprintPremiumMove =
+  | { state: "moved"; features: string[] }
+  | { state: "already" }
+  | { state: "failed"; detail: string };
+
+export interface BlueprintImportResult {
+  added: string[];
+  skipped: string[];
+  premium?: BlueprintPremiumMove;
 }
 
 export const BLUEPRINT_KEEP = 7;

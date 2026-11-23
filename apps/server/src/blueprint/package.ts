@@ -36,6 +36,12 @@ export interface BlueprintPackage {
   entries: PackageEntry[];
   /** Protected vault entries named but not in this version (no unlocked session when it ran). */
   protectedLeftOut: string[];
+  /**
+   * This Hearth's own Premium licence keys, so a new Hearth restored from this version can move
+   * Premium to itself (the licence service gives it its own and takes these back). Read only by
+   * Hearth, never by Ember: they aren't in the markdown.
+   */
+  licences?: string[];
 }
 
 export class PackageError extends Error {}
@@ -123,6 +129,7 @@ export function fingerprint(key: Buffer, pkg: BlueprintPackage): string {
     entries: [...pkg.entries].sort((a, b) => a.name.localeCompare(b.name)),
     protectedLeftOut: pkg.protectedLeftOut,
     keyId: pkg.keyId,
+    licences: [...(pkg.licences ?? [])].sort(),
   };
   return createHmac("sha256", key).update(JSON.stringify(stable)).digest("hex");
 }

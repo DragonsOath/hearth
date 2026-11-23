@@ -50,6 +50,17 @@ CREATE TABLE IF NOT EXISTS grants (
   label TEXT,
   at TEXT NOT NULL
 );
+-- Premium moved to a new Hearth with its Lab Blueprint (src/move.ts): each licence moves once.
+CREATE TABLE IF NOT EXISTS moves (
+  from_id TEXT PRIMARY KEY,
+  to_id TEXT NOT NULL UNIQUE,
+  root TEXT NOT NULL,
+  from_install TEXT NOT NULL,
+  to_install TEXT NOT NULL,
+  at TEXT NOT NULL,
+  licence TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS moves_by_root ON moves(root, at);
 CREATE TABLE IF NOT EXISTS founder_offer (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   campaign_id TEXT NOT NULL,

@@ -4,6 +4,8 @@ import {
   type BlueprintCloud,
   type BlueprintConfig,
   type BlueprintImportPreview,
+  type BlueprintImportResult,
+  type BlueprintPremiumMove,
   type BlueprintStatus,
   type BlueprintVersion,
 } from "@dragon-control/core";
@@ -96,6 +98,16 @@ export class LabBlueprint {
     login?: CloudLogin;
     recipient: string;
     keyId: string;
+  };
+  /**
+   * Premium in the blueprint (set by the app once its licences exist): this Hearth's own licence
+   * keys go into each version, and an import can move the ones it carries here.
+   */
+  premium?: {
+    licences(): Promise<string[]>;
+    /** What a licence key gives, or null when it isn't a genuine one. */
+    describe(token: string): Promise<{ features: string[]; end?: string } | null>;
+    move(tokens: string[], from: string): Promise<BlueprintPremiumMove>;
   };
   private openImports = new Map<string, { at: number; pkg: BlueprintPackage }>();
   private running?: Promise<"written" | "unchanged">;
@@ -260,6 +272,7 @@ export class LabBlueprint {
       const facts = await assemble(this.d.source());
       const markdown = writeMarkdown(facts);
       const { out, leftOut } = await this.values(opts.session);
+      const licences = (await this.premium?.licences().catch(() => [])) ?? [];
       const hits = scanForSecrets(markdown, out);
       if (hits.length)
         throw new PackageError(
@@ -297,6 +310,7 @@ export class LabBlueprint {
         facts,
         entries,
         protectedLeftOut: leftOut,
+        ...(licences.length ? { licences } : {}),
       };
       const fp = fingerprint(await this.hmacKey(), pkg);
       const newestThere = s.versions[0] ? (await store.list()).includes(s.versions[0].file) : false;
@@ -557,7 +571,27 @@ export class LabBlueprint {
         ...(e.service ? { service: e.service } : {}),
       })),
       protectedLeftOut: pkg.protectedLeftOut,
+      ...(await this.premiumIn(pkg)),
     };
+  }
+
+  /** The Premium a blueprint carries, by feature (the newest-ending licence when several). */
+  private async premiumIn(
+    pkg: BlueprintPackage,
+  ): Promise<{ premium?: { features: string[]; end?: string } }> {
+    if (!this.premium || !pkg.licences?.length) return {};
+    const all = (await Promise.all(pkg.licences.map((t) => this.premium!.describe(t)))).filter(
+      (x): x is { features: string[]; end?: string } => Boolean(x),
+    );
+    if (!all.length) return {};
+    const features = [...new Set(all.flatMap((x) => x.features))];
+    const end = all.some((x) => !x.end)
+      ? undefined
+      : all
+          .map((x) => x.end!)
+          .sort()
+          .at(-1);
+    return { premium: { features, ...(end ? { end } : {}) } };
   }
 
   /**
@@ -568,7 +602,8 @@ export class LabBlueprint {
     id: string,
     names: string[],
     session: Session,
-  ): Promise<{ added: string[]; skipped: string[] }> {
+    opts: { movePremium?: boolean } = {},
+  ): Promise<BlueprintImportResult> {
     this.d.auth.requireRecent(session);
     const open = this.openImports.get(id);
     if (!open) throw new ConflictError("That import has expired. Open the file again.");
@@ -605,13 +640,21 @@ export class LabBlueprint {
       markdown: pkg.markdown,
     });
     this.openImports.delete(id);
+    // Premium moves here only when the owner left "Move Premium" ticked. A failure is said, never
+    // undoes the import: the vault entries are in, and moving can be tried again.
+    let premium: BlueprintPremiumMove | undefined;
+    if (opts.movePremium && this.premium && (await this.premiumIn(pkg)).premium)
+      premium = await this.premium.move(pkg.licences!, pkg.host).catch((e: unknown) => ({
+        state: "failed" as const,
+        detail: e instanceof Error ? e.message : String(e),
+      }));
     await recordAudit(this.db, {
       actor: "you",
       action: `Imported a Lab Blueprint from ${pkg.host} (${added.length} vault ${added.length === 1 ? "entry" : "entries"})`,
       target: "lab blueprint",
       detail: { added, skipped, writtenAt: pkg.writtenAt },
     });
-    return { added, skipped };
+    return { added, skipped, ...(premium ? { premium } : {}) };
   }
 
   /** The imported blueprint, for Ember to plan the rebuild from (it holds no secret). */

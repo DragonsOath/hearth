@@ -111,6 +111,7 @@ import {
   LicenseError,
   PREMIUM_ENFORCED,
   PRODUCTION_KEYS,
+  readLicense,
   type TrustedKeys,
 } from "./premium/license";
 import { seedDemo } from "./demo/seed";
@@ -5845,11 +5846,15 @@ export async function buildApp({
   });
   app.post("/api/blueprint/import/apply", async (request) => {
     const s = blueprintOwner(request);
-    const { id, names } = z
-      .object({ id: z.string().uuid(), names: z.array(z.string().min(1).max(200)).max(500) })
+    const { id, names, movePremium } = z
+      .object({
+        id: z.string().uuid(),
+        names: z.array(z.string().min(1).max(200)).max(500),
+        movePremium: z.boolean().optional(),
+      })
       .strict()
       .parse(request.body);
-    return blueprint.applyImport(id, names, s);
+    return blueprint.applyImport(id, names, s, { movePremium });
   });
   app.delete("/api/blueprint", async (request, reply) => {
     const s = blueprintOwner(request);
@@ -5919,6 +5924,49 @@ export async function buildApp({
     log: { info: (m) => app.log.info(m), warn: (m) => app.log.warn(m) },
   });
   app.addHook("onClose", async () => premiumPackage.stop());
+  // Premium moves with the Lab Blueprint (11-23): each version carries this Hearth's own licence
+  // keys, and importing one on a new Hearth can move Premium there. Moving is the licence
+  // service's job (the old Hearth's licence is taken back); it goes online only then.
+  if (blueprint instanceof LabBlueprint)
+    blueprint.premium = {
+      licences: () => entitlements.own(),
+      describe: async (token) => {
+        try {
+          const p = readLicense(token, await trustedKeys());
+          return { features: p.features, ...(p.end ? { end: p.end } : {}) };
+        } catch {
+          return null;
+        }
+      },
+      move: async (tokens, from) => {
+        const install = await installIdOf();
+        const features = new Set<string>();
+        let moved = false;
+        for (const token of tokens) {
+          let licence = token;
+          if (readLicense(token, await trustedKeys()).install !== install) {
+            if (!licenceService)
+              throw new Error(
+                "Moving Premium needs Hearth's licence service, which this Hearth can't reach. Check its internet connection and import again.",
+              );
+            const r = await licenceService.move(token, install);
+            licence = r.licence;
+            moved ||= r.moved;
+          }
+          const p = await entitlements.install(licence);
+          p.features.forEach((f) => features.add(f));
+        }
+        if (!moved) return { state: "already" as const };
+        await checkRevoked();
+        void premiumPackage.redeemed().catch(() => undefined);
+        await recordAudit(db, {
+          actor: "you",
+          action: `Moved Premium here from ${from} with its Lab Blueprint (${[...features].join(", ")})`,
+          target: "premium",
+        });
+        return { state: "moved" as const, features: [...features] };
+      },
+    };
   if (licenceService && !process.env.VITEST) {
     const t = setTimeout(() => void premiumPackage.startup().catch(() => undefined), 5_000);
     t.unref();

@@ -62,6 +62,22 @@ export class LicenceService {
   }
 
   /**
+   * Moves Premium to this installation with its Lab Blueprint (11-23): the licence the old Hearth
+   * held comes back as one for this installation, and the old one is taken back. `moved` false:
+   * it was already this installation's.
+   */
+  move(
+    licence: string,
+    install: string,
+  ): Promise<{ licence: string; licenceId: string; moved: boolean }> {
+    return this.call("/v1/move", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ licence, install }),
+    });
+  }
+
+  /**
    * The Premium package for a licence in force (11-22): "same" when `have` is already the newest
    * for this add-on contract. The package's signature is checked by the caller, never trusted
    * because it came from here.

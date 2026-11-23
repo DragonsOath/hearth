@@ -9,6 +9,7 @@ import {
   type PremiumStatus,
 } from "@dragon-control/core";
 import { api } from "../../data/api";
+import { usePremiumTour } from "../../data/premium";
 
 /**
  * Premium turning on (11-22, launch-critical: a redeemed code unlocked nothing). After a redeem,
@@ -98,16 +99,17 @@ export function PremiumSetup() {
   });
   const navigate = useNavigate();
   // "Learn about Premium": a new conversation where Ember shows each extra on screen (11-22).
-  const tour = useMutation({
-    mutationFn: () => api<{ conversationId: string }>("POST", "/api/premium/tour", {}),
-    onSuccess: (r) => {
-      setClosed(true);
-      void qc.invalidateQueries({ queryKey: ["premium"] });
-      void qc.invalidateQueries({ queryKey: ["show-settings"] });
-      void qc.invalidateQueries({ queryKey: ["conversations"] });
-      navigate(`/ask/${encodeURIComponent(r.conversationId)}`);
-    },
-  });
+  const tourStart = usePremiumTour();
+  const tour = {
+    ...tourStart,
+    mutate: () =>
+      tourStart.mutate(undefined, {
+        onSuccess: (r) => {
+          setClosed(true);
+          navigate(`/ask/${encodeURIComponent(r.conversationId)}`);
+        },
+      }),
+  };
   const [closed, setClosed] = useState(false);
   const first = useRef<HTMLButtonElement>(null);
   const welcome = Boolean(q.data?.welcome) && !closed;

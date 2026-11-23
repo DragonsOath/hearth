@@ -1,5 +1,6 @@
 import { packageWords } from "../shell/PremiumSetup";
 import { useState, type FormEvent, type ReactNode } from "react";
+import { useNavigate } from "react-router";
 import {
   PREMIUM_FEATURES,
   PREMIUM_INFO,
@@ -14,6 +15,7 @@ import {
   useIssuer,
   useIssuerAction,
   usePremium,
+  usePremiumTour,
   useRedeem,
   type IssuerGrant,
 } from "../../data/premium";
@@ -78,6 +80,32 @@ function Problem({ error }: { error: Error | null }) {
       {error.message}
     </p>
   ) : null;
+}
+
+/** The Premium tour, any time (11-22): the same tour Welcome to Premium offers. */
+function TourButton() {
+  const tour = usePremiumTour();
+  const navigate = useNavigate();
+  return (
+    <div className="mt-4">
+      <Button
+        tone="primary"
+        disabled={tour.isPending}
+        data-testid="premium-tour"
+        onClick={() =>
+          tour.mutate(undefined, {
+            onSuccess: (r) => navigate(`/ask/${encodeURIComponent(r.conversationId)}`),
+          })
+        }
+      >
+        {tour.isPending ? "Starting…" : "Show me around Premium"}
+      </Button>
+      <p className="mt-1.5 text-[0.8rem] text-faint">
+        A new conversation where Ember shows you each Premium extra on screen, out loud.
+      </p>
+      <Problem error={tour.error} />
+    </div>
+  );
 }
 
 export function PremiumSettings() {
@@ -152,6 +180,8 @@ export function PremiumSettings() {
             );
           })}
         </ul>
+
+        {s.features.some((f) => f.state === "active") ? <TourButton /> : null}
 
         {packageWords(s.package) ? (
           <p

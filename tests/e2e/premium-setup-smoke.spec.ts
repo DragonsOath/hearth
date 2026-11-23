@@ -95,3 +95,26 @@ test("Learn about Premium opens a new conversation with Ember's tour", async ({ 
   await expect(page.getByTestId("premium-welcome")).toHaveCount(0);
   expect(toured).toBe(true);
 });
+
+test("Settings, Premium: Show me around Premium starts the same tour, any time", async ({
+  page,
+}, testInfo) => {
+  let toured = 0;
+  await page.route("**/api/premium/tour", (r) => {
+    toured += 1;
+    return r.fulfill({ json: { conversationId: "conv-premium-tour-2" } });
+  });
+  await page.route("**/api/premium", (r) =>
+    r.fulfill({ json: { ...base, package: { state: "ready", version: "1.0.0" } } }),
+  );
+  await page.goto("/settings#premium");
+  const button = page.getByTestId("premium-tour");
+  await expect(button).toHaveText("Show me around Premium", { timeout: 15_000 });
+  await button.scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: `test-results/screens/${testInfo.project.name}/premium-tour-settings.png`,
+  });
+  await button.click();
+  await expect(page).toHaveURL(/\/ask\/conv-premium-tour-2$/);
+  expect(toured).toBe(1);
+});

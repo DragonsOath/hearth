@@ -1,4 +1,5 @@
 import { ExternalLink } from "lucide-react";
+import { Link } from "react-router";
 import type { HomelabBuild, HomelabStep } from "@dragon-control/core";
 import { useConfirmBuildStep, useHomelabBuild, useProposeBuildStep } from "../../data/plan";
 import { FormError } from "../../pages/auth/AuthFrame";
@@ -177,9 +178,14 @@ export function BuildNext({ fresh = false }: { fresh?: boolean }) {
         {a.kind === "needs" && (
           <p className="text-[0.9rem] text-ink">
             {a.step.name}: {a.step.detail ?? "it needs you first"}{" "}
-            <a href="/plan" className="text-gold underline underline-offset-2">
+            {/* Straight to that step on the build's page, not the plan's first question (11-22). */}
+            <Link
+              to={`/plan?step=build#build-step-${a.step.id}`}
+              className="text-gold underline underline-offset-2"
+              data-testid="build-needs-link"
+            >
               Do it on the plan page
-            </a>
+            </Link>
           </p>
         )}
         {a.kind === "continue" && (

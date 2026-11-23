@@ -769,7 +769,11 @@ export function PlanPage() {
   const look = useScanComputer();
   const startOver = useStartOver();
   const [params, setParams] = useSearchParams();
-  const step = Math.min(Math.max(Number(params.get("step")) || 1, 1), HOMELAB_STEP);
+  // "build" opens the build's own page (11-22: "Do it on the plan page" went back to step 1).
+  const step =
+    params.get("step") === "build"
+      ? HOMELAB_STEP
+      : Math.min(Math.max(Number(params.get("step")) || 1, 1), HOMELAB_STEP);
   const [answers, setAnswers] = useState<BuildAnswers | null>(null);
   const [chosen, setChosen] = useState<Record<string, string> | null>(null);
   const [removed, setRemoved] = useState<string[] | null>(null);

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
+import { useNavigate } from "react-router";
 import {
   PREMIUM_FEATURES,
   PREMIUM_INFO,
@@ -95,6 +96,18 @@ export function PremiumSetup() {
     mutationFn: () => api<PremiumStatus>("POST", "/api/premium/welcomed", {}),
     onSuccess: (s) => qc.setQueryData(["premium"], s),
   });
+  const navigate = useNavigate();
+  // "Learn about Premium": a new conversation where Ember shows each extra on screen (11-22).
+  const tour = useMutation({
+    mutationFn: () => api<{ conversationId: string }>("POST", "/api/premium/tour", {}),
+    onSuccess: (r) => {
+      setClosed(true);
+      void qc.invalidateQueries({ queryKey: ["premium"] });
+      void qc.invalidateQueries({ queryKey: ["show-settings"] });
+      void qc.invalidateQueries({ queryKey: ["conversations"] });
+      navigate(`/ask/${encodeURIComponent(r.conversationId)}`);
+    },
+  });
   const [closed, setClosed] = useState(false);
   const first = useRef<HTMLButtonElement>(null);
   const welcome = Boolean(q.data?.welcome) && !closed;
@@ -154,15 +167,29 @@ export function PremiumSetup() {
                 </li>
               ))}
             </ul>
-            <div className="mt-5 flex justify-end">
+            {tour.error ? (
+              <p className="mt-4 text-[0.84rem] text-bad" role="alert">
+                {tour.error.message}
+              </p>
+            ) : null}
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
-                ref={first}
                 type="button"
                 onClick={close}
-                className="inline-flex min-h-11 items-center rounded-lg bg-gold px-5 text-[0.92rem] font-semibold text-bg hover:bg-gold-bright"
+                className="inline-flex min-h-11 items-center rounded-lg border border-line px-4 text-[0.92rem] font-semibold text-muted hover:text-ink"
                 data-testid="premium-welcome-close"
               >
                 Let&apos;s go
+              </button>
+              <button
+                ref={first}
+                type="button"
+                disabled={tour.isPending}
+                onClick={() => tour.mutate()}
+                className="inline-flex min-h-11 items-center rounded-lg bg-gold px-5 text-[0.92rem] font-semibold text-bg hover:bg-gold-bright"
+                data-testid="premium-welcome-tour"
+              >
+                {tour.isPending ? "Starting…" : "Learn about Premium"}
               </button>
             </div>
           </div>

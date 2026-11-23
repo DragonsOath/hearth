@@ -1,11 +1,16 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import type { BuildApp } from "@dragon-control/core";
-import { usePlanAccounts, useSavePlanAccounts, useStartBuild } from "../../data/plan";
+import {
+  useHomelabBuild,
+  usePlanAccounts,
+  useSavePlanAccounts,
+  useStartBuild,
+} from "../../data/plan";
 import { useWorkspace } from "../../data/api";
 import { Button, LinkButton, Tag, cx } from "../ui";
 import { FormError } from "../../pages/auth/AuthFrame";
-import { BuildProgress } from "./BuildProgress";
+import { BuildProgress, VpnNeed } from "./BuildProgress";
 
 /**
  * After "Next: your apps and accounts": the apps the plan picked, each with its logo, what it does, and why
@@ -99,6 +104,7 @@ function StartBuilding({ aiName }: { aiName: string }) {
 
 export function YourHomelab({ apps, aiName }: { apps: BuildApp[]; aiName: string }) {
   const saved = usePlanAccounts();
+  const build = useHomelabBuild();
   const save = useSavePlanAccounts();
   const [email, setEmail] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
@@ -117,12 +123,18 @@ export function YourHomelab({ apps, aiName }: { apps: BuildApp[]; aiName: string
     Boolean(e && u) &&
     (m === "generate" || keepsSaved || (password.length >= 12 && password === again));
 
+  // The VPN login comes before the Build button (11-22), so the build doesn't stop for it later.
+  const vpnStep = build.data?.steps.find(
+    (s) => s.id === "qbittorrent" && s.status === "needs-you" && s.need?.kind === "vpn-login",
+  );
+
   return (
     <div data-testid="your-homelab">
       <p className="mb-5 text-[0.95rem] leading-relaxed text-ink">
         Here&apos;s what {aiName} picked for you, each one chosen for what you told it and what this
-        computer can do. Save the account details below, then {aiName} builds it with you, one step
-        at a time, and nothing happens until you approve each step.
+        computer can do. Save the account details below (and your VPN login, if the plan downloads),
+        then {aiName} builds it with you, one step at a time, and nothing happens until you approve
+        each step.
       </p>
       <ul className="mb-8 grid gap-3 sm:grid-cols-2">
         {apps.map((a) => (
@@ -268,12 +280,24 @@ export function YourHomelab({ apps, aiName }: { apps: BuildApp[]; aiName: string
             saves every login and API key in Secure Vault. Nothing has been installed yet.
           </p>
         )}
-        {(done || current) && <StartBuilding aiName={aiName} />}
       </form>
       {(done || current) && (
-        <div className="mt-6">
-          <BuildProgress aiName={aiName} />
-        </div>
+        <>
+          {vpnStep?.need?.kind === "vpn-login" && (
+            <section
+              className="mt-6 rounded-2xl border border-line-strong p-5"
+              aria-label="Your VPN login"
+              data-testid="plan-vpn-login"
+            >
+              <h3 className="mb-1 text-[1.05rem] text-ink">Your VPN login</h3>
+              <VpnNeed {...(vpnStep.need.provider ? { provider: vpnStep.need.provider } : {})} />
+            </section>
+          )}
+          <StartBuilding aiName={aiName} />
+          <div className="mt-6">
+            <BuildProgress aiName={aiName} vpnAbove={Boolean(vpnStep)} />
+          </div>
+        </>
       )}
     </div>
   );

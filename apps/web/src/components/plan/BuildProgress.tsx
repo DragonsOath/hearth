@@ -132,7 +132,7 @@ function HelperNeed({ need }: { need: Extract<HomelabNeed, { kind: "helper" }> }
   );
 }
 
-function VpnNeed({ provider: given }: { provider?: VpnProvider }) {
+export function VpnNeed({ provider: given }: { provider?: VpnProvider }) {
   const save = useSaveBuildVpn();
   const [provider, setProvider] = useState<VpnProvider>(given ?? "proton");
   const wireguardOnly = provider === "airvpn";
@@ -324,7 +324,14 @@ function ConfirmWorks({ step }: { step: HomelabStep }) {
   );
 }
 
-export function BuildProgress({ aiName }: { aiName: string }) {
+export function BuildProgress({
+  aiName,
+  vpnAbove = false,
+}: {
+  aiName: string;
+  /** The VPN login form is shown above, before the Build button (11-22): not again here. */
+  vpnAbove?: boolean;
+}) {
   const build = useHomelabBuild();
   const propose = useProposeBuildStep();
   const b = build.data;
@@ -379,7 +386,7 @@ export function BuildProgress({ aiName }: { aiName: string }) {
               {s.status === "needs-you" && s.need?.kind === "helper" && (
                 <HelperNeed need={s.need} />
               )}
-              {s.status === "needs-you" && s.need?.kind === "vpn-login" && (
+              {s.status === "needs-you" && s.need?.kind === "vpn-login" && !vpnAbove && (
                 <VpnNeed {...(s.need.provider ? { provider: s.need.provider } : {})} />
               )}
               {/* The VPN turned the login down: the way past is right here, not elsewhere (11-22). */}

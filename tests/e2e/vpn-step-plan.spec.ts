@@ -52,6 +52,13 @@ test("the VPN login: not the Proton sign-in, Proton's labels and page, no browse
   await page.goto("/plan?step=7");
   const form = page.getByRole("form", { name: "Your VPN login" });
   await expect(form).toBeVisible();
+  // Asked once, before the Build button (11-22), not again in the steps below it.
+  await expect(form).toHaveCount(1);
+  // Build it with the AI (or, with no AI connected here, the way to connect one).
+  const build = page.getByTestId(/^build-(start|needs-ai)$/);
+  await expect(build).toBeVisible();
+  expect((await form.boundingBox())!.y).toBeLessThan((await build.boundingBox())!.y);
+  await expect(page.getByTestId("build-progress").getByRole("form")).toHaveCount(0);
   const where = form.getByTestId("vpn-login-where");
   await expect(where).toContainText("not the username and password you sign in to Proton VPN with");
   await expect(where.getByRole("link", { name: "Open Proton VPN's page for it" })).toHaveAttribute(

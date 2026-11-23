@@ -33,6 +33,13 @@ export interface Env {
   GUILD_ID?: string;
   FORUM_ID?: string;
   TEST_FORUM_ID?: string;
+  /**
+   * Reads the Premium package's releases (package.ts): a fine-grained token, Contents read-only on
+   * the private hearth-premium repository only (a Worker secret, never in files). Empty: off.
+   */
+  PACKAGE_TOKEN?: string;
+  /** Where the package's releases are; DragonsOath/hearth-premium when not set. */
+  PACKAGE_REPO?: string;
 }
 
 /** What the code page needs beyond codes: the Founder offer's record, and Ember Bot to DM a code. */
@@ -318,6 +325,12 @@ export async function handle(
   // Every Hearth asks this now and then: the licences taken back.
   if (req.method === "GET" && path === "/v1/revoked") {
     return json(200, { revoked: await store.revoked(), at: new Date(now()).toISOString() });
+  }
+
+  // The Premium package, for a Hearth holding a licence in force (package.ts).
+  if (req.method === "POST" && path === "/v1/package") {
+    const { deliverPackage } = await import("./package");
+    return deliverPackage(req, env, store, now, fetchImpl);
   }
 
   if (req.method === "POST" && path === "/v1/redeem") {

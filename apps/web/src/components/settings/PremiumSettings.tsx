@@ -1,3 +1,4 @@
+import { packageWords } from "../shell/PremiumSetup";
 import { useState, type FormEvent, type ReactNode } from "react";
 import {
   PREMIUM_FEATURES,
@@ -151,6 +152,22 @@ export function PremiumSettings() {
             );
           })}
         </ul>
+
+        {packageWords(s.package) ? (
+          <p
+            className={cx(
+              "mt-4 max-w-2xl rounded-lg border px-4 py-3 text-[0.86rem] leading-relaxed",
+              s.package?.state === "failed" || s.package?.state === "restart-needed"
+                ? "border-bad/50 text-ink"
+                : "border-gold/40 bg-gold/5 text-ink",
+            )}
+            role="status"
+            data-testid="premium-package"
+            data-state={s.package?.state}
+          >
+            {packageWords(s.package)}
+          </p>
+        ) : null}
 
         {!s.features.every((f) => f.state === "active") || s.open ? (
           <Upgrade onCode={() => document.getElementById("premium-code")?.focus()} />

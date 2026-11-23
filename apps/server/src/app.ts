@@ -104,6 +104,9 @@ import { Entitlements, PremiumRequiredError } from "./premium/entitlements";
 import { autoRecover } from "./apps/download-health";
 import { AUDIENCES, Issuer, IssuerError } from "./premium/issuer";
 import { DEFAULT_LICENCE_SERVICE, LicenceService, LicenceServiceError } from "./premium/service";
+import { spawn } from "node:child_process";
+import { PACKAGE_KEYS, PremiumPackage, type PackageKeys } from "./premium/package";
+import { restartPlan } from "./pcs/network";
 import {
   LicenseError,
   PREMIUM_ENFORCED,
@@ -150,7 +153,7 @@ import type { AccessKeys } from "./auth/tokens";
 import { activeLookPersona, personaKey, type Agents } from "./agent/service";
 import { ForYou, ForYouError, type SeerrTitle } from "./recommend/for-you";
 import { registerMcp } from "./agent/mcp";
-import { Addons } from "./addons";
+import { ADDON_API, Addons } from "./addons";
 import { featureHelp } from "./agent/help";
 import { registerMemory } from "./memory/routes";
 import { Jurisdiction } from "./cave/jurisdiction";
@@ -346,6 +349,10 @@ export interface AppDeps {
   premiumKeys?: import("./premium/license").TrustedKeys;
   /** Hearth's licence service (tests pass a stand-in; null: none). */
   licenceService?: LicenceService | null;
+  /** Unit tests only: keys Premium packages may be signed with, besides the production ones. */
+  premiumPackageKeys?: PackageKeys;
+  /** Restarting this Hearth by itself (tests pass a stand-in); false when it can't. */
+  restartSelf?: () => boolean;
   /** Host administration (feature request 21); built with a data-folder backup root when not given. */
   admin?: Admin;
   /** Voice for Ember (speech services shared with Home Assistant); tests pass a stand-in. */
@@ -791,6 +798,8 @@ export async function buildApp({
   fakeApps,
   premiumKeys,
   licenceService: licenceServiceOpt,
+  premiumPackageKeys,
+  restartSelf,
   voice = new Voice(handle, { defaultHost: config.voiceHost }),
   voiceAssist = new VoiceAssist(handle, voice, wyomingClient, {
     dataDir: config.dataDir ?? config.keyDir,
@@ -1104,32 +1113,39 @@ export async function buildApp({
       (await getSetting(db, "update_channel")) ?? readInstallInfo()?.channel ?? "stable",
     remember: (v) => setSetting(db, "update_announced", v),
     ...(fakeUpdate ? { launch: () => undefined } : {}),
-    // What an update (a restart) would cut off: Ember answering in the Lair, War Room tasks.
-    busy: async () => {
-      const answering = (
-        await db
-          .select({ id: tables.conversationActivity.id })
-          .from(tables.conversationActivity)
-          .where(
-            and(
-              eq(tables.conversationActivity.status, "running"),
-              eq(tables.conversationActivity.kind, "ai"),
-            ),
-          )
-      ).length;
-      const tasks = engine?.store.runningCount() ?? 0;
-      return [
-        ...(answering
-          ? [
-              answering === 1
-                ? "Ember answering a question"
-                : `Ember answering ${answering} questions`,
-            ]
-          : []),
-        ...(tasks ? [tasks === 1 ? "a running agent task" : `${tasks} running agent tasks`] : []),
-      ];
-    },
+    busy: () => busyWork(),
   });
+  // What a restart would cut off: Ember answering in the Lair, War Room tasks, and (for the
+  // Premium package's reload) a job or build step running.
+  async function busyWork(withJobs = false): Promise<string[]> {
+    const answering = (
+      await db
+        .select({ id: tables.conversationActivity.id })
+        .from(tables.conversationActivity)
+        .where(
+          and(
+            eq(tables.conversationActivity.status, "running"),
+            eq(tables.conversationActivity.kind, "ai"),
+          ),
+        )
+    ).length;
+    const tasks = engine?.store.runningCount() ?? 0;
+    return [
+      ...(answering
+        ? [
+            answering === 1
+              ? "Ember answering a question"
+              : `Ember answering ${answering} questions`,
+          ]
+        : []),
+      ...(tasks ? [tasks === 1 ? "a running agent task" : `${tasks} running agent tasks`] : []),
+      ...(withJobs ? await runningJobs() : []),
+    ];
+  }
+  async function runningJobs(): Promise<string[]> {
+    const n = (await jobs.list(100, ["running"]).catch(() => [])).length;
+    return n ? [n === 1 ? "a job or build step running" : `${n} jobs running`] : [];
+  }
   if (!config.demo || fakeUpdate) updates.start();
   app.addHook("onClose", async () => updates.stop());
   app.get("/api/updates", async (request) => {
@@ -5868,8 +5884,65 @@ export async function buildApp({
       // Offline: licences keep working until their end date.
     }
   };
-  const premiumStatus = async () =>
-    entitlements.status(await issuer.active(), Boolean(licenceService) || (await issuer.active()));
+  // The Premium package (11-22): fetched, checked and installed when a licence here has none that
+  // fits; Hearth reloads itself once nothing runs. Only when Premium goes online anyway (a redeem;
+  // at startup when licensed and missing it, or once after an update), never on a schedule.
+  const addonsHome = config.addonsDir ?? path.join(config.dataDir ?? config.keyDir, "addons");
+  const premiumPackage = new PremiumPackage({
+    dir: addonsHome,
+    api: ADDON_API,
+    coreVersion: releaseVersion() ?? APP_VERSION,
+    keys: { ...PACKAGE_KEYS, ...premiumPackageKeys },
+    licence: () => entitlements.licenceInForce(),
+    ...(licenceService
+      ? { fetch: (licence, api, have) => licenceService.package(licence, api, have) }
+      : {}),
+    loaded: () => addons.loaded.find((a) => a.name === "hearth-premium")?.version,
+    skipped: () => addons.skipped.find((a) => a.folder === "hearth-premium")?.why,
+    memory: {
+      get: () => getSetting(db, "premium_package"),
+      set: (m) => setSetting(db, "premium_package", m),
+    },
+    busy: () => busyWork(true),
+    restart:
+      restartSelf ??
+      (() => {
+        const plan = restartPlan(readInstallInfo());
+        if (!plan) return false;
+        spawn(plan.command, plan.args, {
+          detached: true,
+          stdio: "ignore",
+          windowsHide: true,
+        }).unref();
+        return true;
+      }),
+    log: { info: (m) => app.log.info(m), warn: (m) => app.log.warn(m) },
+  });
+  app.addHook("onClose", async () => premiumPackage.stop());
+  if (licenceService && !process.env.VITEST) {
+    const t = setTimeout(() => void premiumPackage.startup().catch(() => undefined), 5_000);
+    t.unref();
+  }
+  const premiumStatus = async () => {
+    const st = await entitlements.status(
+      await issuer.active(),
+      Boolean(licenceService) || (await issuer.active()),
+    );
+    const licensed = st.licenses.some((l) => l.state === "active");
+    const pkg = await premiumPackage.status();
+    return {
+      ...st,
+      ...(licensed || pkg.state !== "idle" ? { package: pkg } : {}),
+      ...(licensed && pkg.state === "ready" && (await premiumPackage.welcomePending())
+        ? { welcome: true }
+        : {}),
+    };
+  };
+  app.post("/api/premium/welcomed", async (request) => {
+    premiumOwner(request);
+    await premiumPackage.welcomed();
+    return premiumStatus();
+  });
   app.get("/api/premium", async (request) => {
     premiumOwner(request);
     return premiumStatus();
@@ -5883,6 +5956,7 @@ export async function buildApp({
       .parse(request.body);
     try {
       const p = await entitlements.install(key);
+      void premiumPackage.redeemed().catch(() => undefined);
       await recordAudit(db, {
         actor: "you",
         action: `Added a Premium licence (${p.features.join(", ")}${p.end ? ` until ${p.end.slice(0, 10)}` : ", for good"})`,
@@ -5910,8 +5984,10 @@ export async function buildApp({
         const licence = r.licence;
         gifted = r.gifted;
         const p = await entitlements.install(licence);
-        // The one time Premium goes online here: also ask which licences were taken back.
+        // The one time Premium goes online here: also ask which licences were taken back, and
+        // fetch the Premium package that brings the features (it reloads Hearth when idle).
         await checkRevoked();
+        void premiumPackage.redeemed().catch(() => undefined);
         await recordAudit(db, {
           actor: "you",
           action: `Redeemed a Premium code (${p.features.join(", ")}${p.end ? ` until ${p.end.slice(0, 10)}` : ", for good"})`,
@@ -5930,6 +6006,7 @@ export async function buildApp({
         "Redeeming a code needs Hearth's licence service, which isn't switched on yet. Ask whoever gave you the code for a licence key for this installation instead (it's in Settings, Premium).",
       );
     await issuer.redeem(session, code, await installIdOf());
+    void premiumPackage.redeemed().catch(() => undefined);
     // Every code the owner's issuer makes is given, not bought, so the page asks reviewers to
     // say so (Flint, 11-13). Codes claimed after sponsoring come from the licence service.
     return { ...(await premiumStatus()), gifted: true };

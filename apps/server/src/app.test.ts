@@ -146,6 +146,7 @@ import {
   memoryImportDrafts as draftsTable,
   hosts as hostsTable,
   volumeUsageDaily,
+  jobs as jobsTable,
 } from "./db/schema";
 import { eq, sql } from "drizzle-orm";
 
@@ -461,6 +462,10 @@ async function makeApp(
     appFetch?: Fetch;
     /** Where add-ons are installed (the Premium package). */
     addonsDir?: string;
+    /** Hearth's licence service (a stand-in), the package keys trusted, and the self-reload. */
+    licenceService?: import("./premium/service").LicenceService;
+    premiumPackageKeys?: Record<string, string>;
+    restartSelf?: () => boolean;
   } = {},
 ) {
   const handle = opts.handle ?? (await freshDb());
@@ -509,6 +514,9 @@ async function makeApp(
   const app = await buildApp({
     handle,
     premiumKeys: TEST_TRUST,
+    ...(opts.licenceService ? { licenceService: opts.licenceService } : {}),
+    ...(opts.premiumPackageKeys ? { premiumPackageKeys: opts.premiumPackageKeys } : {}),
+    ...(opts.restartSelf ? { restartSelf: opts.restartSelf } : {}),
     config: {
       webDir: tempDir(),
       mode: "test",
@@ -14488,6 +14496,137 @@ describe("Hearth Premium at the action boundary (docs/design/PREMIUM.md)", () =>
       expect(await getSetting(app.handle.db, "show_and_tell")).toMatchObject({ mode: "teach" });
     },
   );
+
+  it("a redeemed code fetches the signed Premium package, reloads Hearth once no job runs, then welcomes (11-22)", async () => {
+    const { execFileSync } = await import("node:child_process");
+    const { createHash, createPrivateKey, sign } = await import("node:crypto");
+    const {
+      mkdtempSync,
+      writeFileSync: write,
+      readFileSync: read,
+      existsSync: exists,
+    } = await import("node:fs");
+    const os = await import("node:os");
+    const { handle, memoryStore, codeHash } =
+      await import("../../../services/hearth-licence/src/licence");
+    const { LicenceService } = await import("./premium/service");
+    const { signedText, tarCommand } = await import("./premium/package");
+    // The package: a real archive, signed with a package key this Hearth trusts.
+    const src = mkdtempSync(path.join(os.tmpdir(), "hearth-pkg-src-"));
+    write(
+      path.join(src, "package.json"),
+      JSON.stringify({ name: "hearth-premium", version: "2.0.0", hearth: { addon: "index.mjs" } }),
+    );
+    write(path.join(src, "index.mjs"), "export const addon = undefined;\n");
+    const tar = path.join(mkdtempSync(path.join(os.tmpdir(), "hearth-pkg-")), "p.tar.gz");
+    execFileSync(tarCommand(), ["-czf", tar, "-C", src, "."]);
+    const bytes = read(tar);
+    const pkgKey = newSigningKey();
+    const desc = {
+      version: "2.0.0",
+      api: 1,
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+    };
+    const signedPkg = {
+      v: 1,
+      ...desc,
+      key: pkgKey.keyId,
+      sig: sign(null, Buffer.from(signedText(desc)), createPrivateKey(pkgKey.privatePem)).toString(
+        "base64url",
+      ),
+    };
+    const github = (async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/releases?"))
+        return Response.json([
+          {
+            tag_name: "v2.0.0-api1",
+            draft: false,
+            prerelease: false,
+            assets: [
+              { name: "hearth-premium.tar.gz", url: "https://gh.test/tar" },
+              { name: "hearth-premium.sig.json", url: "https://gh.test/sig" },
+            ],
+          },
+        ]);
+      if (url.endsWith("/sig")) return new Response(JSON.stringify(signedPkg));
+      if (url.endsWith("/tar")) return new Response(bytes);
+      return new Response("no", { status: 404 });
+    }) as typeof fetch;
+    // The licence service (the real Worker code), signing with a key this Hearth trusts.
+    const store = memoryStore();
+    const code = "HRTH-REVWR-AAAAA-BBBBB-CCCCC";
+    await store.putCode({
+      id: "code-reviewers-1",
+      hash: await codeHash(code),
+      features: ["hearth_interconnectivity", "ember_show_and_tell", "panel_builder"],
+      maxUses: 5,
+      days: null,
+      redeemBy: null,
+      label: "Reviewers",
+      active: true,
+    });
+    const env = { SIGNING_KEY: TEST_SIGNER.privatePem, OWNER_KEY: "", PACKAGE_TOKEN: "t" };
+    const service = new LicenceService("https://licence.test", (async (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ) => handle(new Request(String(input), init), env, store, Date.now, github)) as typeof fetch);
+    const addonsDir = mkdtempSync(path.join(os.tmpdir(), "hearth-addons-"));
+    let reloads = 0;
+    const app = await makeApp({
+      addonsDir,
+      licenceService: service,
+      premiumPackageKeys: { [pkgKey.keyId]: pkgKey.publicKey },
+      restartSelf: () => {
+        reloads += 1;
+        return true;
+      },
+    });
+    // A job is running: Hearth must not reload under it.
+    await app.handle.db.insert(jobsTable).values({
+      id: "job-running-1",
+      title: "Install Sonarr",
+      reason: "",
+      impact: "",
+      requestedBy: "agent",
+      status: "running",
+      createdAt: new Date().toISOString(),
+      startedAt: new Date().toISOString(),
+    } as never);
+
+    const r = await app.call("POST", "/api/premium/redeem", { code });
+    expect(r.statusCode).toBe(200);
+    // Every extra is included at once, and the package is on its way.
+    expect(
+      r.json<{ features: { state: string }[] }>().features.every((f) => f.state === "active"),
+    ).toBe(true);
+    const status = async () =>
+      (await app.call("GET", "/api/premium")).json<{
+        package?: { state: string; busy?: string[] };
+        welcome?: boolean;
+      }>();
+    for (let i = 0; i < 50 && (await status()).package?.state !== "waiting"; i++)
+      await new Promise((res) => setTimeout(res, 50));
+    expect((await status()).package).toMatchObject({
+      state: "waiting",
+      busy: ["a job or build step running"],
+    });
+    expect(exists(path.join(addonsDir, "hearth-premium", "index.mjs"))).toBe(true);
+    expect(reloads).toBe(0);
+    // The job ends: Hearth reloads itself (no restart by the owner).
+    await app.handle.db
+      .update(jobsTable)
+      .set({ status: "succeeded" } as never)
+      .where(eq(jobsTable.id, "job-running-1"));
+    for (let i = 0; i < 300 && reloads === 0; i++) await new Promise((res) => setTimeout(res, 50));
+    expect(reloads).toBe(1);
+    expect((await status()).package?.state).toBe("reloading");
+    // The package is remembered, with the welcome still to show after the reload.
+    expect(await getSetting(app.handle.db, "premium_package")).toMatchObject({
+      version: "2.0.0",
+      welcome: true,
+    });
+  }, 30_000);
 
   it("a licence key for this installation is added, one for another is refused, a forged one too", async () => {
     const app = await makeApp();

@@ -92,3 +92,13 @@ signed stay valid while the old public key stays trusted.
 
 `npx wrangler rollback` to the previous version. The added tables and columns are ignored by an
 older version.
+
+## Premium package delivery (11-22)
+
+`POST /v1/package` hands the Premium package to a Hearth holding a licence in force (see
+`docs/design/PREMIUM.md`, "Premium package delivery"). It reads the private
+`DragonsOath/hearth-premium` releases with a fine-grained token: Resource owner DragonsOath,
+repository hearth-premium only, permission Contents read-only, nothing else. Set it with
+`npx wrangler secret put PACKAGE_TOKEN` (never in files). Without it the route answers 503 and
+Hearth tries again at its next start. This service can't sign packages: Hearth only installs
+ones signed with the package key, which never leaves the owner's workstation.

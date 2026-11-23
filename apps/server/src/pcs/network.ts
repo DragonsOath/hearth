@@ -69,6 +69,39 @@ export function openNetworkPlan(
   return { ok: false, message: "Hearth can't change this on this system." };
 }
 
+/**
+ * Restarts this Hearth in its own background job (a few seconds), as the installer set it up;
+ * null where Hearth was started by hand (11-22: the Premium package reloads it this way).
+ */
+export function restartPlan(
+  info: InstallInfo | null,
+  platform = process.platform,
+): { command: string; args: string[] } | null {
+  if (!info?.home || info.kind === "manual") return null;
+  const service = info.service ?? "hearth";
+  if (!SAFE_SERVICE.test(service)) return null;
+  if (info.kind === "linux-user-service" && platform === "linux")
+    return {
+      command: "systemd-run",
+      args: [
+        "--user",
+        "--collect",
+        `--unit=hearth-restart-${Date.now()}`,
+        "/bin/bash",
+        "-c",
+        `sleep 2; systemctl --user restart ${service}`,
+      ],
+    };
+  if (info.kind === "windows-sign-in-task" && platform === "win32") {
+    const control = path.join(info.home, "hearth.ps1");
+    return backgroundPowerShell(
+      `Start-Sleep -Seconds 2; & '${control.replace(/'/g, "''")}' restart`,
+      { bypass: true },
+    );
+  }
+  return null;
+}
+
 /** Opens this Hearth to the home network and restarts it (a few seconds). */
 export function openToNetwork(
   info: InstallInfo | null,

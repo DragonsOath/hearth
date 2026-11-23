@@ -14628,6 +14628,15 @@ describe("Hearth Premium at the action boundary (docs/design/PREMIUM.md)", () =>
     });
   }, 30_000);
 
+  it("Learn about Premium needs an AI connected, and says so plainly (11-22)", async () => {
+    const app = await makeApp();
+    const r = await app.call("POST", "/api/premium/tour", {});
+    expect(r.statusCode).toBe(409);
+    expect(r.json<{ message: string }>().message).toMatch(/Connect an AI service first/);
+    // Nothing was switched on for a tour that didn't start.
+    expect(await getSetting(app.handle.db, "show_and_tell")).toBeUndefined();
+  });
+
   it("a licence key for this installation is added, one for another is refused, a forged one too", async () => {
     const app = await makeApp();
     const { installId } = (await app.call("GET", "/api/premium")).json<{ installId: string }>();

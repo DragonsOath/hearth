@@ -5938,6 +5938,35 @@ export async function buildApp({
         : {}),
     };
   };
+  // "Learn about Premium" (the owner, 11-22): after the welcome, a new conversation where Ember
+  // shows each Premium extra on screen with Show & Tell. Show & Tell is switched to Show me when it
+  // is off (that is what was asked for); a choice already made (Show me, Teach me) is kept.
+  app.post("/api/premium/tour", async (request) => {
+    premiumOwner(request);
+    const name = aiDisplayName(await getSetting(db, "ai_name"));
+    if (!(await agents.operator()))
+      throw new ConflictError(
+        `Connect an AI service first (AI Agent page), so ${name} can show you around Premium.`,
+      );
+    await premiumPackage.welcomed();
+    const show = await getSetting(db, "show_and_tell");
+    const showOn = await entitlements.has("ember_show_and_tell");
+    if (showOn && (!show?.mode || show.mode === "off")) {
+      await setSetting(db, "show_and_tell", { ...show, mode: "show" });
+      await recordAudit(db, {
+        actor: "you",
+        action: "Turned on Show & Tell (Show me) for the Premium tour",
+        target: "show-and-tell",
+      });
+    }
+    return agents.converse({
+      text: showOn
+        ? "Show me around Hearth Premium: walk me through each Premium extra on my screen with Show & Tell, one at a time, and what I can do with it."
+        : "Tell me about Hearth Premium: what each Premium extra does and what I can do with it.",
+      source: "app",
+      waitMs: 1000,
+    });
+  });
   app.post("/api/premium/welcomed", async (request) => {
     premiumOwner(request);
     await premiumPackage.welcomed();

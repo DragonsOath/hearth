@@ -69,3 +69,29 @@ test("waiting for a running job, then Welcome to Premium once", async ({ page },
   await page.reload();
   await expect(page.getByTestId("premium-welcome")).toHaveCount(0);
 });
+
+test("Learn about Premium opens a new conversation with Ember's tour", async ({ page }) => {
+  let toured = false;
+  await page.route("**/api/premium/tour", (r) => {
+    toured = true;
+    return r.fulfill({ json: { conversationId: "conv-premium-tour" } });
+  });
+  await page.route("**/api/premium", (r) =>
+    r.fulfill({
+      json: {
+        ...base,
+        package: { state: "ready", version: "1.0.0" },
+        ...(toured ? {} : { welcome: true }),
+      },
+    }),
+  );
+  await page.goto("/settings");
+  const dialog = page.getByRole("dialog", { name: "Welcome to Premium" });
+  await expect(dialog).toBeVisible({ timeout: 15_000 });
+  // The tour is the first choice; Let's go just closes.
+  await expect(dialog.getByRole("button", { name: "Learn about Premium" })).toBeFocused();
+  await dialog.getByRole("button", { name: "Learn about Premium" }).click();
+  await expect(page).toHaveURL(/\/ask\/conv-premium-tour$/);
+  await expect(page.getByTestId("premium-welcome")).toHaveCount(0);
+  expect(toured).toBe(true);
+});

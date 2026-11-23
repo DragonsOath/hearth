@@ -30,7 +30,8 @@ export interface ShowSettings {
   tidy: boolean;
 }
 
-export const SHOW_DEFAULTS: ShowSettings = { mode: "off", speak: false, tidy: true };
+// Captions are read aloud by default (11-22, the owner: "the caption being off is stupid").
+export const SHOW_DEFAULTS: ShowSettings = { mode: "off", speak: true, tidy: true };
 
 /** Where Ember wants to show something, after Hearth resolved it to one of its own places. */
 export interface ShowPlace {

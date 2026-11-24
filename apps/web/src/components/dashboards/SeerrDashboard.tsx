@@ -224,7 +224,7 @@ function MovieCard({
               : `Digital release was ${m.overdueDays} day${m.overdueDays === 1 ? "" : "s"} ago. Not grabbed yet.`}
           </p>
         )}
-        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[0.78rem]">
+        <dl className="grid grid-cols-[minmax(0,6.5rem)_1fr] gap-x-3 gap-y-0.5 text-[0.78rem]">
           <dt className="text-faint">Digital</dt>
           <dd className="text-ink" data-testid="seerr-digital">
             {m.digital ? longDate(m.digital.date) : "Not announced"}
@@ -510,7 +510,7 @@ function ShowCard({
         >
           {state.label}
         </span>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[0.78rem]">
+        <dl className="grid grid-cols-[minmax(0,6.5rem)_1fr] gap-x-3 gap-y-0.5 text-[0.78rem]">
           {sonarr && (
             <>
               <dt className="text-faint">Next episode</dt>
@@ -538,7 +538,9 @@ function ShowCard({
               : "The whole show"}
             {showWho ? ` · requested by ${m.requestedBy}` : ""}
           </dd>
-          <dt className="text-faint">{sonarr?.instance ?? "Sonarr"}</dt>
+          <dt className="truncate text-faint" title={sonarr?.instance}>
+            {sonarr?.instance ?? "Sonarr"}
+          </dt>
           <dd className="text-muted" data-testid="seerr-show-sonarr">
             {sonarr
               ? `${sonarr.monitored ? "monitoring it" : "not monitoring it"} · ${sonarr.episodesOnDisk} of ${sonarr.episodes} episodes on disk${all ? " (all of them)" : ""}`

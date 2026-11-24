@@ -2978,7 +2978,8 @@ export const FEATURES: Feature[] = [
   {
     id: "seerr-panel",
     name: "Overseerr / Jellyseerr / Seerr panel",
-    summary: "Requests with release dates and Stop tracking; request new titles; issues; people.",
+    summary:
+      "Movie and show requests with release dates and Stop tracking; What's Missing for a show, with interactive search per episode; request new titles; issues; people.",
     aliases: [
       "overseerr",
       "jellyseerr",
@@ -3001,6 +3002,10 @@ export const FEATURES: Feature[] = [
       "seerr says not requested",
       "requested again",
       "mark as available",
+      "what's missing",
+      "missing episodes",
+      "next episode",
+      "search for an episode",
     ],
     where: { route: "/services", path: "Open Seerr: Overview, Discover, Issues, People" },
     open: { app: ["seerr"] },

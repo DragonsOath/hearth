@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RequestedShow } from "@dragon-control/core";
 import type { EpisodeRow } from "../sonarr/data";
-import { missingBySeason, showState } from "./missing";
+import { completeness, showState } from "./missing";
 
 const NOW = Date.parse("2026-11-24T12:00:00Z");
 const ep = (season: number, number: number, o: Partial<EpisodeRow> = {}): EpisodeRow => ({
@@ -16,38 +16,59 @@ const ep = (season: number, number: number, o: Partial<EpisodeRow> = {}): Episod
   ...o,
 });
 
-describe("what a show is missing", () => {
-  it("lists aired, monitored episodes with no file, by season, and marks a season with nothing on disk", () => {
-    const m = missingBySeason(
-      [
-        ep(1, 1),
-        ep(1, 2, { hasFile: false }),
-        ep(1, 3),
-        ep(2, 1, { hasFile: false }),
-        ep(2, 2, { hasFile: false }),
-        // Not aired yet: not missing.
-        ep(2, 3, { hasFile: false, airDate: "2026-12-04T01:00:00Z" }),
-        // Specials are left out.
-        ep(0, 1, { hasFile: false }),
-        // Not monitored: only counted.
-        ep(3, 1, { hasFile: false, monitored: false }),
-      ],
-      NOW,
-    );
-    expect(m.total).toBe(3);
-    expect(m.notMonitored).toBe(1);
-    expect(m.seasons.map((s) => [s.season, s.whole, s.episodes.map((e) => e.code)])).toEqual([
-      [1, false, ["S01E02"]],
-      [2, true, ["S02E01", "S02E02"]],
-    ]);
+describe("how complete a show is", () => {
+  const c = completeness(
+    [
+      ep(1, 1),
+      ep(1, 2),
+      // Season 2: one aired and missing, one downloading, one not monitored, one airing next.
+      ep(2, 1),
+      ep(2, 2, { hasFile: false }),
+      ep(2, 3, { hasFile: false }),
+      ep(2, 4, { hasFile: false, monitored: false }),
+      ep(2, 5, { hasFile: false, airDate: "2026-12-04T01:00:00Z" }),
+      // Season 3: nothing aired yet; one with no date at all.
+      ep(3, 1, { hasFile: false, airDate: "2027-03-01T01:00:00Z" }),
+      ep(3, 2, { hasFile: false, airDate: undefined }),
+      // Specials are left out.
+      ep(0, 1, { hasFile: false }),
+    ],
+    [{ episodeId: 203, status: "downloading", progressPct: 40 }],
+    NOW,
+  );
+
+  it("never counts an episode that hasn't aired, or has no date, as missing", () => {
+    expect(c.missing).toBe(1);
+    expect(c.notMonitored).toBe(1);
+    expect(c.known).toBe(9);
+    expect(c.present).toBe(3);
+    expect(c.next?.code).toBe("S02E05");
   });
 
-  it("says nothing is missing when every aired episode is on disk", () => {
-    expect(missingBySeason([ep(1, 1), ep(1, 2)], NOW)).toEqual({
-      seasons: [],
-      total: 0,
-      notMonitored: 0,
+  it("gives every episode its own state", () => {
+    const states = Object.fromEntries(
+      c.seasons.flatMap((s) => s.episodes.map((x) => [x.e.code, x.state])),
+    );
+    expect(states).toEqual({
+      S01E01: "in-library",
+      S01E02: "in-library",
+      S02E01: "in-library",
+      S02E02: "missing",
+      S02E03: "downloading",
+      S02E04: "not-monitored",
+      S02E05: "next",
+      S03E01: "upcoming",
+      S03E02: "unknown",
     });
+  });
+
+  it("says which seasons are complete, missing something, or not released yet", () => {
+    expect(c.seasons.map((s) => [s.season, s.state, s.present, s.known])).toEqual([
+      [1, "complete", 2, 2],
+      [2, "missing", 1, 5],
+      [3, "unreleased", 0, 2],
+    ]);
+    expect(c.seasonsInLibrary).toBe(2);
   });
 });
 

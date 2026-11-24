@@ -134,13 +134,29 @@ export async function readSonarrView(
     case "series": {
       const id = Number(q.id);
       if (!Number.isInteger(id) || id <= 0) throw new ServarrReadError("Say which series.");
-      const [m, episodes, files, history, look] = await Promise.all([
+      const [m, episodes, files, history, look, queue] = await Promise.all([
         need(`/api/v3/series/${id}`, "that series"),
         need(`/api/v3/episode?seriesId=${id}`, "its episodes"),
         need(`/api/v3/episodefile?seriesId=${id}`, "its episode files"),
         get(`/api/v3/history/series?seriesId=${id}&includeEpisode=true`),
         lookups(),
+        // What of it is downloading now (What's Missing shows it on each episode).
+        get(`/api/v3/queue?page=1&pageSize=200&seriesIds=${id}&includeEpisode=true`),
       ]);
+      const queued = queue.ok
+        ? list(Array.isArray(queue.data) ? queue.data : obj(queue.data).records)
+            .filter((x) => num(x.seriesId) === id && num(x.episodeId))
+            .map((x) => {
+              const size = num(x.size) ?? 0;
+              const left = num(x.sizeleft) ?? 0;
+              return {
+                episodeId: num(x.episodeId)!,
+                status: str(x.trackedDownloadState) ?? str(x.status) ?? "queued",
+                progressPct: size > 0 ? Math.round(((size - left) / size) * 100) : undefined,
+                release: str(x.title),
+              };
+            })
+        : [];
       const show = obj(m);
       const fileById = new Map(list(files).map((f) => [num(f.id), f]));
       const eps = list(episodes).map((e) => episodeRow(e, fileById.get(num(e.episodeFileId))));
@@ -168,6 +184,7 @@ export async function readSonarrView(
           .sort((a, b) => b.number - a.number),
         episodes: eps.sort((a, b) => b.season - a.season || a.number - b.number),
         history: history.ok ? list(history.data).slice(0, 40).map(historyRow) : [],
+        queue: queued,
         ...look,
       };
     }

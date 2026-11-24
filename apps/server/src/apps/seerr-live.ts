@@ -36,6 +36,11 @@ type SeerrRequest = {
 type ShowDetail = {
   name?: string;
   posterPath?: string;
+  backdropPath?: string;
+  genres?: { name?: string }[];
+  networks?: { name?: string }[];
+  status?: string;
+  numberOfSeasons?: number;
   firstAirDate?: string;
   externalIds?: { tvdbId?: number };
 };
@@ -461,6 +466,19 @@ export class SeerrLive {
         ...(d?.posterPath && /^\/[\w-]+\.(jpg|jpeg|png|webp)$/i.test(d.posterPath)
           ? { poster: d.posterPath }
           : {}),
+        ...(d?.backdropPath && /^\/[\w-]+\.(jpg|jpeg|png|webp)$/i.test(d.backdropPath)
+          ? { backdrop: d.backdropPath }
+          : {}),
+        ...(d?.genres?.length
+          ? {
+              genres: d.genres
+                .map((g) => g.name ?? "")
+                .filter(Boolean)
+                .slice(0, 4),
+            }
+          : {}),
+        ...(d?.networks?.[0]?.name ? { network: d.networks[0].name } : {}),
+        ...(d?.status ? { showStatus: d.status } : {}),
         requestedAt: req.createdAt ?? new Date(0).toISOString(),
         requestedBy: req.requestedBy?.displayName ?? "Someone",
         mine: meId !== undefined && req.requestedBy?.id === meId,

@@ -277,3 +277,52 @@ describe("interactive search", () => {
     );
   });
 });
+
+describe("comparing releases and grabbing one against the rules", () => {
+  it("names each release's resolution, source, codec, HDR and sound", async () => {
+    const { call } = app({
+      "GET /api/v3/release": {
+        data: [
+          {
+            guid: "a",
+            indexerId: 1,
+            title: "Show.S01E03.2160p.WEB-DL.DDP5.1.Atmos.DV.HEVC-GRP",
+            size: 16 * 1024 ** 3,
+            quality: { quality: { name: "WEBDL-2160p", source: "web", resolution: 2160 } },
+            approved: false,
+            rejections: ["Release is larger than maximum allowed 8.0 GiB"],
+          },
+          {
+            guid: "b",
+            indexerId: 1,
+            title: "Show.S01E03.1080p.WEBRip.AAC2.0.x264-GRP",
+            quality: { quality: { name: "WEBRip-1080p", source: "webRip", resolution: 1080 } },
+            approved: true,
+          },
+        ],
+      },
+    });
+    const r = await findReleases("sonarr", call, { episodeId: 3 });
+    expect(r.releases.map((x) => [x.resolution, x.source, x.codec, x.hdr, x.audio])).toEqual([
+      ["1080p", "WEBRip", "H.264", undefined, "AAC 2.0"],
+      ["2160p", "WEB-DL", "HEVC", "Dolby Vision", "DD+ 5.1 Atmos"],
+    ]);
+  });
+
+  it("says a release chosen against the rules is a one-time exception, and the rules stay", () => {
+    const g = grabParams({
+      guid: "a",
+      indexerId: 1,
+      release: "Show.S01E03.2160p",
+      title: "Show S01E03",
+      exception: "over your size limit",
+    });
+    expect(typeof g).toBe("object");
+    const change = grabChange("Sonarr", g as Exclude<typeof g, string>);
+    expect(change.settings).toContainEqual({
+      name: "Your quality rules",
+      before: "Turned this release down: over your size limit",
+      after: "Unchanged. A one-time exception for this release only",
+    });
+  });
+});

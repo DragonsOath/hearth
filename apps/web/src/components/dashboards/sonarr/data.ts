@@ -74,6 +74,8 @@ export interface SeriesView extends Base {
   }[];
   episodes: EpisodeRow[];
   history: HistoryRow[];
+  /** What of it is downloading now. */
+  queue?: { episodeId: number; status: string; progressPct?: number; release?: string }[];
   profiles: Named[];
   tags: TagRef[];
 }

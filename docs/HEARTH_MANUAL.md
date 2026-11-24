@@ -130,12 +130,18 @@ Hearth is a homelab control center that lives on your PC (Linux or Windows). In 
 A new Hearth opens with setup, one step at a time (you can stop and pick up later):
 
 1. **Your account**: a password, then a passkey if your device supports it.
-2. **Connect your AI**: sign in to Claude Code (or choose Codex, or Ollama later). The screen
+2. **Where do your apps and files live?**: **On this computer**, **On a NAS** (Synology, QNAP,
+   TrueNAS, Unraid, OpenMediaVault, or not sure), **On another computer or server**, or **I'm
+   starting from nothing** (goes straight to **Build my setup**). For a NAS or another computer,
+   type its address or press **Find it for me** (Hearth looks on the home network, about 20
+   seconds, read only), then **Add** the NAS and the apps it found, before Home. **I'm not sure
+   what a NAS is** explains in one line. **Skip for now** works here too.
+3. **Connect your AI**: sign in to Claude Code (or choose Codex, or Ollama later). The screen
    explains what AI costs before you connect. **Skip for now** works; Hearth runs without AI
    (monitoring, known fixes and notifications keep working).
-3. **Make it yours**: your name and picture, **This PC** (its name and icon), your AI's name,
+4. **Make it yours**: your name and picture, **This PC** (its name and icon), your AI's name,
    its look, its voice, its personality, and your **Theme**.
-4. **Finish**: three ways in. Someone starting from nothing gets **Build my setup** as the main
+5. **Finish**: three ways in. Someone starting from nothing gets **Build my setup** as the main
    button, with **Enter Hearth** beside it; someone who already runs apps gets **Enter Hearth**
    and **Find what I already run**.
 

@@ -107,11 +107,13 @@ test("a fresh installation asks to be secured, and only with its setup code", as
   await expect(page.getByRole("status")).toContainText(
     "It signs you in and unlocks protected secrets.",
   );
-  // The account is made: the next stage is connecting the AI (onboarding.spec.ts covers it).
+  // The account is made: the next stage is where the apps live (onboarding.spec.ts covers it).
   await expect(page.getByTestId("onboarding-stages")).toBeVisible();
-  await page.getByRole("button", { name: "Next: Connect your AI" }).click();
-  await expect(page).toHaveURL(/\/welcome\?step=ai$/);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Connect Ember's AI");
+  await page.getByRole("button", { name: "Next: Your homelab" }).click();
+  await expect(page).toHaveURL(/\/welcome\?step=where$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Where do your apps and files live?",
+  );
   // Already signed in: no second account, and no password asked again.
   await expect(page.getByLabel(/password/i)).toHaveCount(0);
   await page.getByRole("button", { name: "Skip setup" }).click();

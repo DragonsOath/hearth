@@ -8,6 +8,7 @@ import { cx } from "../ui";
  */
 export const ONBOARDING_STAGES = [
   { id: "account", label: "Your account" },
+  { id: "lab", label: "Your homelab" },
   { id: "ai", label: "Connect your AI" },
   { id: "yours", label: "Make it yours" },
   { id: "finish", label: "Finish" },
@@ -26,7 +27,7 @@ export function OnboardingStages({
   return (
     <ol
       aria-label="Setup"
-      className={cx("grid grid-cols-4 gap-2", className)}
+      className={cx("grid grid-cols-5 gap-2", className)}
       data-testid="onboarding-stages"
     >
       {ONBOARDING_STAGES.map((s, i) => {

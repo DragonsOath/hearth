@@ -176,7 +176,8 @@ export const FEATURES: Feature[] = [
   {
     id: "first-run-setup",
     name: "First-run setup",
-    summary: "Securing a new Hearth, connecting an AI, and making it yours.",
+    summary:
+      "Securing a new Hearth, where its apps live (a NAS or another computer found and added right there), connecting an AI, and making it yours.",
     aliases: [
       "setup",
       "set up hearth",
@@ -184,9 +185,11 @@ export const FEATURES: Feature[] = [
       "run setup again",
       "onboarding",
       "install hearth",
+      "nas setup",
+      "find my nas",
     ],
     where: { route: "/settings#general", path: "Settings, General, First-run setup" },
-    labels: ["Secure Hearth", "Run the setup again", "Skip for now"],
+    labels: ["Secure Hearth", "Run the setup again", "Skip for now", "Find it for me"],
     status: "working",
     evidence: [
       {
@@ -196,6 +199,10 @@ export const FEATURES: Feature[] = [
       {
         file: E2E("onboarding.spec.ts"),
         test: "an owner with saved settings never sees it, but can run it again from Settings",
+      },
+      {
+        file: E2E("onboarding.spec.ts"),
+        test: "Where do your apps live: a NAS is found on the home network and its apps added before Home",
       },
     ],
     ember: { execute: HEARTH_PLAN("Carry out a first-run setup step") },

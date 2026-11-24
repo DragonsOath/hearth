@@ -405,6 +405,22 @@ export function useScan(pc?: string) {
   });
 }
 
+/** A machine "Find it for me" found on the home network. */
+export interface FoundMachine {
+  address: string;
+  /** The NAS system, when its own sign-in page answered ("Synology DSM"). */
+  nas?: string;
+  apps: string[];
+}
+
+/** "Find it for me": the NAS and app machines on the home network (read-only, about 20 s). */
+export function useFindMachines() {
+  return useMutation({
+    mutationFn: () =>
+      api<{ machines: FoundMachine[] }>("POST", "/api/discovery/find-machines", {}),
+  });
+}
+
 export function useScanRemote() {
   const queryClient = useQueryClient();
   return useMutation({

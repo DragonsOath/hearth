@@ -5,6 +5,7 @@ import { networkInterfaces } from "node:os";
 import si from "systeminformation";
 import type { DiscoveryReport, PhysicalDisk, Volume } from "@dragon-control/core";
 import { readDisks } from "./disks";
+import { findMachines, neighboursOf, portOpen, type FoundMachine, type LanProbes } from "./lan";
 import { analyzeContainers, findAppsAt, findNativeApps, type PageRead } from "./analyze";
 import { connectDocker } from "./docker-client";
 import { dockerVersion, listContainers, type ContainerInfo } from "./docker";
@@ -18,6 +19,8 @@ export interface DiscoveryProbes {
   probeHttp: (port: number, host?: string) => Promise<boolean>;
   /** A page on another machine, to tell which app answers there (remote scans only). */
   readPage?: (port: number, host: string) => Promise<PageRead | null>;
+  /** This machine's home network, for "find it for me". */
+  lan?: Pick<LanProbes, "neighbours" | "portOpen">;
   disks: (hostId: string) => Promise<PhysicalDisk[]>;
 }
 
@@ -175,6 +178,10 @@ export const realProbes: DiscoveryProbes = {
   },
   probeHttp,
   readPage: (port, host) => readPage(port, host),
+  lan: {
+    neighbours: async () => neighboursOf((await defaultAddress()) ?? ""),
+    portOpen: (host, port) => portOpen(host, port),
+  },
   disks: readDisks,
 };
 
@@ -280,4 +287,12 @@ export async function runRemoteDiscovery(
             : `Nothing answered at ${input.address} on the usual ports for Plex, Jellyfin, Home Assistant, or Syncthing. Check the address, and that its firewall lets this machine in.`,
         ],
   };
+}
+
+/** "Find it for me": the NAS and app machines on the home network (see lan.ts). */
+export async function runFindMachines(
+  probes: Pick<DiscoveryProbes, "readPage" | "lan">,
+): Promise<FoundMachine[]> {
+  if (!probes.readPage || !probes.lan) return [];
+  return findMachines({ ...probes.lan, readPage: probes.readPage });
 }

@@ -39,10 +39,12 @@ import { VoiceSetupNote } from "../components/settings/VoiceSetupNote";
 import { EngineChoice } from "./VoiceSettings";
 import { ConnectAiStep, aiConnected } from "../components/onboarding/ConnectAi";
 import { OnboardingStages, type OnboardingStage } from "../components/onboarding/Stages";
+import { WhereStep, type Where } from "../components/onboarding/WhereStep";
 
 /**
- * The first-run welcome, after the owner creates the account: connecting Ember's AI, then
- * "Make it yours" (seven short steps), then a finish. Also from Settings. Every step saves
+ * The first-run welcome, after the owner creates the account: where their apps live (a NAS or
+ * another computer is found and added right there; starting from nothing goes to Build my
+ * setup), connecting Ember's AI, then "Make it yours" (seven short steps), then a finish. Also from Settings. Every step saves
  * through the same settings the Settings page uses, as it goes, so leaving halfway keeps what
  * was chosen, and the step reached is saved too, so a closed browser resumes there. Finishing or
  * skipping marks it done, and it is not offered again. Steps are named, so a new one (connecting
@@ -67,8 +69,8 @@ const VOICE_LINES: Record<string, string> = {
 };
 
 const STEPS = [
+  { id: "where", stage: "lab", label: "Your homelab" },
   { id: "ai", stage: "ai", label: "Connect your AI" },
-  { id: "hello", stage: "yours", label: "Hello" },
   { id: "you", stage: "yours", label: "You" },
   { id: "pc", stage: "yours", label: "This PC" },
   { id: "name", stage: "yours", label: "Your AI's name" },
@@ -95,54 +97,6 @@ function useApplyVoice() {
 
 function Lead({ children }: { children: ReactNode }) {
   return <p className="mb-6 text-[0.92rem] leading-relaxed text-muted">{children}</p>;
-}
-
-/** The first choice: help building a first homelab, or an existing one. Both continue here. */
-function HelloStep({ onPick }: { onPick: (journey: "build" | "existing") => void }) {
-  const ws = useWorkspace();
-  const picked = ws.data?.journey;
-  const card = (journey: "build" | "existing", title: string, line: string) => (
-    <button
-      type="button"
-      onClick={() => onPick(journey)}
-      aria-pressed={picked === journey}
-      className={cx(
-        "flex min-h-24 w-full flex-col items-start gap-1 rounded-xl border p-4 text-left transition-colors",
-        picked === journey ? "border-gold bg-gold/10" : "border-line-strong hover:border-gold/60",
-      )}
-      data-testid={`welcome-path-${journey}`}
-    >
-      <span className="text-[1.05rem] text-ink">{title}</span>
-      <span className="text-[0.85rem] leading-relaxed text-muted">{line}</span>
-    </button>
-  );
-  return (
-    <>
-      <Lead>
-        Tell me what you&apos;d like to build, and I&apos;ll help you plan it. First, where are you
-        starting from?
-      </Lead>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {card(
-          "build",
-          "Help me build my first homelab",
-          "New to this? Pick an AI companion, say what you'd love to do, and get a plan that suits your computer. No experience needed.",
-        )}
-        {card(
-          "existing",
-          "I already have a homelab",
-          "Already run apps like Plex or Radarr? Hearth finds them and helps you look after them.",
-        )}
-      </div>
-      <p className="mt-4 text-[0.8rem] text-faint">
-        Hearth is free. You bring your own AI (Ollama is free and runs at home) and, for automatic
-        downloads, your own VPN.
-      </p>
-      <p className="mt-2 text-[0.8rem] text-faint">
-        Either way, you can stop any time and pick up where you left off.
-      </p>
-    </>
-  );
 }
 
 function YouStep() {
@@ -510,12 +464,13 @@ export function WelcomePage() {
   // was left (the server forgets that once it is finished or skipped), else the start.
   const id: StepId = isStep(raw)
     ? raw
-    : (fromNumber(raw) ?? (isStep(ws.data?.onboardingStep) ? ws.data.onboardingStep : "ai"));
+    : (fromNumber(raw) ?? (isStep(ws.data?.onboardingStep) ? ws.data.onboardingStep : "where"));
   const index = STEPS.findIndex((s) => s.id === id);
   const current = STEPS[index]!;
   const yoursAt = YOURS.findIndex((s) => s.id === id);
   const heading = useRef<HTMLHeadingElement>(null);
   const [aiName, setAiName] = useState<string | null>(null);
+  const [where, setWhere] = useState<Where | undefined>();
   const markDone = settings.mutateAsync;
   const saveStep = settings.mutate;
   const savedStep = ws.data?.onboardingStep;
@@ -560,8 +515,8 @@ export function WelcomePage() {
 
   const name = aiDisplayName(ws.data.aiName);
   const titles: Record<StepId, string> = {
+    where: "Where do your apps and files live?",
     ai: `Connect ${name}'s AI`,
-    hello: "Welcome to Hearth",
     you: "Let's start with you",
     pc: "This PC",
     name: "Your AI's name",
@@ -588,7 +543,13 @@ export function WelcomePage() {
 
         <OnboardingStages current={stage} className="mb-6" />
         <p className="eyebrow mb-2">
-          {stage === "ai" ? "Connect your AI" : stage === "finish" ? "Finish" : "Make it yours"}
+          {stage === "lab"
+            ? "Your homelab"
+            : stage === "ai"
+              ? "Connect your AI"
+              : stage === "finish"
+                ? "Finish"
+                : "Make it yours"}
         </p>
         {!done && stage === "yours" && (
           <div className="mb-6">
@@ -626,12 +587,24 @@ export function WelcomePage() {
               onOpen={(to) => void leave(to)}
               beforeMeet={finish}
             />
+          ) : id === "where" ? (
+            <WhereStep
+              picked={where}
+              onPick={(choice) => {
+                setWhere(choice);
+                const journey = choice === "new" ? "build" : "existing";
+                void settings.mutateAsync({ journey }).then(() => {
+                  // Starting from nothing: straight to Build my setup. On this computer: on with
+                  // the setup (the finish offers to find its apps). A NAS or another computer
+                  // is found first, right here.
+                  if (choice === "new") void leave("/plan");
+                  else if (choice === "here") go(nextOf(index));
+                });
+              }}
+              onDone={() => go(nextOf(index))}
+            />
           ) : id === "ai" ? (
             <ConnectAiStep />
-          ) : id === "hello" ? (
-            <HelloStep
-              onPick={(journey) => void settings.mutateAsync({ journey }).then(() => go("you"))}
-            />
           ) : id === "you" ? (
             <YouStep />
           ) : id === "pc" ? (
@@ -655,7 +628,11 @@ export function WelcomePage() {
             <Button disabled={index === 0} onClick={() => go(STEPS[index - 1]!.id)}>
               Back
             </Button>
-            {id === "ai" ? (
+            {id === "where" ? (
+              <Button tone="quiet" onClick={() => go(nextOf(index))} data-testid="where-skip">
+                Skip for now
+              </Button>
+            ) : id === "ai" ? (
               <div className="flex flex-wrap items-center justify-end gap-3">
                 {!connected && (
                   <Button tone="quiet" onClick={() => go(nextOf(index))} data-testid="ai-skip">

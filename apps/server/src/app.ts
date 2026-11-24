@@ -118,6 +118,7 @@ import { seedDemo } from "./demo/seed";
 import {
   realProbes,
   runDiscovery,
+  runFindMachines,
   runRemoteDiscovery,
   slug,
   type DiscoveryProbes,
@@ -6913,6 +6914,14 @@ export async function buildApp({
   app.get("/api/audit", async (request) => {
     const { limit } = schemas.auditQuery.parse(request.query);
     return listAudit(db, limit);
+  });
+
+  // "Find it for me" in the welcome: which machines on the home network are a NAS or run apps.
+  // Read-only, and only on the home network; at most one sweep at a time.
+  let finding: Promise<unknown> | undefined;
+  app.post("/api/discovery/find-machines", async () => {
+    finding ??= runFindMachines(probes).finally(() => (finding = undefined));
+    return { machines: await finding };
   });
 
   app.post("/api/discovery/scan-remote", async (request) => {

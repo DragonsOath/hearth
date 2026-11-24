@@ -1,6 +1,10 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_MEDIA_ANNOUNCE, type MediaAnnounceSettings } from "@dragon-control/core";
+import {
+  DEFAULT_MEDIA_ANNOUNCE,
+  HERALD_ICON,
+  type MediaAnnounceSettings,
+} from "@dragon-control/core";
 import { SERVER_ROOT } from "../config";
 import { openDatabase, runMigrations } from "../db/client";
 import type { ServerRead } from "./arrivals";
@@ -114,8 +118,8 @@ describe("media announcements: from library arrival to a destination", () => {
     expect(msg.files).toEqual(["poster.jpg"]);
     const embed = (msg.payload.embeds as Record<string, unknown>[])[0]!;
     expect(embed).toMatchObject({
-      author: { name: "Just added to the library" },
-      title: "Quiet Harbor (2026)",
+      author: { name: expect.stringMatching(/^Ember: /), icon_url: HERALD_ICON },
+      title: "Just added to the library: Quiet Harbor (2026)",
       thumbnail: { url: "attachment://poster.jpg" },
     });
     expect(String(embed.description)).toContain(

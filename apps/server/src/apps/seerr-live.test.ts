@@ -233,3 +233,37 @@ describe("the Seerr dashboard", () => {
     ).toBe(8);
   });
 });
+
+describe("a requested show's seasons from Sonarr", () => {
+  it("counts its seasons (specials left out) and the aired, monitored episodes not on disk", async () => {
+    const { seasonsOf } = await import("./seerr-live");
+    expect(
+      seasonsOf({
+        id: 1,
+        seasons: [
+          {
+            seasonNumber: 0,
+            monitored: false,
+            statistics: { episodeFileCount: 0, episodeCount: 3 },
+          },
+          {
+            seasonNumber: 2,
+            monitored: true,
+            statistics: { episodeFileCount: 2, episodeCount: 8 },
+          },
+          {
+            seasonNumber: 1,
+            monitored: true,
+            statistics: { episodeFileCount: 10, episodeCount: 10 },
+          },
+        ],
+      }),
+    ).toEqual({
+      seasons: [
+        { number: 1, files: 10, episodes: 10, monitored: true },
+        { number: 2, files: 2, episodes: 8, monitored: true },
+      ],
+      missing: 6,
+    });
+  });
+});

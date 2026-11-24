@@ -377,6 +377,25 @@ test("Overseerr panel: a show request, Sonarr's state, and Stop tracking that st
     await expect(show.getByTestId("seerr-show-sonarr")).toContainText(
       "monitoring it · 30 of 40 episodes on disk",
     );
+    // Shows count in All requests, alongside the movies.
+    await expect(panel.getByText(/\d+ movies?, 1 show/).first()).toBeVisible();
+    // Like a movie: where it stands, the next episode, and the seasons in the library.
+    await expect(show.getByTestId("seerr-show-state")).toContainText(/^Missing \d+ episodes?$/);
+    await expect(show.getByTestId("seerr-show-next")).not.toBeEmpty();
+    await expect(show.getByTestId("seerr-show-seasons")).toContainText(/^\d+ of \d+ seasons?$/);
+    // What you're missing: exactly which seasons and episodes, read from Sonarr.
+    await show.getByTestId("seerr-show-missing").click();
+    const missing = page.getByRole("dialog", { name: /What Ghosts \(US\).* is missing/ });
+    await expect(missing.getByTestId("seerr-missing-list")).toContainText(/Season \d/);
+    await expect(missing.getByTestId("seerr-missing-list")).toContainText(/S\d\dE\d\d/);
+    await page.screenshot({
+      path: `test-results/screens/${testInfo.project.name}/seerr-show-missing.png`,
+    });
+    await missing.getByRole("button", { name: "Close" }).click();
+    await page.screenshot({
+      path: `test-results/screens/${testInfo.project.name}/seerr-show-card.png`,
+      fullPage: true,
+    });
     await show.getByTestId("seerr-stop-tracking").click();
     const stop = show.getByTestId("panel-change");
     await expect(stop).toContainText("Ghosts (US)");

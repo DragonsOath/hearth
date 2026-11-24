@@ -13,6 +13,9 @@ import { useCave } from "../shell/cave-context";
 import { Button, Segmented, Skeleton, cx } from "../ui";
 import { ChangeCard, useConfirmedChange } from "./ConfirmedChange";
 import { EmberMark } from "../ember/EmberMark";
+import { Modal } from "../workspace/dialogs";
+import { useSonarr } from "./sonarr/data";
+import { missingBySeason, showState } from "./seerr/missing";
 
 /**
  * Overseerr / Jellyseerr as a movie request dashboard: every request with its poster, digital
@@ -404,6 +407,10 @@ function ShowCard({
   const name = `${m.title}${m.year ? ` (${m.year})` : ""}`;
   const sonarr = m.sonarr;
   const all = sonarr && sonarr.episodes > 0 && sonarr.episodesOnDisk >= sonarr.episodes;
+  const [missingOpen, setMissingOpen] = useState(false);
+  const state = showState(m);
+  const seasons = sonarr?.seasons ?? [];
+  const inLibrary = seasons.filter((s) => s.files > 0).length;
   return (
     <li
       className="flex gap-3 rounded-xl border border-line bg-bg/50 p-3"
@@ -416,20 +423,68 @@ function ShowCard({
       </div>
       <div className="min-w-0 flex-1 space-y-1.5">
         <p className="text-[0.95rem] leading-snug text-ink">{name}</p>
-        <p className="text-[0.8rem] text-muted">
-          {m.seasons.length
-            ? `Season${m.seasons.length > 1 ? "s" : ""} ${m.seasons.join(", ")}`
-            : "The whole show"}
-          {showWho ? ` · requested by ${m.requestedBy}` : ""}
-          {m.approval === "pending" ? " · waiting for approval" : ""}
-          {m.approval === "declined" ? " · declined" : ""}
-        </p>
-        <p className="text-[0.8rem] text-faint" data-testid="seerr-show-sonarr">
-          {sonarr
-            ? `${sonarr.instance}: ${sonarr.monitored ? "monitoring it" : "not monitoring it"} · ${sonarr.episodesOnDisk} of ${sonarr.episodes} episodes on disk${all ? " (all of them)" : ""}`
-            : "Not in Sonarr"}
-        </p>
+        <span
+          className={cx(
+            "fit-pill inline-flex rounded-full border px-2 py-0.5 text-[0.72rem]",
+            state.tone === "warn"
+              ? "border-amber/50 text-amber"
+              : state.tone === "good"
+                ? "border-live/40 text-live"
+                : state.tone === "busy"
+                  ? "border-gold/50 text-gold"
+                  : "border-line-strong text-muted",
+          )}
+          data-testid="seerr-show-state"
+        >
+          {state.label}
+        </span>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[0.78rem]">
+          {sonarr && (
+            <>
+              <dt className="text-faint">Next episode</dt>
+              <dd className="text-ink" data-testid="seerr-show-next">
+                {sonarr.nextAiring
+                  ? airDate(sonarr.nextAiring)
+                  : sonarr.ended
+                    ? "None, the show has ended"
+                    : "Not announced"}
+              </dd>
+            </>
+          )}
+          {seasons.length > 0 && (
+            <>
+              <dt className="text-faint">In your library</dt>
+              <dd className="text-ink" data-testid="seerr-show-seasons">
+                {inLibrary} of {seasons.length} season{seasons.length === 1 ? "" : "s"}
+              </dd>
+            </>
+          )}
+          <dt className="text-faint">Requested</dt>
+          <dd className="text-muted">
+            {m.seasons.length
+              ? `Season${m.seasons.length > 1 ? "s" : ""} ${m.seasons.join(", ")}`
+              : "The whole show"}
+            {showWho ? ` · requested by ${m.requestedBy}` : ""}
+          </dd>
+          <dt className="text-faint">{sonarr?.instance ?? "Sonarr"}</dt>
+          <dd className="text-muted" data-testid="seerr-show-sonarr">
+            {sonarr
+              ? `${sonarr.monitored ? "monitoring it" : "not monitoring it"} · ${sonarr.episodesOnDisk} of ${sonarr.episodes} episodes on disk${all ? " (all of them)" : ""}`
+              : "Not in Sonarr"}
+          </dd>
+        </dl>
         <div className="flex flex-wrap items-center gap-2 pt-1">
+          {sonarr && (sonarr.missing ?? 0) > 0 && (
+            <button
+              type="button"
+              onClick={() => setMissingOpen(true)}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-amber/50 px-2.5 text-[0.76rem] text-amber hover:bg-amber/10"
+              data-testid="seerr-show-missing"
+            >
+              What you&apos;re missing
+              <span className="rounded-full bg-amber/15 px-1.5 tabular">{sonarr.missing}</span>
+            </button>
+          )}
           {sonarr && !sonarr.monitored && (
             <Button
               tone="primary"
@@ -512,8 +567,105 @@ function ShowCard({
           )}
         </div>
         <ChangeCard c={c} />
+        {missingOpen && sonarr && (
+          <MissingDialog
+            sonarrId={sonarr.serviceId}
+            seriesId={sonarr.seriesId}
+            name={name}
+            onClose={() => setMissingOpen(false)}
+          />
+        )}
       </div>
     </li>
+  );
+}
+
+/** A date an episode airs, in the viewer's own time zone ("Thursday, December 4"). */
+function airDate(iso: string) {
+  const d = new Date(iso);
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
+}
+
+/** Exactly which seasons and episodes aren't in the library yet, read from Sonarr when opened. */
+function MissingDialog({
+  sonarrId,
+  seriesId,
+  name,
+  onClose,
+}: {
+  sonarrId: string;
+  seriesId: number;
+  name: string;
+  onClose: () => void;
+}) {
+  const cave = useCave();
+  const q = useSonarr(sonarrId, "series", { id: seriesId });
+  const m = q.data?.episodes ? missingBySeason(q.data.episodes) : undefined;
+  return (
+    <Modal title={`What ${name} is missing`} onCancel={onClose}>
+      <div className="mt-3 max-h-[60vh] space-y-4 overflow-y-auto" data-testid="seerr-missing-list">
+        {q.isLoading && <p className="text-[0.85rem] text-muted">Asking Sonarr</p>}
+        {q.error && <p className="text-[0.85rem] text-amber">{q.error.message}</p>}
+        {m && m.total === 0 && (
+          <p className="text-[0.85rem] text-ink">Nothing that has aired is missing.</p>
+        )}
+        {m?.seasons.map((s) => (
+          <section key={s.season} aria-label={`Season ${s.season}`}>
+            <h3 className="text-[0.92rem] text-ink">
+              Season {s.season}
+              <span className="text-muted">
+                {" "}
+                ·{" "}
+                {s.whole
+                  ? `the whole season (${s.episodes.length} episode${s.episodes.length === 1 ? "" : "s"})`
+                  : `${s.episodes.length} episode${s.episodes.length === 1 ? "" : "s"}`}
+              </span>
+            </h3>
+            <ul className="mt-1 space-y-0.5 text-[0.8rem]">
+              {s.episodes.map((e) => (
+                <li key={e.id} className="flex gap-2">
+                  <span className="w-16 shrink-0 font-mono text-muted">{e.code}</span>
+                  <span className="min-w-0 flex-1 truncate text-ink">{e.title || "Untitled"}</span>
+                  {e.airDate && (
+                    <span className="shrink-0 text-faint">{e.airDate.slice(0, 10)}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+        {m && m.notMonitored > 0 && (
+          <p className="text-[0.78rem] text-faint">
+            {m.notMonitored} more aired episode{m.notMonitored === 1 ? " isn't" : "s aren't"} on
+            disk, but Sonarr isn&apos;t monitoring {m.notMonitored === 1 ? "it" : "them"}.
+          </p>
+        )}
+      </div>
+      {m && m.total > 0 && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              cave.ask(
+                `${name} is missing ${m.total} aired episode${m.total === 1 ? "" : "s"} in Sonarr (${m.seasons.map((s) => `season ${s.season}: ${s.whole ? "all of it" : s.episodes.map((e) => e.code).join(", ")}`).join("; ")}). Why haven't they been grabbed (indexers, download client, quality profile), and what should we do? Search for them if that makes sense.`,
+              );
+            }}
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-gold/40 px-2.5 text-[0.76rem] text-gold hover:bg-gold/10"
+            data-testid="seerr-missing-ask"
+          >
+            <MessageCircle strokeWidth={1.5} className="h-3.5 w-3.5" /> Ask Ember to find them
+            <EmberMark />
+          </button>
+        </div>
+      )}
+    </Modal>
   );
 }
 
@@ -588,7 +740,9 @@ export function SeerrDashboard({ serviceId, name }: { serviceId: string; name: s
   const [text, setText] = useState("");
   const [kind, setKind] = useState<"movies" | "shows">("movies");
   // Mine first, when Hearth's key belongs to someone who requested anything.
-  const shownScope: Scope = scope ?? (d && d.totals.mine > 0 ? "mine" : "all");
+  const shownScope: Scope =
+    scope ??
+    (d && d.totals.mine + (d.shows ?? []).filter((m) => m.mine).length > 0 ? "mine" : "all");
 
   const list = useMemo(() => {
     if (!d) return [];
@@ -637,6 +791,22 @@ export function SeerrDashboard({ serviceId, name }: { serviceId: string; name: s
   if (q.data?.error) return <NotRead serviceId={serviceId} name={name} error={q.data.error} />;
   if (!d) return null;
   const instances = new Set(d.movies.map((m) => m.radarr?.instance).filter(Boolean)).size;
+  // Movies and shows together: a show request is a request too (11-24, the owner).
+  const allShows = d.shows ?? [];
+  const showsMine = allShows.filter((m) => m.mine).length;
+  const showsWaiting = allShows.filter((m) => m.approval === "pending").length;
+  const split = (movies: number, shows: number) =>
+    allShows.length
+      ? `${movies} movie${movies === 1 ? "" : "s"}, ${shows} show${shows === 1 ? "" : "s"}`
+      : "movies";
+  const scopeCount = (scopeOf: Scope) =>
+    kind === "shows"
+      ? scopeOf === "mine"
+        ? showsMine
+        : allShows.length
+      : scopeOf === "mine"
+        ? d.totals.mine
+        : d.totals.movies;
 
   return (
     <section
@@ -652,9 +822,17 @@ export function SeerrDashboard({ serviceId, name }: { serviceId: string; name: s
               d.totals.overdue,
               `${d.overdueAfterDays ? `${d.overdueAfterDays}+ days ` : ""}past digital, not grabbed`,
             ],
-            ["My requests", d.totals.mine, d.me ? `as ${d.me}` : "movies"],
-            ["All requests", d.totals.movies, "movies"],
-            ["Awaiting approval", d.totals.awaitingApproval, "in Overseerr"],
+            [
+              "My requests",
+              d.totals.mine + showsMine,
+              allShows.length ? split(d.totals.mine, showsMine) : d.me ? `as ${d.me}` : "movies",
+            ],
+            [
+              "All requests",
+              d.totals.movies + allShows.length,
+              split(d.totals.movies, allShows.length),
+            ],
+            ["Awaiting approval", d.totals.awaitingApproval + showsWaiting, `in ${name}`],
           ] as const
         ).map(([label, value, sub]) => (
           <div key={label} className="stat-tile rounded-xl border border-line bg-bg/50 p-3">
@@ -698,8 +876,8 @@ export function SeerrDashboard({ serviceId, name }: { serviceId: string; name: s
           value={shownScope}
           onChange={setScope}
           options={[
-            { value: "mine", label: "My requests", count: d.totals.mine },
-            { value: "all", label: "All requests", count: d.totals.movies },
+            { value: "mine", label: "My requests", count: scopeCount("mine") },
+            { value: "all", label: "All requests", count: scopeCount("all") },
           ]}
         />
         <input

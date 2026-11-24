@@ -46,8 +46,33 @@ type SonarrSeries = {
   tvdbId?: number;
   tmdbId?: number;
   monitored?: boolean;
+  status?: string;
+  nextAiring?: string;
   statistics?: { episodeFileCount?: number; episodeCount?: number };
+  seasons?: {
+    seasonNumber?: number;
+    monitored?: boolean;
+    statistics?: { episodeFileCount?: number; episodeCount?: number };
+  }[];
 };
+
+/** A show's seasons from Sonarr's series (specials left out), and what aired but isn't on disk. */
+export function seasonsOf(s: SonarrSeries) {
+  const seasons = (s.seasons ?? [])
+    .filter((x) => (x.seasonNumber ?? 0) > 0)
+    .map((x) => ({
+      number: x.seasonNumber!,
+      files: x.statistics?.episodeFileCount ?? 0,
+      episodes: x.statistics?.episodeCount ?? 0,
+      monitored: x.monitored === true,
+    }))
+    .sort((a, b) => a.number - b.number);
+  // No season list (an older Sonarr): the show's own totals, specials and all.
+  const missing = seasons.length
+    ? seasons.reduce((n, x) => n + Math.max(0, x.episodes - x.files), 0)
+    : Math.max(0, (s.statistics?.episodeCount ?? 0) - (s.statistics?.episodeFileCount ?? 0));
+  return { seasons, missing };
+}
 
 type MovieDetail = {
   title?: string;
@@ -453,6 +478,9 @@ export class SeerrLive {
                 monitored: Boolean(match.s.monitored),
                 episodesOnDisk: match.s.statistics?.episodeFileCount ?? 0,
                 episodes: match.s.statistics?.episodeCount ?? 0,
+                ...(match.s.nextAiring ? { nextAiring: match.s.nextAiring } : {}),
+                ...(match.s.status === "ended" ? { ended: true } : {}),
+                ...seasonsOf(match.s),
               },
             }
           : {}),

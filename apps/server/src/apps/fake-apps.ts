@@ -477,7 +477,39 @@ export function fakeApps(): FakeApps {
       qualityProfileId: 1,
       path: "/tv/Ghosts (US)",
       statistics: { episodeFileCount: 30, episodeCount: 40 },
+      // Season 1 complete, season 2 half there; a new episode next week (the Seerr panel's
+      // show card and its What you're missing).
+      status: "continuing",
+      nextAiring: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+      seasons: [
+        { seasonNumber: 0, monitored: false, statistics: { episodeFileCount: 0, episodeCount: 0 } },
+        {
+          seasonNumber: 1,
+          monitored: true,
+          statistics: { episodeFileCount: 20, episodeCount: 20 },
+        },
+        {
+          seasonNumber: 2,
+          monitored: true,
+          statistics: { episodeFileCount: 10, episodeCount: 20 },
+        },
+      ],
     });
+    // Season 2's missing half, aired and monitored, as Sonarr lists them for the series view.
+    const ghostsMissing = Array.from({ length: 10 }, (_, i) => ({
+      id: 9000 + i,
+      seriesId: 1,
+      seasonNumber: 2,
+      episodeNumber: 11 + i,
+      title: `Missing episode ${11 + i}`,
+      airDateUtc: new Date(Date.now() - (30 - i) * 86_400_000).toISOString(),
+      monitored: true,
+      hasFile: false,
+      episodeFileId: 0,
+    }));
+    if (p === "/api/v3/system/status") return reply(200, { version: "4.0.15.2941" });
+    if (p === "/api/v3/qualityprofile" || p === "/api/v3/tag") return reply(200, []);
+    if (p === "/api/v3/episodefile" && method === "GET") return reply(200, []);
     if (p === "/api/v3/series" && method === "GET") return reply(200, [ghosts()]);
     if (p === "/api/v3/series/1" && method === "PUT") {
       seriesMonitored = (JSON.parse(init.body!) as { monitored: boolean }).monitored;
@@ -487,13 +519,15 @@ export function fakeApps(): FakeApps {
     if (p === "/api/v3/episode" && method === "GET")
       return reply(
         200,
-        files.map((f) => ({
-          id: f.id * 10,
-          seriesId: 1,
-          episodeFileId: f.id,
-          hasFile: true,
-          monitored: false,
-        })),
+        files
+          .map((f) => ({
+            id: f.id * 10,
+            seriesId: 1,
+            episodeFileId: f.id,
+            hasFile: true,
+            monitored: false,
+          }))
+          .concat(u.searchParams.get("seriesId") === "1" ? ghostsMissing : []),
       );
     if (p === "/api/v3/config/naming") return reply(200, structuredClone(naming));
     if (p === "/api/v3/config/naming/1" && method === "PUT") {

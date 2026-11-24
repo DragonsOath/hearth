@@ -248,8 +248,10 @@ its containers and suggests what to watch. It only reads; nothing changes.
 - **Needs a name**: web apps it does not know yet; name them so they read well.
 - **Supporting**: databases, VPNs and helpers other apps rely on.
 - **Stopped**: not running, left out unless you choose them.
-- **Another machine**: for apps on another computer (Plex on a Windows PC): its **IP address**
-  and a **Name**.
+- **Another machine**: for a NAS or another computer that runs apps: its **IP address** and a
+  **Name**. Hearth reads the page at each usual app port and recognises the app from it (Sonarr,
+  qBittorrent and the rest, even on a shared port), and the NAS itself (Synology, QNAP, TrueNAS,
+  Unraid, OpenMediaVault), so its own page is watched too. Each app still needs its key once.
 - **Start over** scans fresh. Systems you removed stay removed (**Removed by you**).
 
 <!-- feature: sample-data -->

@@ -245,39 +245,187 @@ export async function findNativeApps(input: {
   return found;
 }
 
+/** One read-only GET of a front page: enough to tell apps apart when they share a port. */
+export interface PageRead {
+  status: number;
+  /** Lower-case header names. */
+  headers: Record<string, string>;
+  /** The start of the page (the first 64 KB is plenty for a title). */
+  body: string;
+}
+
+/** Other names an app's own page uses (Seerr is Jellyseerr's successor). */
+const PAGE_NAMES: Partial<Record<string, string[]>> = {
+  jellyseerr: ["Jellyseerr", "Seerr"],
+  paperless: ["Paperless-ngx", "Paperless"],
+  adguard: ["AdGuard Home", "AdGuard"],
+  npm: ["Nginx Proxy Manager"],
+  "uptime-kuma": ["Uptime Kuma"],
+  vaultwarden: ["Vaultwarden", "Bitwarden"],
+  pihole: ["Pi-hole"],
+};
+/** Names too ordinary to trust anywhere but on the app's own port. */
+const ORDINARY = new Set(["homepage", "qui"]);
+
+/** Ports apps are often published on besides their own container port. */
+const EXTRA_PORTS: Partial<Record<string, number[]>> = {
+  audiobookshelf: [13378],
+  nextcloud: [8080],
+  pihole: [8053],
+};
+
+/** The NAS systems themselves, by their own sign-in page. */
+export const NAS_SYSTEMS = [
+  { id: "synology", name: "Synology DSM", ports: [5000], sign: /synology|diskstation/i },
+  { id: "qnap", name: "QNAP QTS", ports: [8080], sign: /\bqnap\b|\bQTS\b/ },
+  { id: "truenas", name: "TrueNAS", ports: [80], sign: /truenas/i },
+  { id: "unraid", name: "Unraid", ports: [80], sign: /unraid/i },
+  { id: "openmediavault", name: "OpenMediaVault", ports: [80], sign: /openmediavault/i },
+] as const;
+
+const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const named = (text: string, name: string) =>
+  new RegExp(`(^|[^a-z0-9])${escape(name)}($|[^a-z0-9])`, "i").test(text);
+const pageTitle = (body: string) => /<title[^>]*>([^<]*)<\/title>/i.exec(body)?.[1]?.trim() ?? "";
+const namesOf = (e: CatalogEntry) => PAGE_NAMES[e.id] ?? [e.name];
+
 /**
- * Another machine, seen only over the network: the same well-known ports,
- * each asked one read-only GET at that address. Nothing is installed there,
- * so Hearth can check these apps but not restart them.
+ * Which app a front page belongs to, or undefined when it can't be told: its own headers first
+ * (Plex, Transmission), then its title, then the page itself for the apps that use this port.
+ * The longest name wins, so "Jellyseerr" is never read as "Seerr" and the like.
+ */
+export function identifyPage(
+  page: PageRead,
+  onThisPort: CatalogEntry[],
+  all: CatalogEntry[] = CATALOG,
+): CatalogEntry | undefined {
+  const byId = (id: string) => all.find((e) => e.id === id);
+  if (page.headers["x-plex-protocol"] || /<MediaContainer[\s>]/.test(page.body))
+    return byId("plex");
+  if (page.headers["x-transmission-session-id"]) return byId("transmission");
+  const best = (text: string, entries: CatalogEntry[]) => {
+    let hit: { e: CatalogEntry; len: number } | undefined;
+    for (const e of entries)
+      for (const n of namesOf(e))
+        if (named(text, n) && (!hit || n.length > hit.len)) hit = { e, len: n.length };
+    return hit?.e;
+  };
+  const title = pageTitle(page.body);
+  if (title) {
+    const own = best(title, onThisPort);
+    if (own) return own;
+    const other = best(
+      title,
+      all.filter((e) => !e.supporting && !ORDINARY.has(e.id)),
+    );
+    if (other) return other;
+  }
+  return best(
+    page.body.slice(0, 65_536),
+    onThisPort.filter((e) => !ORDINARY.has(e.id) && e.name.length >= 5),
+  );
+}
+
+/**
+ * Another machine, seen only over the network: every app Hearth knows, at its usual ports, each
+ * asked one read-only GET at that address and recognised from its own page (many apps share a
+ * port, so the port alone can't say which one answered). The NAS itself is recognised the same
+ * way, so its own page is watched too. Nothing is installed there, so Hearth can check these
+ * apps but not restart them. Without page reads, only the apps with a port of their own are found.
  */
 export async function findAppsAt(input: {
   hostId: string;
   hostName: string;
   address: string;
   probeHttp: (port: number, host?: string) => Promise<boolean>;
+  readPage?: (port: number, host: string) => Promise<PageRead | null>;
 }): Promise<DiscoveryFinding[]> {
-  const entries = CATALOG.filter((e) => e.nativePort);
-  const answers = await Promise.all(
-    entries.map((e) => input.probeHttp(e.nativePort!, input.address)),
+  const host = input.address.includes(":") ? `[${input.address}]` : input.address;
+  const finding = (
+    id: string,
+    name: string,
+    category: CatalogEntry["category"],
+    area: string,
+    port: number,
+    what: string,
+  ): DiscoveryFinding => ({
+    key: `remote:${input.hostId}:${id}`,
+    source: "process" as const,
+    sourceName: name,
+    state: "running" as const,
+    health: "healthy" as const,
+    group: "recognised" as const,
+    name,
+    category,
+    autonomyArea: area,
+    recognised: true,
+    localUrl: `http://${host}:${port}`,
+    localOnly: false,
+    ports: [String(port)],
+    dependsOn: [],
+    reason: `${what} on ${input.hostName} at port ${port}. Checked over the network; Hearth cannot restart it there.`,
+    selectedByDefault: true,
+  });
+
+  if (!input.readPage) {
+    const entries = CATALOG.filter((e) => e.nativePort);
+    const answers = await Promise.all(
+      entries.map((e) => input.probeHttp(e.nativePort!, input.address)),
+    );
+    return entries
+      .filter((_, i) => answers[i])
+      .map((e) => finding(e.id, e.name, e.category, e.area, e.nativePort!, "Answers"));
+  }
+
+  const apps = CATALOG.filter((e) => !e.supporting && (e.nativePort ?? e.webPort));
+  const portsOf = (e: CatalogEntry) => [
+    ...new Set([e.nativePort ?? e.webPort!, ...(EXTRA_PORTS[e.id] ?? [])]),
+  ];
+  const ports = [
+    ...new Set([...apps.flatMap(portsOf), ...NAS_SYSTEMS.flatMap((n) => [...n.ports])]),
+  ].sort((a, b) => a - b);
+  const pages = await Promise.all(
+    ports.map((p) => input.readPage!(p, input.address).catch(() => null)),
   );
-  return entries
-    .filter((_, i) => answers[i])
-    .map((entry) => ({
-      key: `remote:${input.hostId}:${entry.id}`,
-      source: "process" as const,
-      sourceName: entry.name,
-      state: "running" as const,
-      health: "healthy" as const,
-      group: "recognised" as const,
-      name: entry.name,
-      category: entry.category,
-      autonomyArea: entry.area,
-      recognised: true,
-      localUrl: `http://${input.address.includes(":") ? `[${input.address}]` : input.address}:${entry.nativePort}`,
-      localOnly: false,
-      ports: [String(entry.nativePort)],
-      dependsOn: [],
-      reason: `Answers on ${input.hostName} at port ${entry.nativePort}. Checked over the network; Hearth cannot restart it there.`,
-      selectedByDefault: true,
-    }));
+
+  const found: DiscoveryFinding[] = [];
+  const seen = new Set<string>();
+  ports.forEach((port, i) => {
+    const page = pages[i];
+    if (!page) return;
+    const onThisPort = apps.filter((e) => portsOf(e).includes(port));
+    // The title first; the page itself only when the title names no app (Unraid titles its
+    // sign-in page with the server's own name).
+    const title = pageTitle(page.body);
+    const titleIsAnApp =
+      !!title && !!identifyPage({ ...page, body: `<title>${title}</title>` }, onThisPort, apps);
+    const nas = NAS_SYSTEMS.find(
+      (n) =>
+        (n.ports as readonly number[]).includes(port) &&
+        (n.sign.test(title) || (!titleIsAnApp && n.sign.test(page.body.slice(0, 65_536)))),
+    );
+    if (nas) {
+      if (seen.has(nas.id)) return;
+      seen.add(nas.id);
+      found.push(
+        finding(
+          nas.id,
+          nas.name,
+          "Files & Photos",
+          "storage",
+          port,
+          "Its own sign-in page answers",
+        ),
+      );
+      return;
+    }
+    const app =
+      identifyPage(page, onThisPort, apps) ??
+      // Unreadable or unbranded, on a port only one app uses: that app, as before.
+      onThisPort.find((e) => e.nativePort === port);
+    if (!app || seen.has(app.id)) return;
+    seen.add(app.id);
+    found.push(finding(app.id, app.name, app.category, app.area, port, "Answers as " + app.name));
+  });
+  return found;
 }

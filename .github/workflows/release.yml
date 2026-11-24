@@ -16,7 +16,7 @@ on:
         description: "Version, like 0.1.0"
         required: true
       android:
-        description: "Build the Android app even if it has not changed"
+        description: "Unused: the Android app is built for every release"
         type: boolean
         default: false
   push:
@@ -89,8 +89,8 @@ jobs:
             --notes "Fixes and improvements."
 
   # The Hearth app for Android (apps/android), signed with the release key from the repository's
-  # secrets, attached to the same draft release. Only when the app changed since the last release
-  # (or when asked): it is a small wrapper that rarely changes, and the Gradle build is slow.
+  # secrets, attached to every release (11-24, the owner: the newest release should always have
+  # it, so people don't have to hunt for an older release to find the app).
   android:
     needs: release
     runs-on: ubuntu-latest
@@ -98,22 +98,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Has the app changed?
+      - name: Can the app be signed?
         id: changed
         env:
           HAS_KEY: ${{ secrets.HEARTH_KEYSTORE_B64 != '' }}
         run: |
-          prev="$(git describe --tags --abbrev=0 --match 'v*' "$GITHUB_SHA^" 2>/dev/null || true)"
           # Without the signing key the app can't be signed as an update to the installed one, so
           # it is left out (the release itself still ships) until the key is in the repo's secrets.
           if [ "$HAS_KEY" != "true" ]; then
             echo "::notice::HEARTH_KEYSTORE_B64 is not set, so the Android app was not built."
             echo "build=false" >> "$GITHUB_OUTPUT"
-          elif [ "${{ inputs.android }}" = "true" ] || [ -z "$prev" ] || ! git diff --quiet "$prev" "$GITHUB_SHA" -- apps/android; then
-            echo "build=true" >> "$GITHUB_OUTPUT"
           else
-            echo "The Android app is unchanged since $prev: the newest release with an APK still has it."
-            echo "build=false" >> "$GITHUB_OUTPUT"
+            echo "build=true" >> "$GITHUB_OUTPUT"
           fi
       - uses: actions/setup-java@v4
         if: steps.changed.outputs.build == 'true'

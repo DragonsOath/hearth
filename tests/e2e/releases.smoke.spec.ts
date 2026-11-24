@@ -375,6 +375,19 @@ test("Overseerr panel: a show request, Sonarr's state, and Stop tracking that st
     await expect(panel.getByTestId("seerr-all").getByTestId("seerr-show")).toHaveCount(1);
     await expect(panel.getByTestId("seerr-all").getByTestId("seerr-movie").first()).toBeVisible();
     await expect(panel.getByText(/\d+ movies?, 1 show/).first()).toBeVisible();
+    // A request opens like a title in Discover (details, trailer), saying Requested where
+    // Discover says Request.
+    const firstMovie = panel.getByTestId("seerr-all").getByTestId("seerr-movie").first();
+    await firstMovie.getByTestId("seerr-open-title").click();
+    const titleWindow = page.getByTestId("discover-title");
+    await expect(titleWindow).toBeVisible();
+    await expect(titleWindow.getByTestId("discover-requested")).toBeVisible({ timeout: 15_000 });
+    await expect(titleWindow.getByTestId("discover-request-open")).toHaveCount(0);
+    await page.screenshot({
+      path: `test-results/screens/${testInfo.project.name}/seerr-request-title.png`,
+    });
+    await titleWindow.getByRole("button", { name: "Close" }).click();
+    await expect(titleWindow).toHaveCount(0);
     // Movies and Shows still work on their own.
     await panel.getByRole("radio", { name: /^Movies/ }).click();
     await expect(panel.getByTestId("seerr-movies").getByTestId("seerr-show")).toHaveCount(0);

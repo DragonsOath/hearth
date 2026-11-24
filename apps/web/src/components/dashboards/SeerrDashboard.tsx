@@ -1,5 +1,5 @@
 import { ApproveDialog, useApproveHere } from "../jobs/ApproveHere";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   Check,
@@ -23,6 +23,31 @@ import { ChangeCard, useConfirmedChange } from "./ConfirmedChange";
 import { EmberMark } from "../ember/EmberMark";
 import { showState } from "./seerr/missing";
 import { ShowCompleteness } from "./seerr/ShowCompleteness";
+import { TitleSheet } from "./seerr/DiscoverRows";
+import type { SearchResult } from "./seerr/data";
+
+/** A poster and title that open the title's window (trailer, details), as in Discover. */
+function Opens({
+  onOpen,
+  label,
+  children,
+}: {
+  onOpen: () => void;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`Open ${label}`}
+      className="block w-full rounded-lg text-left focus-visible:outline-2 focus-visible:outline-gold"
+      data-testid="seerr-open-title"
+    >
+      {children}
+    </button>
+  );
+}
 
 /**
  * Overseerr / Jellyseerr as a movie request dashboard: every request with its poster, digital
@@ -123,9 +148,11 @@ function MovieCard({
   showWho,
   showInstance,
   roots,
+  onOpen,
 }: {
   serviceId: string;
   m: RequestedMovie;
+  onOpen: () => void;
   showWho: boolean;
   showInstance: boolean;
   /** The root folders of the Radarr that has this movie. */
@@ -162,10 +189,18 @@ function MovieCard({
       data-capture-label={name}
     >
       <div className="w-20 shrink-0 @md:w-24">
-        <Poster serviceId={serviceId} m={m} />
+        <Opens onOpen={onOpen} label={name}>
+          <Poster serviceId={serviceId} m={m} />
+        </Opens>
       </div>
       <div className="min-w-0 flex-1 space-y-1.5">
-        <p className="text-[0.95rem] leading-snug text-ink">{name}</p>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="text-left text-[0.95rem] leading-snug text-ink hover:text-gold"
+        >
+          {name}
+        </button>
         <span
           className={cx(
             "fit-pill inline-flex rounded-full border px-2 py-0.5 text-[0.72rem]",
@@ -425,10 +460,12 @@ function ShowCard({
   serviceId,
   m,
   showWho,
+  onOpen,
 }: {
   serviceId: string;
   m: RequestedShow;
   showWho: boolean;
+  onOpen: () => void;
 }) {
   const c = useConfirmedChange(serviceId);
   const name = `${m.title}${m.year ? ` (${m.year})` : ""}`;
@@ -446,10 +483,18 @@ function ShowCard({
       data-capture-label={name}
     >
       <div className="w-20 shrink-0 @md:w-24">
-        <Poster serviceId={serviceId} m={m} />
+        <Opens onOpen={onOpen} label={name}>
+          <Poster serviceId={serviceId} m={m} />
+        </Opens>
       </div>
       <div className="min-w-0 flex-1 space-y-1.5">
-        <p className="text-[0.95rem] leading-snug text-ink">{name}</p>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="text-left text-[0.95rem] leading-snug text-ink hover:text-gold"
+        >
+          {name}
+        </button>
         <span
           className={cx(
             "fit-pill inline-flex rounded-full border px-2 py-0.5 text-[0.72rem]",
@@ -697,6 +742,22 @@ export function SeerrDashboard({ serviceId, name }: { serviceId: string; name: s
   const [text, setText] = useState("");
   // All shows movies and shows together (11-24, the owner); Movies and Shows each on their own.
   const [kind, setKind] = useState<"all" | "movies" | "shows">("all");
+  const [title, setTitle] = useState<SearchResult>();
+  const titleAct = useApproveHere(serviceId, "From the Seerr panel's requests.");
+  // A request opens as Discover's title window does; Seerr's own status says Requested.
+  const open = (
+    r: { tmdbId: number; title: string; year?: number; poster?: string },
+    type: "movie" | "tv",
+  ) =>
+    setTitle({
+      tmdbId: r.tmdbId,
+      mediaType: type,
+      title: r.title,
+      ...(r.year ? { year: r.year } : {}),
+      ...(r.poster ? { poster: r.poster } : {}),
+      overview: "",
+      status: "requested",
+    });
   // Mine first, when Hearth's key belongs to someone who requested anything.
   const shownScope: Scope =
     scope ??
@@ -911,6 +972,7 @@ export function SeerrDashboard({ serviceId, name }: { serviceId: string; name: s
                 serviceId={serviceId}
                 m={x.m}
                 showWho={shownScope === "all"}
+                onOpen={() => open(x.m, "tv")}
               />
             ) : (
               <MovieCard
@@ -919,6 +981,7 @@ export function SeerrDashboard({ serviceId, name }: { serviceId: string; name: s
                 m={x.m}
                 showWho={shownScope === "all"}
                 showInstance={instances > 1}
+                onOpen={() => open(x.m, "movie")}
                 roots={
                   d.radarrs?.find((r) => r.serviceId === x.m.radarr?.serviceId)?.rootFolders ?? []
                 }
@@ -931,6 +994,15 @@ export function SeerrDashboard({ serviceId, name }: { serviceId: string; name: s
           {d.movies.length + allShows.length ? "No requests match." : "No requests yet."}
         </p>
       )}
+      {title && (
+        <TitleSheet
+          serviceId={serviceId}
+          r={title}
+          act={titleAct}
+          onClose={() => setTitle(undefined)}
+        />
+      )}
+      <ApproveDialog c={titleAct} />
     </section>
   );
 }

@@ -1130,7 +1130,7 @@ cinemas**, **Digital** release dates, and what Radarr or Sonarr is doing. Filter
 (digital release passed, not grabbed: amber), **Needs a look**, **Waiting**, **Downloading**,
 **In your library**. Sort by newest request, digital release, status, **Most overdue**.
 
-**All** (movies and shows together), **Movies** or **Shows**. A show card has where it stands
+**All** (movies and shows together), **Movies** or **Shows**. Tap a request poster or title to open it as Discover does (trailer, details, cast); it says **Requested** (or **In your library**) where Discover says **Request**. A show card has where it stands
 (**Missing 10 episodes**, **Up to date, more coming**, **Complete**), **Next episode**, **In your
 library** (seasons), and Sonarr's episodes on disk. **What's Missing** (with the count; a show
 with nothing missing says **Complete** or **Up to date** instead) opens the show: its numbers

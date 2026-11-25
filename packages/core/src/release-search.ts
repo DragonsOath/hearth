@@ -66,6 +66,8 @@ export interface ReleaseOption {
   rejections: string[];
   /** The app hides it on its own page (Chaptarr's "Hidden results"), usually a collection or pack. */
   hidden?: boolean;
+  /** Sonarr: a whole season in one release. */
+  fullSeason?: boolean;
   /** "2160p", from the app's own quality. */
   resolution?: string;
   /** Where it came from: "WEB-DL", "WEBRip", "Blu-ray", "Remux", "HDTV", "DVD". */

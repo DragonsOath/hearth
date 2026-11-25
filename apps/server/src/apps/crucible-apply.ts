@@ -10,6 +10,14 @@ import {
   SMALLER_NO_UPGRADE,
   SMALLER_SCORE,
   smallerFormats,
+  DEFAULT_SEASON_PACKS,
+  SEASON_PACK_FORMAT,
+  SEASON_PACK_SCORE,
+  seasonPackCapName,
+  seasonPackCapSpecifications,
+  seasonPackSentence,
+  seasonPackSpecifications,
+  seasonPacksOf,
   smallerSpecifications,
   capFormats,
   capSpecifications,
@@ -436,6 +444,19 @@ export async function planCrucible(
         });
     }
   }
+  // Shows: season packs preferred, not, or avoided, and a cap for a whole pack.
+  if (shape.app === "sonarr") {
+    const packs = seasonPacksOf(setup);
+    const hadPack = snap.formats.some((f) => f.name === SEASON_PACK_FORMAT);
+    const hadCap = snap.formats.some((f) =>
+      String(f.name).startsWith(`${SEASON_PACK_FORMAT} over `),
+    );
+    settings.push({
+      name: "Season packs",
+      before: hadPack || hadCap ? "Set by the Crucible before (being updated)" : "No preference",
+      after: `${seasonPackSentence(packs)}. Episodes already downloaded are never replaced just to swap them for a pack`,
+    });
+  }
   let moved: ReturnType<typeof moves> = [];
   if (resort) {
     const tags = tagLabels(await list(arr, "/api/v3/tag", "tags"));
@@ -593,6 +614,53 @@ export async function runCrucible(
   }
   const smallerNames = new Set(smaller ? smallerFormats().map((f) => f.name) : []);
 
+  // 1a'. Shows: the season pack format (scored up or down per the choice) and the pack cap.
+  const packs = shape.app === "sonarr" ? seasonPacksOf(setup) : DEFAULT_SEASON_PACKS;
+  const packFormats = [
+    ...(packs.choice !== "neutral"
+      ? [{ name: SEASON_PACK_FORMAT, specifications: seasonPackSpecifications() }]
+      : []),
+    ...(packs.maxGB
+      ? [
+          {
+            name: seasonPackCapName(packs.maxGB),
+            specifications: seasonPackCapSpecifications(packs.maxGB),
+          },
+        ]
+      : []),
+  ];
+  for (const f of packFormats) {
+    const body = {
+      name: f.name,
+      includeCustomFormatWhenRenaming: false,
+      specifications: f.specifications,
+    };
+    const have = snap.formats.find((x) => x.name === f.name);
+    const r = have
+      ? await arr<Json>(
+          "PUT",
+          `/api/v3/customformat/${Number(have.id)}`,
+          `update ${f.name} (approved plan)`,
+          { ...have, ...body },
+        )
+      : await arr<Json>("POST", "/api/v3/customformat", `add ${f.name} (approved plan)`, body);
+    if (!r.ok)
+      return {
+        ok: false,
+        verified: false,
+        created,
+        result: `${serviceName} refused the format "${f.name}" (${r.status}). Stopped there; Undo puts back what was done.`,
+      };
+    if (!have) created.formats.push(f.name);
+  }
+  const packScore =
+    packs.choice === "prefer"
+      ? SEASON_PACK_SCORE
+      : packs.choice === "avoid"
+        ? -SEASON_PACK_SCORE
+        : 0;
+  const packCap = packs.maxGB ? seasonPackCapName(packs.maxGB) : undefined;
+
   // 1b. The checkpoint's hold format (every release turned down), when Seerr's search is the
   // Crucible's.
   if (setup.searchAfterSorting) {
@@ -647,11 +715,13 @@ export async function runCrucible(
       format: Number(f.id),
       name: f.name,
       score: isHearth(f.name)
-        ? blocks.has(String(f.name))
+        ? blocks.has(String(f.name)) || String(f.name) === packCap
           ? BLOCK_SCORE
           : smallerNames.has(String(f.name))
             ? SMALLER_SCORE
-            : 0
+            : String(f.name) === SEASON_PACK_FORMAT
+              ? packScore
+              : 0
         : (tmplScores.get(Number(f.id)) ?? 0),
     }));
     const body: Json = {
@@ -662,9 +732,13 @@ export async function runCrucible(
       minFormatScore: Math.max(0, Number(tmpl.minFormatScore ?? 0)),
       cutoffFormatScore: Number(tmpl.cutoffFormatScore ?? 0),
       // Size bands add at most a few points: never enough to upgrade on their own.
-      minUpgradeFormatScore: smaller
-        ? Math.max(SMALLER_NO_UPGRADE, Number(tmpl.minUpgradeFormatScore ?? 1))
-        : Number(tmpl.minUpgradeFormatScore ?? 1),
+      // Size bands add at most a few points, and a preferred season pack SEASON_PACK_SCORE: never
+      // enough to upgrade on their own (episodes on disk aren't swapped for a pack).
+      minUpgradeFormatScore: Math.max(
+        smaller ? SMALLER_NO_UPGRADE : 1,
+        packScore > 0 ? packScore + 1 : 1,
+        Number(tmpl.minUpgradeFormatScore ?? 1),
+      ),
       formatItems,
       ...(tmpl.language ? { language: tmpl.language } : {}),
     };

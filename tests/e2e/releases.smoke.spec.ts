@@ -383,6 +383,9 @@ test("Overseerr panel: a show request, Sonarr's state, and Stop tracking that st
     await expect(titleWindow).toBeVisible();
     await expect(titleWindow.getByTestId("discover-requested")).toBeVisible({ timeout: 15_000 });
     await expect(titleWindow.getByTestId("discover-request-open")).toHaveCount(0);
+    // Scrolled to the bottom, the X is still there (pinned to the corner).
+    await titleWindow.getByTestId("window-scroll").evaluate((d) => d.scrollTo(0, d.scrollHeight));
+    await expect(titleWindow.getByRole("button", { name: "Close" })).toBeInViewport();
     await page.screenshot({
       path: `test-results/screens/${testInfo.project.name}/seerr-request-title.png`,
     });

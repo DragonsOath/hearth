@@ -33,6 +33,7 @@ export type ActionKind =
   | "app-arr-import"
   | "app-arr-search"
   | "app-arr-grab"
+  | "app-sonarr-season-pack"
   | "app-arr-queue-remove"
   | "app-arr-add-collection"
   | "app-arr-set-cutoff-score"
@@ -148,6 +149,7 @@ export const ACTION_KINDS: readonly ActionKind[] = [
   "app-arr-import",
   "app-arr-search",
   "app-arr-grab",
+  "app-sonarr-season-pack",
   "app-arr-queue-remove",
   "app-arr-add-collection",
   "app-arr-set-cutoff-score",
@@ -262,6 +264,7 @@ export const APP_ACTIONS: readonly ActionKind[] = [
   "app-arr-import",
   "app-arr-search",
   "app-arr-grab",
+  "app-sonarr-season-pack",
   "app-arr-queue-remove",
   "app-arr-add-collection",
   "app-arr-set-cutoff-score",
@@ -370,6 +373,7 @@ export const ARR_ACTIONS: readonly ActionKind[] = [
   "app-arr-import",
   "app-arr-search",
   "app-arr-grab",
+  "app-sonarr-season-pack",
   "app-arr-queue-remove",
   "app-arr-add-collection",
 ];
@@ -727,6 +731,12 @@ export const ACTIONS: Record<ActionKind, ActionDefinition> = {
   "app-arr-grab": {
     kind: "app-arr-grab",
     describe: (name) => `Download one release you picked in ${name}`,
+    changes: true,
+    guardrail: true,
+  },
+  "app-sonarr-season-pack": {
+    kind: "app-sonarr-season-pack",
+    describe: (name) => `Try a whole-season pack for one request in ${name}`,
     changes: true,
     guardrail: true,
   },

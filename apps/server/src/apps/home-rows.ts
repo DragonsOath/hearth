@@ -611,6 +611,28 @@ export class HomeRows {
    * letters and "the" don't matter. Best first; posters go through Hearth's image proxy.
    */
   async find(serviceId: string, q: string, kind: "movie" | "show" | "any" = "any", limit = 30) {
+    return this.findIn(serviceId, q, kind, limit);
+  }
+
+  /** Which Plex server this is (its machine id), for links to a title in Plex's own app. */
+  async machineOf(serviceId: string): Promise<string> {
+    const hit = this.machines.get(serviceId);
+    if (hit) return hit;
+    const service = await this.plexService(serviceId);
+    const id = await this.use(service, "read which Plex server this is", "read", (token) =>
+      this.machine(service.localUrl, token),
+    );
+    this.machines.set(serviceId, id);
+    return id;
+  }
+  private readonly machines = new Map<string, string>();
+
+  private async findIn(
+    serviceId: string,
+    q: string,
+    kind: "movie" | "show" | "any",
+    limit: number,
+  ) {
     const words = q.trim().slice(0, 100);
     if (words.length < 2) return { titles: [] as CatalogTitle[], total: 0 };
     const key = serviceId;

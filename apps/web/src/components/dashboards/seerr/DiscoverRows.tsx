@@ -15,6 +15,7 @@ import {
 } from "./data";
 import { REQUESTABLE, SaveTo, Seasons, TrailerLink, saveParams, type SaveChoice } from "./request";
 import { Rail } from "./Rail";
+import { WatchLinks } from "./WatchLinks";
 
 /**
  * Discover (checklist 46.20; redesigned 11-19 after Ember's Tasterr panel, the owner: "no sliders
@@ -356,11 +357,17 @@ export function TitleSheet({
   r: first,
   act,
   onClose,
+  have,
+  extra,
 }: {
   serviceId: string;
   r: SearchResult;
   act: Act;
   onClose: () => void;
+  /** Known to be in your library (Curator's In your library row): Watch, not Request. */
+  have?: boolean;
+  /** More for this title, beside Request or Watch (Curator's Seen it, 11-24). */
+  extra?: ReactNode;
 }) {
   const [r, setR] = useState(first);
   const q = useSeerrView<TitleView>(serviceId, "title", { type: r.mediaType, id: r.tmdbId });
@@ -383,7 +390,9 @@ export function TitleSheet({
   const status = t?.status ?? r.status;
   const inLibrary = status === "in your library";
   const library = t?.library ?? r.library;
-  const can = REQUESTABLE.has(status) || (inLibrary && anyway);
+  // Yours to watch: Curator says so, or Seerr and the library do (11-24).
+  const owned = (have && r.tmdbId === first.tmdbId) || inLibrary || status === "available";
+  const can = (REQUESTABLE.has(status) && !owned) || (owned && anyway);
   const ref = useRef<HTMLDialogElement>(null);
   const top = useRef<HTMLDivElement>(null);
   const requestBox = useRef<HTMLDivElement>(null);
@@ -409,258 +418,277 @@ export function TitleSheet({
       onClick={(e) => {
         if (e.target === ref.current) ref.current?.close();
       }}
-      className="m-auto max-h-[92vh] w-[min(56rem,calc(100vw-1.5rem))] max-w-none overflow-y-auto rounded-2xl border border-line-strong bg-panel p-0 text-ink shadow-2xl backdrop:bg-black/75 backdrop:backdrop-blur-sm"
+      className="m-auto max-h-[92vh] w-[min(56rem,calc(100vw-1.5rem))] max-w-none overflow-clip rounded-2xl border border-line-strong bg-panel p-0 text-ink shadow-2xl backdrop:bg-black/75 backdrop:backdrop-blur-sm"
       data-testid="discover-title"
     >
-      <div ref={top} className="relative">
-        {backdrop && (
-          <img
-            src={backdrop}
-            alt=""
-            className="absolute inset-0 h-full max-h-80 w-full object-cover opacity-45"
-          />
-        )}
-        <div className="absolute inset-0 max-h-80 bg-gradient-to-t from-panel via-panel/70 to-transparent" />
-        <button
-          type="button"
-          aria-label="Close"
-          onClick={() => ref.current?.close()}
-          className="absolute top-3 right-3 z-10 grid h-9 w-9 place-items-center rounded-full bg-black/60 text-white hover:bg-gold hover:text-bg"
-        >
-          <X className="h-4 w-4" />
-        </button>
-        <div className="relative flex flex-wrap items-end gap-5 px-6 pt-16 pb-4 sm:flex-nowrap">
-          <Poster
-            serviceId={serviceId}
-            r={t ?? r}
-            className="h-52 w-36 shrink-0 border border-line shadow-xl"
-          />
-          <div className="min-w-0 space-y-1.5">
-            <p className="eyebrow">{r.mediaType === "tv" ? "Show" : "Movie"}</p>
-            <h2 className="font-display text-[1.9rem] leading-tight">{t?.title ?? r.title}</h2>
-            {t?.tagline && <p className="text-[0.9rem] text-muted italic">{t.tagline}</p>}
-            <Facts t={t} r={r} />
-            <StatusTag status={status} />
-          </div>
-        </div>
-      </div>
-      <div className="space-y-5 px-6 pb-6">
-        <div className="flex flex-wrap gap-2">
-          <TrailerLink
-            serviceId={serviceId}
-            type={r.mediaType}
-            tmdbId={r.tmdbId}
-            title={r.title}
-            primary
-          />
-          {can && (
-            <Button
-              tone={asking ? "primary" : "outline"}
-              onClick={() => {
-                setAsking(true);
-                window.setTimeout(
-                  () => requestBox.current?.scrollIntoView({ behavior: "smooth", block: "center" }),
-                  50,
-                );
-              }}
-              data-testid="discover-request-open"
-              data-hearth-target={`discover:${r.tmdbId}:ask`}
-            >
-              <Plus className="h-4 w-4" aria-hidden /> Request
-            </Button>
-          )}
-          {/* Requested already (the Overview opens its requests here too, 11-24): said where
-              Request would be. */}
-          {!can && !inLibrary && ["requested", "processing", "available"].includes(status) && (
-            <Button tone="outline" disabled data-testid="discover-requested">
-              <Check className="h-4 w-4" aria-hidden />{" "}
-              {status === "available" ? "In your library" : "Requested"}
-            </Button>
-          )}
-          {t?.upgrade && (
-            <Button
-              tone={upgrading ? "primary" : "outline"}
-              onClick={() => {
-                setUpgrading(true);
-                window.setTimeout(
-                  () => upgradeBox.current?.scrollIntoView({ behavior: "smooth", block: "center" }),
-                  50,
-                );
-              }}
-              data-testid="discover-upgrade-open"
-              data-hearth-target={`discover:${r.tmdbId}:upgrade`}
-            >
-              <ArrowUp className="h-4 w-4" aria-hidden /> Upgrade quality
-            </Button>
-          )}
-        </div>
-        {upgrading && t?.upgrade && (
-          <div ref={upgradeBox}>
-            <Upgrade
-              key={`${r.mediaType}:${r.tmdbId}`}
-              up={t.upgrade}
-              title={t.title ?? r.title}
-              type={r.mediaType}
-              act={act}
-              onCancel={() => setUpgrading(false)}
+      {/* The X stays in the corner however far the window scrolls (the owner, 11-24): the
+          window itself never moves, only what's inside it. */}
+      <button
+        type="button"
+        aria-label="Close"
+        onClick={() => ref.current?.close()}
+        className="absolute top-3 right-3 z-30 grid h-9 w-9 place-items-center rounded-full bg-black/60 text-white shadow-lg hover:bg-gold hover:text-bg"
+        data-testid="close-pinned"
+      >
+        <X className="h-4 w-4" />
+      </button>
+      <div className="max-h-[92vh] overflow-y-auto" data-testid="window-scroll">
+        <div ref={top} className="relative">
+          {backdrop && (
+            <img
+              src={backdrop}
+              alt=""
+              className="absolute inset-0 h-full max-h-80 w-full object-cover opacity-45"
             />
+          )}
+          <div className="absolute inset-0 max-h-80 bg-gradient-to-t from-panel via-panel/70 to-transparent" />
+          <div className="relative flex flex-wrap items-end gap-5 px-6 pt-16 pb-4 sm:flex-nowrap">
+            <Poster
+              serviceId={serviceId}
+              r={t ?? r}
+              className="h-52 w-36 shrink-0 border border-line shadow-xl"
+            />
+            <div className="min-w-0 space-y-1.5">
+              <p className="eyebrow">{r.mediaType === "tv" ? "Show" : "Movie"}</p>
+              <h2 className="font-display text-[1.9rem] leading-tight">{t?.title ?? r.title}</h2>
+              {t?.tagline && <p className="text-[0.9rem] text-muted italic">{t.tagline}</p>}
+              <Facts t={t} r={r} />
+              <StatusTag status={owned && !HAVE.has(status) ? "in your library" : status} />
+            </div>
           </div>
-        )}
-        <Ratings serviceId={serviceId} r={r} t={t} />
-        {q.isLoading ? (
-          <Skeleton className="h-16" />
-        ) : (
-          <p className="text-[0.9rem] leading-relaxed text-ink/90">
-            {t?.overview || r.overview || "Seerr has no description for this one."}
-          </p>
-        )}
-        {(made || t?.released) && (
-          <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-1 text-[0.84rem]">
-            {made && (
-              <>
-                <dt className="text-muted">{t?.director ? "Director" : "Created by"}</dt>
-                <dd data-testid="discover-director">{made}</dd>
-              </>
-            )}
-            {t?.released && (
-              <>
-                <dt className="text-muted">{r.mediaType === "tv" ? "First aired" : "Released"}</dt>
-                <dd>{longDate(t.released)}</dd>
-              </>
-            )}
-          </dl>
-        )}
-        {!!t?.cast?.length && (
-          <section aria-label="Cast">
-            <h3 className="eyebrow mb-2">Cast</h3>
-            <Rail label="Cast" testId="discover-cast">
-              {t.cast.map((c) => (
-                <li key={c.name} className="w-[5.5rem] shrink-0 snap-start text-center">
-                  <Face serviceId={serviceId} photo={c.photo} name={c.name} />
-                  <p className="mt-1 line-clamp-2 text-[0.72rem] leading-tight text-ink">
-                    {c.name}
-                  </p>
-                  {c.character && (
-                    <p className="line-clamp-1 text-[0.68rem] text-faint">{c.character}</p>
-                  )}
-                </li>
-              ))}
-            </Rail>
-          </section>
-        )}
-        {(asking || !can) && (
-          <div
-            ref={requestBox}
-            className={cx(
-              "space-y-3 rounded-xl border p-4",
-              can ? "border-gold/60 bg-raised/60" : "border-line bg-raised/40",
-            )}
-            data-testid="discover-request"
-          >
-            {act.error && <p className="text-[0.8rem] text-amber">{act.error}</p>}
-            {!can && inLibrary ? (
-              <div className="space-y-3" data-testid="discover-in-library">
-                <p className="text-[0.86rem] text-ink">
-                  <strong className="text-live">Already in your library.</strong>{" "}
-                  {library?.service ?? "Radarr"} has {r.title} downloaded, but Seerr shows it as not
-                  requested (its record was reset), so it could be requested and downloaded again.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {t?.mediaId ? (
-                    <Button
-                      tone="primary"
-                      disabled={act.busy}
-                      data-testid="discover-mark-available"
-                      data-hearth-target="discover-mark-available"
-                      onClick={() =>
-                        void act.propose(
-                          "app-seerr-mark-available",
-                          { mediaType: r.mediaType, tmdbId: r.tmdbId },
-                          `Tell Seerr ${r.title} is in your library`,
-                        )
-                      }
-                    >
-                      Tell Seerr you have it
-                    </Button>
-                  ) : null}
-                  <Button
-                    tone="outline"
-                    onClick={() => setAnyway(true)}
-                    data-testid="discover-request-anyway"
-                  >
-                    Request anyway
-                  </Button>
-                </div>
-              </div>
-            ) : !can ? (
-              <p className="text-[0.84rem] text-muted">
-                {status === "available"
-                  ? "Already in your library."
-                  : status === "blocklisted"
-                    ? "Blocked in Seerr, so it can't be requested."
-                    : "Already requested."}
-              </p>
-            ) : r.mediaType === "movie" ? (
-              <>
-                <h3 className="eyebrow">{inLibrary ? "Request it again" : "Request it"}</h3>
-                <SaveTo serviceId={serviceId} type="movie" value={save} onChange={setSave} />
-                <Button
-                  tone="primary"
-                  disabled={act.busy}
-                  data-hearth-target={`discover:${r.tmdbId}:request`}
-                  onClick={() =>
-                    void act.propose(
-                      "app-seerr-request",
-                      { mediaType: "movie", tmdbId: r.tmdbId, ...saveParams(save) },
-                      `Request ${r.title}`,
-                    )
-                  }
-                >
-                  Request
-                </Button>
-              </>
-            ) : (
-              <>
-                <h3 className="eyebrow">Request it</h3>
-                {library && (
-                  <p className="text-[0.8rem] text-amber" data-testid="discover-library-note">
-                    {library.service} already has {library.files} episode
-                    {library.files === 1 ? "" : "s"} of {r.title} downloaded. Ask only for what's
-                    missing.
-                  </p>
-                )}
-                <SaveTo serviceId={serviceId} type="tv" value={save} onChange={setSave} />
-                <Seasons serviceId={serviceId} r={r} act={act} save={save} />
-              </>
-            )}
+        </div>
+        <div className="space-y-5 px-6 pb-6">
+          <div className="flex flex-wrap gap-2">
+            <TrailerLink
+              serviceId={serviceId}
+              type={r.mediaType}
+              tmdbId={r.tmdbId}
+              title={r.title}
+              primary
+            />
             {can && (
-              <p className="text-[0.74rem] text-faint">
-                A request is a plan you approve; Seerr then sends it to Radarr or Sonarr.
-              </p>
+              <Button
+                tone={asking ? "primary" : "outline"}
+                onClick={() => {
+                  setAsking(true);
+                  window.setTimeout(
+                    () =>
+                      requestBox.current?.scrollIntoView({ behavior: "smooth", block: "center" }),
+                    50,
+                  );
+                }}
+                data-testid="discover-request-open"
+                data-hearth-target={`discover:${r.tmdbId}:ask`}
+              >
+                <Plus className="h-4 w-4" aria-hidden /> Request
+              </Button>
+            )}
+            {/* Requested already (the Overview opens its requests here too, 11-24): said where
+              Request would be. */}
+            {owned && !can && (
+              <WatchLinks
+                type={r.mediaType}
+                title={t?.title ?? r.title}
+                {...((r.year ?? Number(t?.released?.slice(0, 4)))
+                  ? { year: r.year ?? Number(t!.released!.slice(0, 4)) }
+                  : {})}
+              />
+            )}
+            {!can && !owned && ["requested", "processing"].includes(status) && (
+              <Button tone="outline" disabled data-testid="discover-requested">
+                <Check className="h-4 w-4" aria-hidden /> Requested
+              </Button>
+            )}
+            {extra}
+            {t?.upgrade && (
+              <Button
+                tone={upgrading ? "primary" : "outline"}
+                onClick={() => {
+                  setUpgrading(true);
+                  window.setTimeout(
+                    () =>
+                      upgradeBox.current?.scrollIntoView({ behavior: "smooth", block: "center" }),
+                    50,
+                  );
+                }}
+                data-testid="discover-upgrade-open"
+                data-hearth-target={`discover:${r.tmdbId}:upgrade`}
+              >
+                <ArrowUp className="h-4 w-4" aria-hidden /> Upgrade quality
+              </Button>
             )}
           </div>
-        )}
-        {!!like.data?.results.length && (
-          <section aria-label="More like this">
-            <h3 className="eyebrow mb-2">More like this</h3>
-            <Rail label="More like this" testId="discover-more-like">
-              {like.data.results.slice(0, 20).map((x) => (
-                <Card
-                  key={`${x.mediaType}-${x.tmdbId}`}
-                  serviceId={serviceId}
-                  r={x}
-                  onOpen={() => {
-                    setR(x);
-                    setSave({});
-                    setAsking(false);
-                    setAnyway(false);
-                    setUpgrading(false);
-                  }}
-                />
-              ))}
-            </Rail>
-          </section>
-        )}
+          {upgrading && t?.upgrade && (
+            <div ref={upgradeBox}>
+              <Upgrade
+                key={`${r.mediaType}:${r.tmdbId}`}
+                up={t.upgrade}
+                title={t.title ?? r.title}
+                type={r.mediaType}
+                act={act}
+                onCancel={() => setUpgrading(false)}
+              />
+            </div>
+          )}
+          <Ratings serviceId={serviceId} r={r} t={t} />
+          {q.isLoading ? (
+            <Skeleton className="h-16" />
+          ) : (
+            <p className="text-[0.9rem] leading-relaxed text-ink/90">
+              {t?.overview || r.overview || "Seerr has no description for this one."}
+            </p>
+          )}
+          {(made || t?.released) && (
+            <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-1 text-[0.84rem]">
+              {made && (
+                <>
+                  <dt className="text-muted">{t?.director ? "Director" : "Created by"}</dt>
+                  <dd data-testid="discover-director">{made}</dd>
+                </>
+              )}
+              {t?.released && (
+                <>
+                  <dt className="text-muted">
+                    {r.mediaType === "tv" ? "First aired" : "Released"}
+                  </dt>
+                  <dd>{longDate(t.released)}</dd>
+                </>
+              )}
+            </dl>
+          )}
+          {!!t?.cast?.length && (
+            <section aria-label="Cast">
+              <h3 className="eyebrow mb-2">Cast</h3>
+              <Rail label="Cast" testId="discover-cast">
+                {t.cast.map((c) => (
+                  <li key={c.name} className="w-[5.5rem] shrink-0 snap-start text-center">
+                    <Face serviceId={serviceId} photo={c.photo} name={c.name} />
+                    <p className="mt-1 line-clamp-2 text-[0.72rem] leading-tight text-ink">
+                      {c.name}
+                    </p>
+                    {c.character && (
+                      <p className="line-clamp-1 text-[0.68rem] text-faint">{c.character}</p>
+                    )}
+                  </li>
+                ))}
+              </Rail>
+            </section>
+          )}
+          {(asking || !can) && (
+            <div
+              ref={requestBox}
+              className={cx(
+                "space-y-3 rounded-xl border p-4",
+                can ? "border-gold/60 bg-raised/60" : "border-line bg-raised/40",
+              )}
+              data-testid="discover-request"
+            >
+              {act.error && <p className="text-[0.8rem] text-amber">{act.error}</p>}
+              {!can && inLibrary ? (
+                <div className="space-y-3" data-testid="discover-in-library">
+                  <p className="text-[0.86rem] text-ink">
+                    <strong className="text-live">Already in your library.</strong>{" "}
+                    {library?.service ?? "Radarr"} has {r.title} downloaded, but Seerr shows it as
+                    not requested (its record was reset), so it could be requested and downloaded
+                    again.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {t?.mediaId ? (
+                      <Button
+                        tone="primary"
+                        disabled={act.busy}
+                        data-testid="discover-mark-available"
+                        data-hearth-target="discover-mark-available"
+                        onClick={() =>
+                          void act.propose(
+                            "app-seerr-mark-available",
+                            { mediaType: r.mediaType, tmdbId: r.tmdbId },
+                            `Tell Seerr ${r.title} is in your library`,
+                          )
+                        }
+                      >
+                        Tell Seerr you have it
+                      </Button>
+                    ) : null}
+                    <Button
+                      tone="outline"
+                      onClick={() => setAnyway(true)}
+                      data-testid="discover-request-anyway"
+                    >
+                      Request anyway
+                    </Button>
+                  </div>
+                </div>
+              ) : !can ? (
+                <p className="text-[0.84rem] text-muted">
+                  {owned
+                    ? "Already in your library."
+                    : status === "blocklisted"
+                      ? "Blocked in Seerr, so it can't be requested."
+                      : "Already requested."}
+                </p>
+              ) : r.mediaType === "movie" ? (
+                <>
+                  <h3 className="eyebrow">{inLibrary ? "Request it again" : "Request it"}</h3>
+                  <SaveTo serviceId={serviceId} type="movie" value={save} onChange={setSave} />
+                  <Button
+                    tone="primary"
+                    disabled={act.busy}
+                    data-hearth-target={`discover:${r.tmdbId}:request`}
+                    onClick={() =>
+                      void act.propose(
+                        "app-seerr-request",
+                        { mediaType: "movie", tmdbId: r.tmdbId, ...saveParams(save) },
+                        `Request ${r.title}`,
+                      )
+                    }
+                  >
+                    Request
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <h3 className="eyebrow">Request it</h3>
+                  {library && (
+                    <p className="text-[0.8rem] text-amber" data-testid="discover-library-note">
+                      {library.service} already has {library.files} episode
+                      {library.files === 1 ? "" : "s"} of {r.title} downloaded. Ask only for what's
+                      missing.
+                    </p>
+                  )}
+                  <SaveTo serviceId={serviceId} type="tv" value={save} onChange={setSave} />
+                  <Seasons serviceId={serviceId} r={r} act={act} save={save} />
+                </>
+              )}
+              {can && (
+                <p className="text-[0.74rem] text-faint">
+                  A request is a plan you approve; Seerr then sends it to Radarr or Sonarr.
+                </p>
+              )}
+            </div>
+          )}
+          {!!like.data?.results.length && (
+            <section aria-label="More like this">
+              <h3 className="eyebrow mb-2">More like this</h3>
+              <Rail label="More like this" testId="discover-more-like">
+                {like.data.results.slice(0, 20).map((x) => (
+                  <Card
+                    key={`${x.mediaType}-${x.tmdbId}`}
+                    serviceId={serviceId}
+                    r={x}
+                    onOpen={() => {
+                      setR(x);
+                      setSave({});
+                      setAsking(false);
+                      setAnyway(false);
+                      setUpgrading(false);
+                    }}
+                  />
+                ))}
+              </Rail>
+            </section>
+          )}
+        </div>
       </div>
     </dialog>
   );

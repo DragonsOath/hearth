@@ -326,11 +326,49 @@ test.describe("the native Seerr panel", () => {
     const sheet = page.getByTestId("discover-title");
     await page.getByTestId("discover-title").getByTestId("discover-request-open").click();
     const seasons = sheet.getByTestId("seerr-seasons");
-    await expect(seasons.getByRole("checkbox")).toHaveCount(3);
+    await expect(seasons.locator('[data-hearth-target^="discover:9102:season:"]')).toHaveCount(3);
     await expect(sheet.getByTestId("seerr-root-folder")).toHaveValue("/tv");
     await sheet.locator('[data-hearth-target="discover:9102:season:3"]').uncheck();
     await sheet.locator('[data-hearth-target="discover:9102:request-seasons"]').click();
     await approve(page, /Signal Hill \(2018\),? \(?seasons 1, 2/);
+  });
+
+  test("Discover: season packs where seasons are picked, and a pack for this request only", async ({
+    page,
+    request,
+  }, info) => {
+    test.skip(test.info().project.name === "mobile", "Desk only.");
+    // Signal Hill not requested yet (the test before this one requests it).
+    await request.post("/api/test/fake-apps", { data: { media: { reset: true } } });
+    // A Sonarr to try the pack in (the Crucible has no TV rows here, so the setting is off).
+    const sonarr = await request.post("/api/services", {
+      data: {
+        name: `Sonarr ${info.project.name}${Date.now() % 100000}`,
+        kind: "web",
+        address: `http://${uniqueHost()}:8989`,
+        category: "Media",
+      },
+    });
+    const sonarrId = ((await sonarr.json()) as { id: string }).id;
+    try {
+      const panel = await open(page, id, "discover/signal");
+      await panel.locator('[data-hearth-target="discover:9102:details"]').click();
+      const sheet = page.getByTestId("discover-title");
+      await sheet.getByTestId("discover-request-open").click();
+      const packs = sheet.getByTestId("season-packs-switch");
+      // Off in the Crucible, or not set up yet: either way, this request can try a pack.
+      await expect(packs).toContainText("Season packs first", { timeout: 15_000 });
+      await packs.getByTestId("season-pack-once").check();
+      await sheet.locator('[data-hearth-target="discover:9102:request-seasons"]').click();
+      // The plan carries the pack step for Sonarr; sample data has no real Sonarr, so it is
+      // turned down, said plainly.
+      await expect(sheet.getByTestId("discover-request")).toContainText(
+        "Sample data: there is no real Sonarr to change",
+        { timeout: 15_000 },
+      );
+    } finally {
+      await request.delete(`/api/services/${sonarrId}`);
+    }
   });
 
   test("Issues: reply to one and resolve it, each approved", async ({ page }) => {

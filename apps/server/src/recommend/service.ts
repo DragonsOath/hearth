@@ -28,6 +28,8 @@ export interface Suggestion {
   year?: number;
   creator?: string;
   why: string;
+  /** Think outside the box: a nearby pick, not squarely what was asked. */
+  adjacent?: boolean;
 }
 
 /** A Seerr search hit (apps.seerrPanel "search"). */
@@ -166,7 +168,7 @@ const MODE_RULES: Record<string, string> = {
  * vibe"). Adjacent titles join the ones squarely on theme; each says how it connects.
  */
 export const WIDE_RULE =
-  'Think outside the box: besides titles squarely about this, include adjacent ones that are not about it directly but share its feel, season, setting, audience and values (for Christmas, warm family films set in snow and winter; for Thanksgiving, family films set in autumn with the same heart). Keep the spirit and audience of what was asked, never just the same keyword. For an adjacent title, "why" says how it connects.';
+  'Think outside the box: besides titles squarely about this, include adjacent ones that are not about it directly but share its feel, season, setting, audience and values (for Christmas, warm family films set in snow and winter; for Thanksgiving, family films set in autumn with the same heart). Keep the spirit and audience of what was asked, never just the same keyword. For an adjacent title, "why" says how it connects, and add "adjacent": true to it.';
 
 /**
  * What Ember is told: your words, your filters and the mode. Never your library, except in
@@ -251,6 +253,7 @@ export function parseSuggestions(text: string): Suggestion[] {
         ? { creator: o.creator.trim().slice(0, 120) }
         : {}),
       why: typeof o.why === "string" ? o.why.trim().slice(0, 300) : "",
+      ...(o.adjacent === true ? { adjacent: true } : {}),
     });
   }
   return out.slice(0, ASK_FOR);
@@ -302,7 +305,7 @@ export class Recommend {
         missingApp: `Recommending ${RECOMMEND_KIND_NAMES[r.kind].many.toLowerCase()} needs ${appName} connected to Hearth: it is how Hearth checks a title is real, whether you have it, and requests it.`,
       };
     const seen = (await this.d.seen.list().catch(() => [])).filter((s) => s.kind === r.kind);
-    if (r.show === "have") return this.fromLibrary({ ...r, interest }, seen);
+    if (r.show === "have") return this.fromLibrary({ ...r, interest }, seen, service.id);
     const { system, prompt } = recommendPrompt({
       ...r,
       interest,
@@ -334,7 +337,11 @@ export class Recommend {
       else if (seen.some((s) => sameSeen(s, c.item))) continue;
       else if (c.owned && !both)
         owned.push({ title: c.title, ...(c.year ? { year: c.year } : {}) });
-      else if (!items.some((x) => x.key === c.item.key)) items.push(c.item);
+      else if (!items.some((x) => x.key === c.item.key)) {
+        // Only a "Think outside the box" answer has nearby picks.
+        if (!r.wide) delete c.item.outside;
+        items.push(c.item);
+      }
     }
     return {
       kind: r.kind,
@@ -350,7 +357,11 @@ export class Recommend {
    * can check here (years, genres), sends their names and years only, and keeps only answers
    * that match a title you have (anything else is listed as not found, never shown).
    */
-  private async fromLibrary(r: RecommendRequest, seen: RecommendSeen[]): Promise<RecommendResult> {
+  private async fromLibrary(
+    r: RecommendRequest,
+    seen: RecommendSeen[],
+    seerrId?: string,
+  ): Promise<RecommendResult> {
     const none = (note: string): RecommendResult => ({
       kind: r.kind,
       items: [],
@@ -406,13 +417,26 @@ export class Recommend {
         ...(t.year ? { year: t.year } : {}),
         ...((t.creator ?? s.creator) ? { creator: t.creator ?? s.creator } : {}),
         why: s.why,
+        ...(s.adjacent && r.wide ? { outside: true } : {}),
         ...(t.image ? { image: t.image } : {}),
         have: true,
       });
     }
+    const shown = items.slice(0, SHOW_AT_MOST);
+    // Movies and shows: their Seerr page, so tapping one opens it (trailer, ratings, cast).
+    if (seerrId && (r.kind === "movie" || r.kind === "show")) {
+      const type = r.kind === "show" ? "tv" : "movie";
+      await eachLimited(shown, 4, async (it) => {
+        const hits = await this.d.seerrSearch(seerrId, it.title).catch(() => [] as SeerrHit[]);
+        const hit = hits.find(
+          (h) => h.mediaType === type && sameTitle(h.title, it.title) && sameYear(h.year, it.year),
+        );
+        if (hit) Object.assign(it, { tmdbId: hit.tmdbId, mediaType: type });
+      });
+    }
     return {
       kind: r.kind,
-      items: items.slice(0, SHOW_AT_MOST),
+      items: shown,
       owned: [],
       unverified,
       note: `Ember chose from ${list.length.toLocaleString("en-US")} ${list.length === 1 ? "title" : "titles"} in your library (names and years only).`,
@@ -513,10 +537,13 @@ export class Recommend {
       const base: RecommendItem = {
         key: `${type}:${hit.tmdbId}`,
         kind: type === "tv" ? "show" : "movie",
+        tmdbId: hit.tmdbId,
+        mediaType: type,
         title: hit.title,
         ...(hit.year ? { year: hit.year } : {}),
         ...(s.creator ? { creator: s.creator } : {}),
         why: s.why,
+        ...(s.adjacent ? { outside: true } : {}),
         ...(hit.poster
           ? {
               image: `/api/services/${encodeURIComponent(serviceId)}/dashboard/poster?path=${encodeURIComponent(hit.poster)}`,
@@ -638,6 +665,7 @@ export class Recommend {
               title: hit.artistName!,
               ...(s.creator ? { creator: s.creator } : {}),
               why: s.why,
+              ...(s.adjacent ? { outside: true } : {}),
               have: true,
             },
           };
@@ -650,6 +678,7 @@ export class Recommend {
             title: hit.artistName!,
             ...(s.creator ? { creator: s.creator } : {}),
             why: s.why,
+            ...(s.adjacent ? { outside: true } : {}),
             ...(q && m && root
               ? {
                   request: {
@@ -757,6 +786,7 @@ export class Recommend {
               ...(yearOf(mine) ? { year: yearOf(mine) } : {}),
               ...(author ? { creator: author } : {}),
               why: s.why,
+              ...(s.adjacent ? { outside: true } : {}),
               have: true,
             },
           };
@@ -784,6 +814,7 @@ export class Recommend {
             ...(year ? { year } : {}),
             ...(author ? { creator: author } : {}),
             why: s.why,
+            ...(s.adjacent ? { outside: true } : {}),
             // In the library without a file: "Requested" only when Chaptarr really wants it;
             // otherwise the request wants that copy and searches.
             ...(mine?.monitored

@@ -1082,6 +1082,7 @@ export const HOME_ACTIONS: Record<string, readonly string[]> = {
     "shuffle",
     "repeat",
     "move",
+    "stop",
   ],
   climate: ["temperature", "mode"],
   todo: ["add", "complete", "reopen", "remove"],
@@ -1153,6 +1154,10 @@ export async function homeAct(
       break;
     case "media_player.previous":
       service = "media_player/media_previous_track";
+      break;
+    // The mini player's close (11-24): the music stops, not just pauses.
+    case "media_player.stop":
+      service = "media_player/media_stop";
       break;
     case "media_player.volume":
       service = "media_player/volume_set";

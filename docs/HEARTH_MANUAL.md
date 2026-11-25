@@ -971,6 +971,20 @@ Tabs: **Queue**, **Download trail**, **Missing**, **Coming** (next 7 days), **Up
   episodes get proportionally less. If Recyclarr or Profilarr manages Sonarr's sizes, the plan
   says so and leaves them alone. New shows and Seerr's TV requests get their row the same way,
   including the request checkpoint.
+  **Season packs** (Shows): **Preferred** (a whole season in one download when one fits your
+  rules, else episode by episode), **No preference**, or **Not preferred** (episode by episode, a
+  pack only when nothing else fits), and **Largest season pack** in GB for the whole season (empty:
+  no limit). A season still airing has no pack yet, so it comes episode by episode. Saved as
+  Sonarr's own custom formats ("Hearth · Season pack", scored +50 or -50 in each show row, and
+  "Hearth · Season pack over N GB", turned down); upgrades need more than 50 points, so episodes
+  already on disk are never downloaded again just to swap them for a pack. Wherever seasons
+  are requested (Discover's seasons, the Request box in Curator and For You), **Season packs
+  first** shows the setting and switches it, as the Crucible's own save (a plan you approve), with
+  **More in the Crucible**. When the setting isn't Preferred, the same place offers **Try a season
+  pack for this request**: right after the request reaches Sonarr, Hearth searches each requested
+  season and downloads a whole-season pack only if Sonarr would take it under your rules; no pack,
+  and Sonarr goes episode by episode as usual. A season Sonarr already started downloading is left
+  alone.
   **Near misses** (below the rows): once a day the Crucible searches a few movies that have been
   missing a while (**Check up to** 10 a day, missing at least 7 days, oldest first, each at most
   once a week; nothing is downloaded) and says which case it is: nothing exists, something fits
@@ -1401,8 +1415,15 @@ Lidarr or Chaptarr is connected).
    who watched what), or **Both**.
 4. Tick **Think outside the box** for adjacent titles too: ones with the same feel, season and
    heart that aren't strictly on theme (family snow films for Christmas, cozy autumn family films
-   for Thanksgiving). Curator answers "On it", and each adjacent pick says how it connects.
-5. Press **Find**. Ember suggests titles, each with a one-line reason.
+   for Thanksgiving). Curator answers "On it", and each adjacent pick says how it connects and
+   has Ember thinking beside its title.
+5. Press **Find**. Ember suggests titles, each with a one-line reason. Movies and shows come as
+   rows of posters, like Plex: **Missing from your collection** and **In your library** (with
+   **Both**, one row each). Tap a poster for the title's full page, the same as Seerr's Discover
+   (trailer, ratings, cast): a missing one has **Request** (a plan you approve); one you have
+   says **In your library**, with **Watch on Plex**, **Watch on Jellyfin** or **Watch on Emby**
+   for each server that has it (Plex opens in Plex's own app). **Seen it** (with **How was it?**) is
+   on that page too. Music and books keep their cards.
 
 **For You** is the second tab: what to watch next, from your own watch history.
 Only your own Plex account is used; other people on your Plex are never included, so their
@@ -1757,6 +1778,10 @@ phone), the dots or the arrows:
   now (feels like, humidity, wind, the chance of rain, sunrise and sunset), the next hours and
   the next days; tap the weather for the full forecast. Below: **Now Playing**, **Today**,
   **Lists**, **Home Status** and **Scenes**.
+- **The mini player**: while music plays and this dashboard isn't on screen, a small card with
+  the cover, back, play/pause and next follows you around Hearth. It starts in the top right;
+  drag it anywhere and it stays there on that browser. Its **X** stops the music (not just a
+  pause) and closes the card; it comes back when something plays again.
 - **Rooms**: **Lights and switches** by room, with brightness for a light that is on; the
   thermostat (warmer, cooler, and its modes); scenes.
 - **Media**: the player with the artwork, progress, play and pause, skip, shuffle, repeat,

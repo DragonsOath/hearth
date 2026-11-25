@@ -14,6 +14,7 @@ export const PC_ICONS = [
   { id: "star", label: "Star", color: "#ffc72c" },
   { id: "swirl", label: "Swirl", color: "#34d1c4" },
   { id: "shield", label: "Shield", color: "#cfd6de" },
+  { id: "code", label: "Code", color: "#38c8ff" },
 ] as const;
 
 export type PcIconId = (typeof PC_ICONS)[number]["id"];

@@ -1,3 +1,4 @@
+import { browserBase, watchUrl, type WatchApp, type WatchPlace } from "./recommend/watch";
 import { timingSafeEqual } from "node:crypto";
 import { hostname } from "node:os";
 import { existsSync } from "node:fs";
@@ -2760,6 +2761,36 @@ export async function buildApp({
     }
     return hits;
   }
+  // Watch it (Curator, 11-24): where a title you have can be opened, a link for each server.
+  app.get("/api/recommend/watch", async (request) => {
+    if (!request.session) throw new ForbiddenAuthError("Sign in to do this.");
+    const q = z
+      .object({
+        kind: z.enum(["movie", "show"]),
+        title: z.string().trim().min(1).max(200),
+        year: z.coerce.number().int().min(1870).max(2200).optional(),
+      })
+      .parse(request.query);
+    const rows = await db.select().from(tables.services);
+    const places: WatchPlace[] = [];
+    for (const h of await recommendServers(q.kind, q.title)) {
+      if (!sameTitle(h.title, q.title) || !sameYear(h.year, q.year)) continue;
+      if (places.some((p) => p.serviceId === h.serviceId)) continue;
+      const sv = rows.find((x) => x.id === h.serviceId);
+      if (!sv) continue;
+      const kind: WatchApp = h.app === "plex" ? "plex" : appOf(sv) === "emby" ? "emby" : "jellyfin";
+      const machine =
+        kind === "plex" ? await homeRows.machineOf(sv.id).catch(() => undefined) : undefined;
+      const url = watchUrl(kind, {
+        id: h.id,
+        ...(machine ? { machine } : {}),
+        ...(kind !== "plex" ? { base: browserBase(sv) } : {}),
+      });
+      if (url)
+        places.push({ serviceId: sv.id, server: sv.name, app: kind, url, watched: h.watched });
+    }
+    return { places };
+  });
   app.post("/api/recommend", async (request) => {
     if (!request.session) throw new ForbiddenAuthError("Sign in to do this.");
     const b = z
@@ -3674,6 +3705,17 @@ export async function buildApp({
       };
     },
   );
+  // The mini player (11-24): what's playing, asked on every page, so a Home Assistant that isn't
+  // ready (no token yet, unreachable) is "nothing playing", never an error on every screen.
+  app.get("/api/home/now-playing", async (request) => {
+    if (!request.session) throw new ForbiddenAuthError("Sign in to do this.");
+    try {
+      const v = await apps.homeView(homeService({}), { watch: [], catalog: false });
+      return { serviceId: v.serviceId, music: v.music };
+    } catch {
+      return { music: [] };
+    }
+  });
   // The household board (home-board.ts): notes, countdowns, chores, reminders, and (the owner's
   // choice) the news feeds and the photo frame's album. Shared by every screen in the house.
   app.get("/api/home/board", async (request) => {

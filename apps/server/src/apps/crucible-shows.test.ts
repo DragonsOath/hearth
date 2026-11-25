@@ -118,3 +118,91 @@ describe("the Crucible's shows in Sonarr", () => {
     ).toBe(all.id);
   });
 });
+
+describe("season packs in Sonarr", () => {
+  type Profile = {
+    name: string;
+    minUpgradeFormatScore: number;
+    formatItems: { name: string; score: number }[];
+  };
+  type Format = {
+    name: string;
+    specifications: { implementation: string; fields: { name: string; value: number }[] }[];
+  };
+
+  it("preferred: a pack scores above single episodes, packs over the cap are turned down, nothing is swapped", async () => {
+    const { arr, get } = sonarr();
+    const setup = JSON.stringify({
+      ...CRUCIBLE_PRESETS.balanced.setup(),
+      seasonPacks: { choice: "prefer", maxGB: 40 },
+    });
+    const [change, params] = await planCrucible(arr, "Sonarr", { setup, app: "sonarr" }, 2026);
+    const packs = change.settings.find((s) => s.name === "Season packs")!;
+    expect(packs.before).toBe("No preference");
+    expect(packs.after).toContain("Season packs preferred");
+    expect(packs.after).toContain("packs over 40 GB turned down");
+    expect(packs.after).toContain("never replaced just to swap them for a pack");
+
+    expect(await runCrucible(arr, "Sonarr", params)).toMatchObject({ ok: true, verified: true });
+    const formats = await get<Format[]>("/api/v3/customformat");
+    const pack = formats.find((f) => f.name === "Hearth · Season pack")!;
+    expect(pack.specifications).toEqual([
+      expect.objectContaining({
+        implementation: "ReleaseTypeSpecification",
+        fields: [{ name: "value", value: 3 }],
+      }),
+    ]);
+    const cap = formats.find((f) => f.name === "Hearth · Season pack over 40 GB")!;
+    expect(cap.specifications.map((s) => s.implementation)).toEqual([
+      "ReleaseTypeSpecification",
+      "SizeSpecification",
+    ]);
+    for (const p of (await get<Profile[]>("/api/v3/qualityprofile")).filter((x) =>
+      x.name.startsWith("Hearth · "),
+    )) {
+      const score = (n: string) => p.formatItems.find((f) => f.name === n)?.score;
+      expect(score("Hearth · Season pack")).toBe(50);
+      expect(score("Hearth · Season pack over 40 GB")).toBe(-10000);
+      // An upgrade needs more than the pack's points: episodes on disk aren't swapped for a pack.
+      expect(p.minUpgradeFormatScore).toBeGreaterThan(50);
+    }
+
+    expect(await undoCrucible(arr, "Sonarr", params)).toMatchObject({ ok: true, verified: true });
+    expect(
+      (await get<Format[]>("/api/v3/customformat")).some((f) => f.name.includes("Season pack")),
+    ).toBe(false);
+  });
+
+  it("not preferred: a pack scores below single episodes; no preference adds nothing", async () => {
+    const { arr, get } = sonarr();
+    const avoid = JSON.stringify({
+      ...CRUCIBLE_PRESETS.balanced.setup(),
+      seasonPacks: { choice: "avoid", maxGB: null },
+    });
+    const [, params] = await planCrucible(arr, "Sonarr", { setup: avoid, app: "sonarr" }, 2026);
+    expect(await runCrucible(arr, "Sonarr", params)).toMatchObject({ ok: true });
+    const p = (await get<Profile[]>("/api/v3/qualityprofile")).find((x) =>
+      x.name.startsWith("Hearth · "),
+    )!;
+    expect(p.formatItems.find((f) => f.name === "Hearth · Season pack")?.score).toBe(-50);
+    expect((await get<Format[]>("/api/v3/customformat")).some((f) => f.name.includes("over"))).toBe(
+      false,
+    );
+
+    const { arr: arr2, get: get2 } = sonarr();
+    const neutral = JSON.stringify(CRUCIBLE_PRESETS.balanced.setup());
+    const [change, p2] = await planCrucible(
+      arr2,
+      "Sonarr",
+      { setup: neutral, app: "sonarr" },
+      2026,
+    );
+    expect(change.settings.find((s) => s.name === "Season packs")?.after).toContain(
+      "No preference",
+    );
+    expect(await runCrucible(arr2, "Sonarr", p2)).toMatchObject({ ok: true });
+    expect(
+      (await get2<Format[]>("/api/v3/customformat")).some((f) => f.name.includes("Season pack")),
+    ).toBe(false);
+  });
+});

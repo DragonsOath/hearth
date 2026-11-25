@@ -52,23 +52,27 @@ export function Modal({
         if (outside) e.currentTarget.close();
       }}
       className={cx(
-        "relative m-auto rounded-2xl border border-gold/40 bg-panel p-6 text-ink backdrop:bg-black/70",
+        "relative m-auto overflow-clip rounded-2xl border border-gold/40 bg-panel p-0 text-ink backdrop:bg-black/70",
         wide ? "w-[min(40rem,calc(100vw-2rem))]" : "w-[min(28rem,calc(100vw-2rem))]",
       )}
     >
-      <h2 id={titleId} className="pr-10 font-display text-[1.35rem] leading-tight">
-        {title}
-      </h2>
+      {/* The X stays in the corner while a long window scrolls (the owner, 11-24): only
+          what's inside it scrolls. */}
       <button
         type="button"
         onClick={close}
         aria-label="Close"
         data-testid="modal-close"
-        className="absolute top-3 right-3 flex h-11 w-11 items-center justify-center rounded-lg text-muted hover:bg-line hover:text-ink"
+        className="absolute top-3 right-3 z-30 flex h-11 w-11 items-center justify-center rounded-lg bg-panel/90 text-muted hover:bg-line hover:text-ink"
       >
         <X aria-hidden strokeWidth={1.6} className="h-5 w-5" />
       </button>
-      {children}
+      <div className="max-h-[calc(100dvh-3rem)] overflow-y-auto p-6" data-testid="window-scroll">
+        <h2 id={titleId} className="pr-10 font-display text-[1.35rem] leading-tight">
+          {title}
+        </h2>
+        {children}
+      </div>
     </dialog>
   );
 }

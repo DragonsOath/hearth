@@ -61,47 +61,43 @@ test("Curator: Ember suggests, what you have is hidden, and a request is one app
     await expect(panel.getByTestId("recommend-owned")).toContainText("Ember Lake");
     await expect(panel).toContainText("A Film Nobody Made");
 
-    // Request is a plan you approve; then it's marked Requested.
-    // Its YouTube trailer, when the title has one (11-10).
-    // It plays right here (11-19), in YouTube's player without its tracking cookies.
-    await expect(harbor.getByTestId("trailer-link")).toHaveAttribute(
-      "data-trailer",
-      "harborTrl01",
-      {
-        timeout: 15_000,
-      },
+    // Rows like Plex (11-24): what's missing in its own row, posters you tap.
+    await expect(panel.getByTestId("recommend-row-missing")).toContainText(
+      "Missing from your collection",
     );
-    // Already in the library (it arrived since the card was drawn): Request says so (11-10).
-    await request.post("/api/test/fake-apps", {
-      data: { media: { have: { tmdbId: 9101, on: true } } },
+    await expect(panel.getByTestId("recommend-row-have")).toHaveCount(0);
+    await page.screenshot({
+      path: `test-results/screens/${testInfo.project.name}/curator-rows.png`,
     });
-    await harbor.getByTestId("recommend-request").click();
-    const ask = page.getByTestId("request-ask");
-    await expect(ask.getByTestId("request-ask-have")).toContainText(
-      "Harbor Lights (2019) is already in your library.",
-      { timeout: 15_000 },
-    );
-    await ask.getByTestId("request-ask-ok").click();
-    await expect(ask).toHaveCount(0);
-    await request.post("/api/test/fake-apps", {
-      data: { media: { have: { tmdbId: 9101, on: false } } },
+    // A poster opens the title's full page, as in Seerr's Discover: its trailer, and Request.
+    await harbor.getByTestId("recommend-open-title").click();
+    const sheet = page.getByTestId("discover-title");
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByTestId("trailer-link")).toHaveAttribute("data-trailer", "harborTrl01", {
+      timeout: 15_000,
     });
-    // Request: one sheet with your default quality and folder said, Change for the full
-    // choice, and one tap that sends it (the owner, 11-14: the tap is the approval).
-    await harbor.getByTestId("recommend-request").click();
-    await expect(ask.getByTestId("request-ask-where")).toContainText(
-      "HD-1080p, saved to /movies.",
-      { timeout: 15_000 },
-    );
-    await expect(ask.getByTestId("seerr-root-folder")).toHaveCount(0);
-    await ask.getByTestId("request-ask-change").click();
-    await ask.getByTestId("seerr-root-folder").selectOption("/movies-archive");
-    await expect(ask.getByTestId("request-ask-where")).toContainText("saved to /movies-archive");
-    await ask.getByTestId("request-ask-go").click();
-    await expect(harbor.getByTestId("recommend-requested")).toBeVisible({ timeout: 30_000 });
-    // No second approval step.
-    await expect(page.getByTestId("approve-here")).toHaveCount(0);
+    await sheet.getByTestId("discover-request-open").click();
+    await sheet
+      .getByTestId("discover-request")
+      .getByRole("button", { name: "Request", exact: true })
+      .click();
+    const pop = page.getByTestId("approve-here");
+    await expect(pop).toContainText("Harbor Lights", { timeout: 15_000 });
+    await pop.getByTestId("approve-here-approve").click();
+    await expect(pop).toContainText(/Done|verified|finished|Requested/, { timeout: 30_000 });
+    await pop.getByTestId("approve-here-close").click();
+    await sheet.getByRole("button", { name: "Close" }).click();
+    await expect(sheet).toHaveCount(0);
     await expect(panel.getByTestId("recommend-more")).toBeVisible();
+    // Think outside the box: Ember's nearby picks carry Ember thinking beside the title (11-24).
+    await panel.getByTestId("recommend-wide").getByRole("checkbox").check();
+    await panel.getByTestId("recommend-find").click();
+    await expect(
+      items.filter({ hasText: "The Long Road" }).getByTestId("recommend-outside"),
+    ).toBeVisible({ timeout: 30_000 });
+    await expect(
+      items.filter({ hasText: "Harbor Lights" }).getByTestId("recommend-outside"),
+    ).toHaveCount(0);
   } finally {
     // Tests share one Hearth: leave no AI connected for the next file.
     await request.post("/api/agent/disconnect", { data: {} });
@@ -154,23 +150,51 @@ test("Curator: Both shows what you have; Seen it asks how it was, and only offer
     const lake = items.filter({ hasText: "Ember Lake" });
     await expect(lake.getByTestId("recommend-have")).toBeVisible();
     await expect(panel.getByTestId("recommend-owned")).toHaveCount(0);
+    // Two rows: missing from your collection, and in your library (11-24).
+    await expect(panel.getByTestId("recommend-row-missing")).toContainText("The Long Road");
+    await expect(panel.getByTestId("recommend-row-have")).toContainText("Ember Lake");
+    // One you have opens with Watch on Plex, not Request.
+    await lake.getByTestId("recommend-open-title").click();
+    const sheet = page.getByTestId("discover-title");
+    await expect(sheet.getByTestId("discover-status").first()).toHaveText(
+      /in your library|available/i,
+      {
+        timeout: 15_000,
+      },
+    );
+    const watch = sheet.getByTestId("watch-link");
+    await expect(watch).toContainText("Watch on Plex", { timeout: 20_000 });
+    await expect(watch).toHaveAttribute(
+      "href",
+      /^https:\/\/app\.plex\.tv\/desktop\/#!\/server\/sample-plex-machine\/details\?key=%2Flibrary%2Fmetadata%2F103$/,
+    );
+    await expect(sheet.getByTestId("discover-request-open")).toHaveCount(0);
+    await sheet.screenshot({
+      path: `test-results/screens/${testInfo.project.name}/curator-watch.png`,
+    });
+    await sheet.getByRole("button", { name: "Close" }).click();
+    await expect(sheet).toHaveCount(0);
 
     // Seen it on a title you don't have: gone, and Undo brings it back.
     const road = items.filter({ hasText: "The Long Road" });
-    await road.getByTestId("recommend-seen").click();
+    // Seen it sits in the title page now (11-24), with the same "How was it?".
+    await road.getByTestId("recommend-open-title").click();
+    await sheet.getByTestId("recommend-seen").click();
     // "How was it?" is all optional: Skip just takes it off.
-    await road.getByTestId("recommend-rate-skip").click();
+    await sheet.getByTestId("recommend-rate-skip").click();
+    await expect(sheet).toHaveCount(0);
     await expect(items).toHaveCount(2);
     await panel.getByTestId("recommend-seen-undo").click();
     await expect(items).toHaveCount(3);
 
     // Seen it, rated, on one that's on Plex and unwatched: nothing changes on Plex until you
     // approve, and then it is marked watched and gets your stars, in one approval.
-    await lake.getByTestId("recommend-seen").click();
-    await lake.getByTestId("recommend-star-4").click();
-    await lake.getByTestId("recommend-reaction-loved").click();
-    await lake.getByTestId("recommend-note-text").fill("Creepy in the best way.");
-    await lake.getByTestId("recommend-rate-save").click();
+    await lake.getByTestId("recommend-open-title").click();
+    await sheet.getByTestId("recommend-seen").click();
+    await sheet.getByTestId("recommend-star-4").click();
+    await sheet.getByTestId("recommend-reaction-loved").click();
+    await sheet.getByTestId("recommend-note-text").fill("Creepy in the best way.");
+    await sheet.getByTestId("recommend-rate-save").click();
     await expect(items).toHaveCount(2);
     const bar = panel.getByTestId("recommend-mark-watched");
     await expect(bar).toContainText("Ember Lake (2026)", { timeout: 20_000 });

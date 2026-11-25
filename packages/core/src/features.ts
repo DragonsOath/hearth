@@ -785,7 +785,7 @@ export const FEATURES: Feature[] = [
     id: "crucible",
     name: "The Crucible: Quality & Size",
     summary:
-      "Quality and size for movies in plain words, for anyone. Start from No limits, Balanced or Storage-smart, or answer a few questions; then each row is a group of movies (by age, genre, popularity or tag) and a ladder: the quality it tries first and the most it may cost in GB, stepping down when nothing fits, so not finding 4K never means not getting the movie. Each row shows how many of your movies are in it and how many are bigger. Save is one plan you approve, with Undo; moving the movies you already have is a separate choice. It makes Radarr's own profiles and formats (named Hearth · ...), so Radarr enforces them by itself, and never touches profiles you, Recyclarr or Profilarr made. Free. Appears once Radarr or Sonarr is connected. Shows (the Shows tab, Sonarr) work the same way per episode: the last row's sizes become Sonarr's own size limits (a season pack is judged per episode), the other rows choose their qualities; left alone when Recyclarr or Profilarr manages them.",
+      "Quality and size for movies in plain words, for anyone. Start from No limits, Balanced or Storage-smart, or answer a few questions; then each row is a group of movies (by age, genre, popularity or tag) and a ladder: the quality it tries first and the most it may cost in GB, stepping down when nothing fits, so not finding 4K never means not getting the movie. Each row shows how many of your movies are in it and how many are bigger. Save is one plan you approve, with Undo; moving the movies you already have is a separate choice. It makes Radarr's own profiles and formats (named Hearth · ...), so Radarr enforces them by itself, and never touches profiles you, Recyclarr or Profilarr made. Free. Appears once Radarr or Sonarr is connected. Shows (the Shows tab, Sonarr) work the same way per episode: the last row's sizes become Sonarr's own size limits (a season pack is judged per episode), the other rows choose their qualities; left alone when Recyclarr or Profilarr manages them. Season packs (Shows): Preferred, No preference or Not preferred, and the largest a whole season pack may be.",
     aliases: [
       "crucible",
       "quality",
@@ -796,6 +796,9 @@ export const FEATURES: Feature[] = [
       "4k",
       "quality profile",
       "storage space",
+      "season packs",
+      "season pack",
+      "prefer season packs",
     ],
     where: { path: "The Lair: The Crucible (once Radarr or Sonarr is connected)" },
     labels: [
@@ -808,6 +811,10 @@ export const FEATURES: Feature[] = [
       "Grab it anyway",
       "Shows",
       "When two releases are the same quality, take the smaller one",
+      "Season packs",
+      "Largest season pack",
+      "Season packs first",
+      "Try a season pack for this request",
     ],
     status: "working",
     evidence: [
@@ -1588,7 +1595,7 @@ export const FEATURES: Feature[] = [
     id: "curator",
     name: "Curator",
     summary:
-      "Say what you're in the mood for (Christmas movies, a cozy mystery series, funny sci-fi audiobooks), pick Movies, Shows, Books, Audiobooks or Music and a few filters (years, genres, rating, length), and Ember suggests. Curator is what to watch next and what's missing from your collection. Hearth checks every suggestion is real and says which you already have. Request one through Seerr (movies and shows), Lidarr (music, a plan you approve) or Chaptarr's own add page (books and audiobooks). More like these asks again without repeats. For You suggests what to watch next from the owner's own watch history only (Tautulli, else Plex, read locally; other people on the Plex are never included): hidden gems in your library you never played, new arrivals, favourites worth revisiting, each with Open in Plex, More like this, Seen it (rated, it steers the next picks) and Not for me; Not in your library from Seerr's own similar and recommended lists for what you finished (no AI), with Request, Watch trailer and More like this; and a What should I watch? box where plain words (genre, length, years, like a title) run locally and only a vague ask goes to Ember with titles and genres.",
+      "Say what you're in the mood for (Christmas movies, a cozy mystery series, funny sci-fi audiobooks), pick Movies, Shows, Books, Audiobooks or Music and a few filters (years, genres, rating, length), and Ember suggests. Curator is what to watch next and what's missing from your collection. Hearth checks every suggestion is real and says which you already have. Request one through Seerr (movies and shows), Lidarr (music, a plan you approve) or Chaptarr's own add page (books and audiobooks). Movies and shows come as rows of posters (Missing from your collection, In your library); a poster opens the title's full page with Request, or Watch on Plex, Jellyfin or Emby for one you have. Think outside the box marks Ember's nearby picks with Ember thinking. More like these asks again without repeats. For You suggests what to watch next from the owner's own watch history only (Tautulli, else Plex, read locally; other people on the Plex are never included): hidden gems in your library you never played, new arrivals, favourites worth revisiting, each with Open in Plex, More like this, Seen it (rated, it steers the next picks) and Not for me; Not in your library from Seerr's own similar and recommended lists for what you finished (no AI), with Request, Watch trailer and More like this; and a What should I watch? box where plain words (genre, length, years, like a title) run locally and only a vague ask goes to Ember with titles and genres.",
     aliases: [
       "curator",
       "for you",
@@ -1621,6 +1628,9 @@ export const FEATURES: Feature[] = [
       "Request",
       "Missing from my collection",
       "In my library",
+      "Missing from your collection",
+      "In your library",
+      "Watch on Plex",
       "What are you here for?",
       "Something new",
       "Fill a gap",
@@ -3853,6 +3863,7 @@ export const FEATURES: Feature[] = [
     },
     open: { app: ["homeassistant"] },
     labels: [
+      "Stop the music and close",
       "Today",
       "Lists",
       "Home Status",

@@ -129,6 +129,8 @@ export const VERIFY_TEXT: Record<ActionKind, string> = {
     "The search must finish; the result says whether a release was actually grabbed or nothing suitable was found.",
   "app-arr-grab":
     "The app must accept the release and send it to the download client; the result says whether it shows in the queue.",
+  "app-sonarr-season-pack":
+    "Sonarr must accept each pack and send it to the download client; the result says which seasons got a pack and which go episode by episode.",
   "app-arr-queue-remove":
     "The queue item must be gone from the app's queue when read back. Library files are never touched. Nothing is blocklisted, except the one release a Download Health recovery removes.",
   "app-arr-add-collection":
@@ -332,6 +334,8 @@ export const ROLLBACK_TEXT: Record<ActionKind, string> = {
     "Nothing to undo: a search changes no settings; a grabbed release appears in the queue.",
   "app-arr-grab":
     "Not undone automatically: remove it from the Queue tab if you change your mind (that also stops the download).",
+  "app-sonarr-season-pack":
+    "Not undone automatically: remove a pack from the Queue tab if you change your mind (that also stops the download).",
   "app-arr-queue-remove":
     "Not undone automatically. Kept in the client: the app picks the download up again on its own or with a search. Removed from the client: its downloaded data is gone; search again to re-download.",
   "app-arr-add-collection":

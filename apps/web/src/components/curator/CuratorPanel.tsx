@@ -35,6 +35,7 @@ import { ToolImage } from "../panels/ToolImage";
 import {
   RequestAsk,
   TrailerLink,
+  packSteps,
   saveParams,
   type AskTitle,
   type SaveChoice,
@@ -43,6 +44,8 @@ import { useCave } from "../shell/cave-context";
 import { cx } from "../ui";
 import { EmberMark } from "../ember/EmberMark";
 import { ForYou } from "./ForYou";
+import { CuratorRows } from "./CuratorRows";
+import { OutsideMark } from "./OutsideMark";
 import { RateIt } from "./RateIt";
 
 /**
@@ -283,7 +286,8 @@ function Discover({ seed }: { seed?: { interest: string; at: number } }) {
     };
     // Movies and shows: the confirm sheet's Request was the approval (11-14). Music (Lidarr) is
     // still a plan you approve.
-    if (where) void act.sendNow([step], i.request.label);
+    const pack = packSteps(where, { ...i.request.params, title: i.title });
+    if (where) void act.sendNow([step, ...pack], i.request.label);
     else void act.proposeMany([step], i.request.label);
   };
   const seerrOf = shown
@@ -301,11 +305,17 @@ function Discover({ seed }: { seed?: { interest: string; at: number } }) {
     settle();
     setAsking(requestable.map((i) => i.key));
     void (where ? act.sendNow : act.proposeMany)(
-      requestable.map((i) => ({
-        kind: (i.request as { step: string }).step as Parameters<typeof act.propose>[0],
-        serviceId: (i.request as { serviceId: string }).serviceId,
-        params: withProfile(i, where)!,
-      })),
+      requestable.flatMap((i) => [
+        {
+          kind: (i.request as { step: string }).step as Parameters<typeof act.propose>[0],
+          serviceId: (i.request as { serviceId: string }).serviceId,
+          params: withProfile(i, where)!,
+        },
+        ...packSteps(where, {
+          ...(i.request as { params: Record<string, unknown> }).params,
+          title: i.title,
+        }),
+      ]),
       `Request ${requestable.length} ${RECOMMEND_KIND_NAMES[kind].many.toLowerCase()} for “${interest.trim()}”`,
     );
   };
@@ -343,6 +353,8 @@ function Discover({ seed }: { seed?: { interest: string; at: number } }) {
   const genres = filters.genres ?? [];
   const profiles = result?.qualityProfiles ?? [];
 
+  // Movies and shows as rows of posters (11-24); music and books as cards.
+  const screen = shown[0]?.kind === "movie" || shown[0]?.kind === "show";
   return (
     <div className="space-y-5" data-testid="recommend-discover">
       <div className="space-y-2">
@@ -605,7 +617,15 @@ function Discover({ seed }: { seed?: { interest: string; at: number } }) {
         </label>
       )}
 
-      {shown.length > 0 && (
+      {shown.length > 0 && screen && (
+        <CuratorRows
+          items={shown}
+          seerr={seerrOf}
+          requested={(i) => Boolean(i.requested || done.includes(i.key))}
+          onSeen={(i, rating) => seen.mutate({ i, ...(rating ? { rating } : {}) })}
+        />
+      )}
+      {shown.length > 0 && !screen && (
         <ul className="grid gap-3 sm:grid-cols-2" data-testid="recommend-results">
           {shown.map((i) => (
             <Card
@@ -816,7 +836,8 @@ function Card({
         </span>
       )}
       <div className="min-w-0 flex-1 space-y-1">
-        <p className="text-[0.92rem] font-semibold text-ink">
+        <p className="flex items-center gap-1.5 text-[0.92rem] font-semibold text-ink">
+          {i.outside && <OutsideMark />}
           {i.title}
           {i.year ? <span className="font-normal text-muted"> ({i.year})</span> : null}
         </p>

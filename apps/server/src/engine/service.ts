@@ -144,7 +144,9 @@ export class Engine {
 
   constructor(readonly opts: EngineOptions) {
     this.store = new EngineStore(opts.db);
-    const workspaces = opts.workspaces ?? path.join(homedir(), "Hearth Projects");
+    // The Projects folder chosen in Settings, else the one set when installing, else the default.
+    const chosen = this.store.setting<string>("projects_folder", "");
+    const workspaces = chosen || opts.workspaces || path.join(homedir(), "Hearth Projects");
     mkdirSync(workspaces, { recursive: true });
     this.projects = new Projects(this.store, workspaces);
     this.uploads = path.join(opts.dataDir, "engine-uploads");
@@ -1045,6 +1047,26 @@ export function registerEngine(app: FastifyInstance, engine: Engine, voice?: Eng
     }
   });
   app.get("/api/engine/projects", async () => engine.projects.list());
+  // Settings, PCs and devices: this PC's Projects folder, and moving it (with its projects).
+  app.get("/api/engine/projects-folder", async () => ({
+    folder: engine.projects.workspaces,
+    projects: engine.store
+      .projectRows()
+      .filter((r) => !r.archived)
+      .map((r) => ({ name: r.name, path: r.path })),
+  }));
+  app.put<{ Body: { folder?: unknown; move?: unknown } }>(
+    "/api/engine/projects-folder",
+    async (r, reply) => {
+      const folder = typeof r.body?.folder === "string" ? r.body.folder.slice(0, 1000) : "";
+      if (!folder.trim()) return reply.code(400).send({ error: "Say which folder." });
+      try {
+        return engine.projects.changeFolder(folder, r.body?.move === true);
+      } catch (e) {
+        return fail(reply, e);
+      }
+    },
+  );
 
   // Coming in later stages: say so plainly instead of failing.
   const later = (what: string) => async (_r: FastifyRequest, reply: FastifyReply) =>

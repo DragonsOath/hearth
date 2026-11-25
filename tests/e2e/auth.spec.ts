@@ -67,6 +67,10 @@ test("a fresh installation asks to be secured, and only with its setup code", as
   await expect(page).toHaveURL(/\/setup$/);
   // First: a new Hearth, or link this PC to one you already have.
   await expect(page.getByRole("heading", { name: "Welcome to Hearth" })).toBeVisible();
+  // What are you setting up? A new Hearth, this PC joining yours, or a NAS (11-24).
+  await expect(page.getByText("What are you setting up?")).toBeVisible();
+  await expect(page.getByTestId("setup-link")).toContainText("Connect to my existing Hearth");
+  await expect(page.getByTestId("setup-nas")).toContainText("Set up a NAS");
   await shot("setup-ask");
   await page.getByTestId("setup-new").click();
   await expect(page.getByRole("heading", { name: "Secure Hearth" })).toBeVisible();

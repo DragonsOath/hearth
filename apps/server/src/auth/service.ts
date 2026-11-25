@@ -299,7 +299,9 @@ export class Auth {
   async newPairCode(
     purpose: "device" | "pc" | "home",
   ): Promise<{ code: string; expiresAt: string }> {
-    const code = purpose === "pc" ? randomToken(18) : newSetupCode();
+    // A PC code is typed on the new PC (11-24: "install Hearth, paste one code"), so it is short
+    // like a device code; it works once, for 30 minutes, and wrong guesses are throttled.
+    const code = newSetupCode();
     const now = new Date();
     const expiresAt = new Date(now.getTime() + (purpose === "pc" ? 30 : 10) * 60_000).toISOString();
     await this.db.delete(t.pairCodes).where(lt(t.pairCodes.expiresAt, now.toISOString()));

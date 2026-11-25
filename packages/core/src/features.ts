@@ -5195,7 +5195,7 @@ export const FEATURES: Feature[] = [
     id: "pcs-and-devices",
     name: "More than one PC, phones and the app",
     summary:
-      "One account across your PCs; phones and tablets sign in with a QR code. Linking another Hearth installation and working on it through this one is Hearth Connected (Premium package; its tests live in the Premium repo).",
+      "One account across your PCs; phones and tablets sign in with a QR code. A new PC's first screen asks What are you setting up? (Set up a new Hearth, Connect to my existing Hearth, Set up a NAS); Connect finds your Hearth, takes the short code from Add a PC, checks what's on that PC and joins. Each PC has its own Projects folder (where War Room projects made on it are saved), changed in Settings, with the projects moved too if you like. Linking another Hearth installation and working on it through this one is Hearth Connected (Premium package; its tests live in the Premium repo).",
     aliases: [
       "add another computer",
       "add a pc",
@@ -5204,6 +5204,9 @@ export const FEATURES: Feature[] = [
       "join a pc",
       "join another hearth",
       "copy layout",
+      "projects folder",
+      "where are projects saved",
+      "change projects location",
       "same layout as my other pc",
       "copy homeserver's layout",
       "link an existing install",
@@ -5216,7 +5219,10 @@ export const FEATURES: Feature[] = [
     where: { route: "/settings#devices", path: "Settings, PCs and devices" },
     labels: [
       "Add a device",
-      "Link to my Hearth",
+      "Add a PC",
+      "Connect to my existing Hearth",
+      "Set up a NAS",
+      "Projects folder",
       "Join another Hearth",
       "Copy another Hearth's layout",
     ],

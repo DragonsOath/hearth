@@ -1,10 +1,12 @@
 import { execFileSync } from "node:child_process";
 import { isProjectColor, type ProjectColor } from "@dragon-control/core";
 import {
+  cpSync,
   existsSync,
   mkdirSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -154,7 +156,7 @@ export class Projects {
 
   constructor(
     private readonly store: EngineStore,
-    readonly workspaces: string,
+    public workspaces: string,
   ) {
     // The sandbox: a scratch project that always exists.
     const sandbox = path.join(workspaces, "sandbox");
@@ -178,6 +180,89 @@ export class Projects {
         created: false,
       },
     };
+  }
+
+  /**
+   * The Projects folder (Settings, PCs and devices; the owner, 11-24: "where projects get stored
+   * on each computer, editable in settings"). New projects go to the new folder; with move,
+   * every project Hearth made inside the old folder (and the Sandbox and the Lair's notes) moves
+   * with it, one by one, each project's path updated as it goes. A folder that can't be moved
+   * (in use) stops the move there, saying which moved and which stayed.
+   */
+  changeFolder(target: string, move: boolean): { folder: string; moved: string[] } {
+    const next = path.resolve(target.trim());
+    if (!path.isAbsolute(target.trim()))
+      throw new ProjectError("give the whole path to the folder, like D:\\Hearth Projects");
+    const old = path.resolve(this.workspaces);
+    if (next === old) return { folder: old, moved: [] };
+    const inOld = path.relative(old, next);
+    if (inOld && !inOld.startsWith("..") && !path.isAbsolute(inOld))
+      throw new ProjectError("the new folder can't be inside the current one");
+    try {
+      mkdirSync(next, { recursive: true });
+      const probe = path.join(next, ".hearth-write-test");
+      writeFileSync(probe, "");
+      rmSync(probe, { force: true });
+    } catch {
+      throw new ProjectError(
+        `Hearth can't write to ${next}: check the drive is there and Hearth may write to it`,
+      );
+    }
+    const moved: string[] = [];
+    if (move) {
+      const inside = (dir: string) => {
+        const r = path.relative(old, path.resolve(dir));
+        return Boolean(r) && !r.startsWith("..") && !path.isAbsolute(r);
+      };
+      const rows = this.store.projectRows().filter((r) => inside(r.path));
+      const clash = rows.find((r) => existsSync(path.join(next, path.relative(old, r.path))));
+      if (clash)
+        throw new ProjectError(
+          `${next} already has a folder named ${path.relative(old, clash.path)}; nothing was moved`,
+        );
+      const carry = (from: string, to: string) => {
+        try {
+          renameSync(from, to);
+        } catch (e) {
+          if ((e as NodeJS.ErrnoException).code !== "EXDEV") throw e;
+          // Another drive: copied, then the old copy removed.
+          cpSync(from, to, { recursive: true });
+          rmSync(from, { recursive: true, force: true, maxRetries: 3 });
+        }
+      };
+      for (const r of rows) {
+        const to = path.join(next, path.relative(old, r.path));
+        try {
+          mkdirSync(path.dirname(to), { recursive: true });
+          carry(r.path, to);
+        } catch {
+          // Stopped here: the ones before are moved (and saved), this one and the rest stay.
+          this.workspaces = next;
+          this.store.setSetting("projects_folder", next);
+          throw new ProjectError(
+            `${r.name} could not be moved (is it open in another program?). Moved: ${moved.join(", ") || "none"}. The rest stay in ${old}; try again to move them`,
+          );
+        }
+        this.store.setProjectPath(r.slug, to);
+        moved.push(r.name);
+      }
+      for (const extra of ["sandbox", ".lair"]) {
+        const from = path.join(old, extra);
+        const to = path.join(next, extra);
+        if (existsSync(from) && !existsSync(to)) {
+          try {
+            carry(from, to);
+          } catch {
+            /* the Sandbox and the Lair's notes are made again if they stay behind */
+          }
+        }
+      }
+    }
+    this.workspaces = next;
+    this.fixed.sandbox!.path = path.join(next, "sandbox");
+    mkdirSync(this.fixed.sandbox!.path, { recursive: true });
+    this.store.setSetting("projects_folder", next);
+    return { folder: next, moved };
   }
 
   get(slug: string): Project {

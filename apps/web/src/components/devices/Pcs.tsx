@@ -19,6 +19,7 @@ import { ConfirmIdentity } from "../../pages/auth/ConfirmIdentity";
 import { LinkPc } from "../../pages/auth/LinkPc";
 import { AddonSlot, PremiumCard } from "../AddonSlot";
 import { PcBadge } from "./PcBadge";
+import { ProjectsFolder } from "./ProjectsFolder";
 
 /** The PCs in your Hearth: your Hearth itself first, then every PC that joined it. */
 export function PcsSection() {
@@ -26,6 +27,7 @@ export function PcsSection() {
   const [joining, setJoining] = useState(false);
   const q = usePcs({ watch: adding });
   const [editing, setEditing] = useState<string | null>(null);
+  const [folderOf, setFolderOf] = useState<(PcInfo & { hub?: boolean }) | null>(null);
   const [removing, setRemoving] = useState<PcInfo | null>(null);
   const [uninstalling, setUninstalling] = useState<PcInfo | null>(null);
   const data = q.data;
@@ -60,7 +62,7 @@ export function PcsSection() {
               </Button>
             )}
             <Button tone="outline" onClick={() => setAdding(true)}>
-              <Plus strokeWidth={1.6} className="mr-1 inline h-4 w-4" /> Link another Hearth
+              <Plus strokeWidth={1.6} className="mr-1 inline h-4 w-4" /> Add a PC
             </Button>
           </div>
         ) : undefined
@@ -94,6 +96,7 @@ export function PcsSection() {
           fallback={<AddPcLocked onClose={() => setAdding(false)} />}
         />
       )}
+      {folderOf && <ProjectsFolder pc={folderOf} onDone={() => setFolderOf(null)} />}
       {edit && (
         <PcEditor
           pc={edit}
@@ -162,6 +165,16 @@ export function PcsSection() {
                   >
                     Icon and name
                   </button>
+                  {pc.online && (
+                    <button
+                      type="button"
+                      className="text-muted hover:text-gold"
+                      onClick={() => setFolderOf(pc)}
+                      data-testid="pc-projects-folder"
+                    >
+                      Projects folder
+                    </button>
+                  )}
                   {!pc.hub && (
                     <button
                       type="button"
@@ -661,7 +674,7 @@ function AddPcLocked({ onClose }: { onClose: () => void }) {
   return (
     <Panel className="mb-5 p-5">
       <div data-testid="add-pc">
-        <p className="text-[0.95rem] text-ink">Link another Hearth</p>
+        <p className="text-[0.95rem] text-ink">Add a PC</p>
         <div className="mt-4 max-w-2xl space-y-3" data-testid="add-pc-locked">
           <PremiumCard feature="hearth_interconnectivity" />
           <p className="text-[0.85rem] leading-relaxed text-ink" data-testid="add-pc-free">

@@ -161,7 +161,8 @@ describe("New in your library: bursts and destinations", () => {
       "New audiobook: Leviathan Wakes by James S. A. Corey",
     ]);
     const batch = x.sent.find((s) => s.embed.title === "3 new albums")!;
-    expect(batch.embed.author?.name).toBe("Cinder: A fresh crate of records. Dig in.");
+    // Her line leads it (it is picked from a set, so any of them).
+    expect(batch.embed.author?.name).toMatch(/^Cinder: /);
     expect(batch.embed.description).toContain("C by Fleetwood Mac");
   });
 

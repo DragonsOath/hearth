@@ -79,7 +79,7 @@ export function SetupPage() {
           />
           <FirstChoice
             title="Connect to my existing Hearth"
-            line="You already use Hearth on another PC. This PC joins it, with a code from there."
+            line="Premium members: you already use Hearth on another PC, and this PC joins it with your connect code."
             onClick={() => setMode("link")}
             testId="setup-link"
           />

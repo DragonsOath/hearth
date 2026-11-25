@@ -5195,7 +5195,7 @@ export const FEATURES: Feature[] = [
     id: "pcs-and-devices",
     name: "More than one PC, phones and the app",
     summary:
-      "One account across your PCs; phones and tablets sign in with a QR code. A new PC's first screen asks What are you setting up? (Set up a new Hearth, Connect to my existing Hearth, Set up a NAS); Connect finds your Hearth, takes the short code from Add a PC, checks what's on that PC and joins. Each PC has its own Projects folder (where War Room projects made on it are saved), changed in Settings, with the projects moved too if you like. Linking another Hearth installation and working on it through this one is Hearth Connected (Premium package; its tests live in the Premium repo).",
+      "One account across your PCs; phones and tablets sign in with a QR code. A new PC's first screen asks What are you setting up? (Set up a new Hearth, Connect to my existing Hearth, Set up a NAS); Connect (Premium) finds your Hearth, takes your connect code (top of the Secure Vault) or a short code from Add a PC, checks what's on that PC, asks where its projects are saved, and joins. Each PC has its own Projects folder (where War Room projects made on it are saved), changed in Settings, with the projects moved too if you like. Linking another Hearth installation and working on it through this one is Hearth Connected (Premium package; its tests live in the Premium repo).",
     aliases: [
       "add another computer",
       "add a pc",
@@ -5223,6 +5223,7 @@ export const FEATURES: Feature[] = [
       "Connect to my existing Hearth",
       "Set up a NAS",
       "Projects folder",
+      "Connect code",
       "Join another Hearth",
       "Copy another Hearth's layout",
     ],

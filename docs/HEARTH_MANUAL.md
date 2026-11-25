@@ -2752,7 +2752,8 @@ list and the post update, and only they see the reply.
 - **Add a credential**: name, category, which service it belongs to, username, where it is used,
   **How it can be used** (read only, or changes you approve), notes, tags.
 - **Automation** keys are used by Hearth for you; **Protected** ones need you each time.
-- The **Hearth API key** (top of the vault): links a new PC to this Hearth.
+- The **Connect code** (top of the vault; also called the Hearth API key): connects a new PC to
+  this Hearth (Premium).
 - **Find my keys**: Hearth finds the keys your apps already have (it asks first, then copies
   each into the vault).
 - AI agents never see a key's value. Never paste a key into a conversation: use the app's
@@ -2902,12 +2903,13 @@ Tabs: **General**, **PCs and devices**, **Ember**, **Security**, **Backups**, **
   free too. Without it, **Add a PC** says so, and points to the free option: watching
   another machine's apps, Docker or a NAS is **Add a system** on the Services page. PCs already
   linked stay listed and can be unlinked.
-- One Hearth account across PCs: on your Hearth, **Add a PC** shows a short code (once, 30
-  minutes). Install Hearth on the other PC; its first screen asks **What are you setting up?**:
-  **Set up a new Hearth**, **Connect to my existing Hearth** or **Set up a NAS**. Connect finds
-  your Hearth on the home network or Tailscale, takes the code (or the **Hearth API key**),
-  checks what is on that PC (**What's on this PC**: keep the apps you tick, or **Skip for
-  now**), then you name it and pick its icon. Its projects and systems show everywhere, marked
+- One Hearth account across PCs (Premium): install Hearth on the other PC; its first screen asks
+  **What are you setting up?**: **Set up a new Hearth**, **Connect to my existing Hearth**
+  (Premium members) or **Set up a NAS**. Connect finds your Hearth on the home network or
+  Tailscale and asks for **Your connect code**: the **Connect code** at the top of your Hearth's
+  Secure Vault (or a short one-time code from **Add a PC**). Then **What's on this PC** (keep
+  the apps you tick, or **Skip for now**), **Where should projects be saved?** (its Projects
+  folder; Settings changes it later), and its name and icon. Its projects and systems show everywhere, marked
   with its icon. A Hearth already set up on its own
   can join later: on it, Settings, PCs and devices, **Join another Hearth** (confirm it's you,
   then the same steps). Everything on it stays (its projects, systems, memory and keys), a

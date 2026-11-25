@@ -1082,6 +1082,14 @@ export async function buildApp({
     hearthKey: new HearthKey(handle, vault),
     scanHere: () => scanThisPc(),
     addHere: (body) => addFromScan(body),
+    ...(engine
+      ? {
+          projectsFolder: (folder?: string) =>
+            folder
+              ? engine.projects.changeFolder(folder, false)
+              : { folder: engine.projects.workspaces },
+        }
+      : {}),
     // Browser tests: "Link to my Hearth" finds only these addresses, not the real network.
     ...(process.env.DC_FAKE_FIND
       ? {

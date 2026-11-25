@@ -76,10 +76,11 @@ export function HearthKeyCard() {
             <KeyRound strokeWidth={1.4} className="h-5 w-5" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[1rem] text-ink">Hearth API key</p>
+            <p className="text-[1rem] text-ink">Connect code</p>
             <p className="mt-0.5 max-w-2xl text-[0.8rem] leading-relaxed text-muted">
-              Links a new PC to this Hearth: install Hearth on it, choose "Link to my Hearth", and
-              paste this. Works on your home network and over Tailscale.
+              Connects a new PC to this Hearth (Premium): install Hearth on it, choose "Connect to
+              my existing Hearth", and paste this. Works on your home network and over Tailscale.
+              Also called the Hearth API key.
             </p>
           </div>
           <Tag tone="gold">Protected</Tag>

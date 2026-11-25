@@ -52,13 +52,12 @@ export function LinkPc({
   const join = useJoinHub();
   const [hub, setHub] = useState<string>("");
   const [typed, setTyped] = useState(false);
-  const [key, setKey] = useState("");
   // The short code your Hearth shows (Add a PC), or the Hearth API key for those who have it.
   const [joinCode, setJoinCode] = useState("");
-  const [useKey, setUseKey] = useState(false);
   const [byCode, setByCode] = useState<{ joinLink: string; hubName: string; taken: [] }>();
   // This PC scanned (and its apps kept) before it joins; a set-up PC keeps what it has.
   const [scanned, setScanned] = useState(signedIn);
+  const [foldered, setFoldered] = useState(signedIn);
   const [name, setName] = useState("");
   const [icon, setIcon] = useState<string | null>(null);
 
@@ -106,7 +105,12 @@ export function LinkPc({
     );
   }
 
-  // Step 3: this PC's name and icon.
+  // Step 3: where projects worked on here are saved (Settings changes it later).
+  if (linked && !foldered) {
+    return <ProjectsFolderStep setupCode={code.trim()} onDone={() => setFoldered(true)} />;
+  }
+
+  // Step 4: this PC's name and icon.
   if (linked) {
     const takenBy = new Map(linked.taken.map((t) => [t.icon, t.name]));
     const chosen = icon ?? PC_ICONS.find((i) => !takenBy.has(i.id))?.id ?? null;
@@ -180,12 +184,13 @@ export function LinkPc({
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        if (!picked) return;
-        if (useKey) {
-          if (key.trim()) start.mutate({ setupCode: code.trim(), hubUrl: picked, key: key.trim() });
+        if (!picked || !joinCode.trim()) return;
+        // The connect code from the Secure Vault (hearth_...), checked by your Hearth first; a
+        // short one-time code (ABCD-1234) goes straight to joining.
+        if (!/^[A-Za-z0-9]{4}-?[A-Za-z0-9]{4}$/.test(joinCode.trim())) {
+          start.mutate({ setupCode: code.trim(), hubUrl: picked, key: joinCode.trim() });
           return;
         }
-        if (!joinCode.trim()) return;
         let hubUrl = picked.trim().replace(/\/+$/, "");
         if (!/^https?:\/\//.test(hubUrl))
           hubUrl = `http://${hubUrl}${/:\d+$/.test(hubUrl) ? "" : ":7600"}`;
@@ -280,42 +285,21 @@ export function LinkPc({
           </button>
         </div>
       )}
-      {useKey ? (
-        <TextField
-          id="hearth-api-key"
-          label="Hearth API key"
-          hint="On your Hearth: Secure Vault, Hearth API key, Copy."
-          value={key}
-          onChange={(e) => setKey(e.target.value)}
-          autoComplete="off"
-          spellCheck={false}
-          required
-        />
-      ) : (
-        <TextField
-          id="join-code"
-          label="The code from your Hearth"
-          hint="On your Hearth: Settings, PCs and devices, Add a PC. It shows a code like ABCD-1234."
-          value={joinCode}
-          onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-          autoComplete="off"
-          spellCheck={false}
-          required
-        />
-      )}
-      <button
-        type="button"
-        className="mb-4 text-[0.8rem] text-muted hover:text-ink"
-        onClick={() => setUseKey(!useKey)}
-        data-testid="link-use-key"
-      >
-        {useKey ? "Use a code from your Hearth instead" : "Use the Hearth API key instead"}
-      </button>
+      <TextField
+        id="connect-code"
+        label="Your connect code"
+        hint="On your Hearth: Secure Vault, Connect code (at the top), Copy. Or a short one-time code from Settings, PCs and devices, Add a PC."
+        value={joinCode}
+        onChange={(e) => setJoinCode(e.target.value)}
+        autoComplete="off"
+        spellCheck={false}
+        required
+      />
       <Button
         tone="primary"
         type="submit"
         className="w-full"
-        disabled={start.isPending || !picked || !(useKey ? key.trim() : joinCode.trim())}
+        disabled={start.isPending || !picked || !joinCode.trim()}
       >
         {start.isPending ? "Checking the key" : "Next"}
       </Button>
@@ -433,5 +417,55 @@ function ScanThisPc({
         </Button>
       )}
     </div>
+  );
+}
+
+/**
+ * Where projects worked on here are saved (the owner, 11-24): asked while this PC joins, with
+ * Hearth's default to keep; Settings, PCs and devices changes it any time.
+ */
+function ProjectsFolderStep({ setupCode, onDone }: { setupCode: string; onDone: () => void }) {
+  const current = useMutation({
+    mutationFn: () =>
+      api<{ folder: string }>("POST", "/api/pcs/setup-projects-folder", { setupCode }),
+  });
+  const save = useMutation({
+    mutationFn: (folder: string) =>
+      api<{ folder: string }>("POST", "/api/pcs/setup-projects-folder", { setupCode, folder }),
+    onSuccess: onDone,
+  });
+  const [folder, setFolder] = useState<string>();
+  const { mutate: read } = current;
+  useEffect(() => read(), [read]);
+  const value = folder ?? current.data?.folder ?? "";
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (value.trim() && value.trim() !== current.data?.folder) save.mutate(value.trim());
+        else onDone();
+      }}
+      data-testid="link-projects-folder"
+    >
+      <p className="mb-1 text-[0.95rem] text-ink">Where should projects be saved?</p>
+      <p className="mb-4 text-[0.84rem] leading-relaxed text-muted">
+        Projects you work on with this PC (in the War Room) are saved here, each in its own folder
+        with its files, notes and docs. Pick a drive with room. You can change this in Settings.
+      </p>
+      <TextField
+        id="projects-folder"
+        label="Projects folder"
+        hint="The whole path, like D:\\Hearth Projects or /mnt/data/hearth-projects. Hearth makes it if it isn't there."
+        value={value}
+        onChange={(e) => setFolder(e.target.value)}
+        autoComplete="off"
+        spellCheck={false}
+        required
+      />
+      <Button tone="primary" type="submit" className="w-full" disabled={save.isPending || !value}>
+        {save.isPending ? "Saving" : "Next"}
+      </Button>
+      <FormError error={save.error ?? current.error} />
+    </form>
   );
 }

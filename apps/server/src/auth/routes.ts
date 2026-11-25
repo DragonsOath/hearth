@@ -63,6 +63,9 @@ const PRIVATE_ONLY = new Set([
   "POST /api/pcs/link",
   "POST /api/pcs/find",
   "POST /api/pcs/link-start",
+  "POST /api/pcs/setup-scan",
+  "POST /api/pcs/setup-add",
+  "POST /api/pcs/setup-projects-folder",
   "POST /api/layout/share",
 ]);
 
@@ -108,6 +111,9 @@ export const PUBLIC_ROUTES = new Set([
   "POST /api/pcs/link",
   "POST /api/pcs/find",
   "POST /api/pcs/link-start",
+  "POST /api/pcs/setup-scan",
+  "POST /api/pcs/setup-add",
+  "POST /api/pcs/setup-projects-folder",
   // Another Hearth reading this one's layout, with this Hearth's API key (layout/copy.ts).
   "POST /api/layout/share",
   "POST /api/auth/recover",

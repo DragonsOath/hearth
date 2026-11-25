@@ -64,7 +64,7 @@ test("Premium: access, a code shown once, revoke with a confirmation, locked sta
     await expect(page.getByTestId("premium-upgrade")).toBeVisible();
     // Adding a PC: said plainly up front, and refused by the server too (not just hidden).
     await page.goto("/settings#devices");
-    await page.getByRole("button", { name: /Link another Hearth/ }).click();
+    await page.getByRole("button", { name: /Add a PC/ }).click();
     await expect(page.getByTestId("add-pc-locked")).toContainText("Hearth Connected");
     // The free option is named next to the lock, and opens Add a system.
     await expect(page.getByTestId("add-pc-free")).toContainText("That's free");

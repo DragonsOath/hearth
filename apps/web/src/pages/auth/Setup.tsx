@@ -16,7 +16,7 @@ import { LinkPc } from "./LinkPc";
 type Step = "secure" | "recovery" | "passkey";
 
 /** After the account: the welcome, starting with connecting Ember's AI. */
-const NEXT = "/welcome?step=where";
+const NEXT_NEW = "/welcome?step=where";
 
 /** "Fingerprint" on phones, "Windows Hello" or similar on computers: keep it generic and plain. */
 export function defaultPasskeyName(): string {
@@ -44,6 +44,9 @@ export function SetupPage() {
   const [mode, setMode] = useState<"ask" | "new" | "link" | "join">(
     params.get("join") ? "join" : "ask",
   );
+  // "Set up a NAS": the next step opens with the NAS picked.
+  const [nasFirst, setNasFirst] = useState(false);
+  const next = nasFirst ? `${NEXT_NEW}&where=nas` : NEXT_NEW;
   const [joinLink, setJoinLink] = useState(params.get("join") ?? "");
   const join = useJoinHub();
 
@@ -66,29 +69,32 @@ export function SetupPage() {
   if (mode === "ask" && step === "secure" && status.data && !status.data.claimed) {
     return (
       <AuthFrame eyebrow="Welcome" title="Welcome to Hearth" stage="account">
-        <p className="mb-6 text-[0.95rem] leading-relaxed text-ink">
-          Have you set up Hearth on another PC before?
-        </p>
+        <p className="mb-6 text-[0.95rem] leading-relaxed text-ink">What are you setting up?</p>
         <div className="space-y-3">
-          <Button
-            tone="primary"
-            className="w-full"
-            onClick={() => setMode("link")}
-            data-testid="setup-link"
-          >
-            Yes, link this PC to it
-          </Button>
-          <Button
-            tone="outline"
-            className="w-full"
+          <FirstChoice
+            title="Set up a new Hearth"
+            line="First time with Hearth. Next it asks whether you already have apps, or are starting fresh."
             onClick={() => setMode("new")}
-            data-testid="setup-new"
-          >
-            No, start a new Hearth
-          </Button>
+            testId="setup-new"
+          />
+          <FirstChoice
+            title="Connect to my existing Hearth"
+            line="Premium members: you already use Hearth on another PC, and this PC joins it with your connect code."
+            onClick={() => setMode("link")}
+            testId="setup-link"
+          />
+          <FirstChoice
+            title="Set up a NAS"
+            line="Hearth runs here and looks after your NAS (Synology, TrueNAS, Unraid and the like)."
+            onClick={() => {
+              setNasFirst(true);
+              setMode("new");
+            }}
+            testId="setup-nas"
+          />
         </div>
         <p className="mt-5 text-[0.8rem] leading-relaxed text-faint">
-          First time? Pick No. Nothing online is created: Hearth lives on this computer.
+          Nothing online is created: Hearth lives on your own computers.
         </p>
       </AuthFrame>
     );
@@ -159,7 +165,7 @@ export function SetupPage() {
         <RecoveryKeyPanel
           recoveryKey={setup.data.recoveryKey}
           onDone={() =>
-            passkeysSupported() ? setStep("passkey") : navigate(NEXT, { replace: true })
+            passkeysSupported() ? setStep("passkey") : navigate(next, { replace: true })
           }
           doneLabel={passkeysSupported() ? "Continue" : "Next: Your homelab"}
         />
@@ -181,7 +187,7 @@ export function SetupPage() {
             <Button
               tone="primary"
               className="w-full"
-              onClick={() => navigate(NEXT, { replace: true })}
+              onClick={() => navigate(next, { replace: true })}
             >
               Next: Your homelab
             </Button>
@@ -204,7 +210,7 @@ export function SetupPage() {
             <Button
               tone="quiet"
               className="mt-3 w-full"
-              onClick={() => navigate(NEXT, { replace: true })}
+              onClick={() => navigate(next, { replace: true })}
             >
               Not now. Next: Your homelab
             </Button>
@@ -281,5 +287,29 @@ export function SetupPage() {
         Already have Hearth on another PC? Link to it instead
       </Button>
     </AuthFrame>
+  );
+}
+
+function FirstChoice({
+  title,
+  line,
+  onClick,
+  testId,
+}: {
+  title: string;
+  line: string;
+  onClick: () => void;
+  testId: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex min-h-20 w-full flex-col items-start gap-1 rounded-xl border border-line-strong p-4 text-left transition-colors hover:border-gold/60 focus-visible:border-gold"
+      data-testid={testId}
+    >
+      <span className="text-[1.02rem] text-ink">{title}</span>
+      <span className="text-[0.84rem] leading-relaxed text-muted">{line}</span>
+    </button>
   );
 }

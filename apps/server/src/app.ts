@@ -1080,6 +1080,16 @@ export async function buildApp({
         }
       : {}),
     hearthKey: new HearthKey(handle, vault),
+    scanHere: () => scanThisPc(),
+    addHere: (body) => addFromScan(body),
+    ...(engine
+      ? {
+          projectsFolder: (folder?: string) =>
+            folder
+              ? engine.projects.changeFolder(folder, false)
+              : { folder: engine.projects.workspaces },
+        }
+      : {}),
     // Browser tests: "Link to my Hearth" finds only these addresses, not the real network.
     ...(process.env.DC_FAKE_FIND
       ? {
@@ -7007,7 +7017,7 @@ export async function buildApp({
     return memoryRead.read;
   });
 
-  app.post("/api/discovery/scan", async () => {
+  async function scanThisPc() {
     // Clicking twice shares one scan instead of starting a second.
     scanInFlight ??= runDiscovery(probes).finally(() => {
       scanInFlight = undefined;
@@ -7015,7 +7025,8 @@ export async function buildApp({
     // Systems you removed are shown as removed, never ticked or added back.
     latestScan = await markRemovedFindings(handle, await scanInFlight);
     return latestScan;
-  });
+  }
+  app.post("/api/discovery/scan", async () => scanThisPc());
 
   // Storage & Files (the panel): drives, layout, arrays, capacity, journeys, findings. Read only.
   // Hearth's own data and keys never show in the file manager.
@@ -7312,8 +7323,9 @@ export async function buildApp({
   // "No scan yet" is a normal answer, not an error.
   app.get("/api/discovery/latest", async () => ({ report: latestScan ?? null }));
 
-  app.post("/api/discovery/adopt", async (request) => {
-    const { reportId, selections } = schemas.adopt.parse(request.body);
+  app.post("/api/discovery/adopt", async (request) => addFromScan(request.body));
+  async function addFromScan(raw: unknown) {
+    const { reportId, selections } = schemas.adopt.parse(raw);
     if (!latestScan || latestScan.id !== reportId) {
       throw new ConflictError("That scan is no longer current. Scan again, then adopt.");
     }
@@ -7333,7 +7345,7 @@ export async function buildApp({
     });
     latestScan = undefined; // adopted; the next visit starts fresh
     return result;
-  });
+  }
 
   app.post("/api/demo/scenario", async (request, reply) => {
     if (!config.demo) throw new NotFoundError("Demo mode is off for this installation.");

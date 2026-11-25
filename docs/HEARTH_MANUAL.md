@@ -2752,7 +2752,8 @@ list and the post update, and only they see the reply.
 - **Add a credential**: name, category, which service it belongs to, username, where it is used,
   **How it can be used** (read only, or changes you approve), notes, tags.
 - **Automation** keys are used by Hearth for you; **Protected** ones need you each time.
-- The **Hearth API key** (top of the vault): links a new PC to this Hearth.
+- The **Connect code** (top of the vault; also called the Hearth API key): connects a new PC to
+  this Hearth (Premium).
 - **Find my keys**: Hearth finds the keys your apps already have (it asks first, then copies
   each into the vault).
 - AI agents never see a key's value. Never paste a key into a conversation: use the app's
@@ -2841,8 +2842,8 @@ Tabs: **General**, **PCs and devices**, **Ember**, **Security**, **Backups**, **
 
 <!-- feature: pcs-and-devices -->
 
-- **PCs and devices**: **PCs** (icon and name, **Link another Hearth** with a one-time join link and
-  command, **Uninstall** from any device), **Devices** (**Add a device**: a QR code for a phone,
+- **PCs and devices**: **PCs** (icon and name, **Add a PC** with a short one-time code, **Uninstall**
+  from any device), **Devices** (**Add a device**: a QR code for a phone,
   tablet or the Hearth app; **Disconnect**), **Open to my home network**.
 - **Ember**: identity, voice, personality, writing assistance, **Full
   access**, **Ollama**, administration, tools, AI use and budget, **Homelab rules** (**Do not
@@ -2899,15 +2900,26 @@ Tabs: **General**, **PCs and devices**, **Ember**, **Security**, **Backups**, **
   Hearth covers every Hearth linked to it, with no code of its own (a PC linked to it shows its
   Premium features as **Included**; unlinked, it goes back to free). Every Hearth works fully on
   its own, free, on as many PCs as you like; reaching apps, Docker or a NAS on another machine is
-  free too. Without it, **Link another Hearth** says so, and points to the free option: watching
+  free too. Without it, **Add a PC** says so, and points to the free option: watching
   another machine's apps, Docker or a NAS is **Add a system** on the Services page. PCs already
   linked stay listed and can be unlinked.
-- One Hearth account across PCs: install Hearth on another PC and choose **Link to my Hearth**
-  (it finds your Hearth; paste the **Hearth API key**), then name it and pick its icon. Its
-  projects and systems show everywhere, marked with its icon. A Hearth already set up on its own
+- One Hearth account across PCs (Premium): install Hearth on the other PC; its first screen asks
+  **What are you setting up?**: **Set up a new Hearth**, **Connect to my existing Hearth**
+  (Premium members) or **Set up a NAS**. Connect finds your Hearth on the home network or
+  Tailscale and asks for **Your connect code**: the **Connect code** at the top of your Hearth's
+  Secure Vault (or a short one-time code from **Add a PC**). Then **What's on this PC** (keep
+  the apps you tick, or **Skip for now**), **Where should projects be saved?** (its Projects
+  folder; Settings changes it later), and its name and icon. Its projects and systems show everywhere, marked
+  with its icon. A Hearth already set up on its own
   can join later: on it, Settings, PCs and devices, **Join another Hearth** (confirm it's you,
   then the same steps). Everything on it stays (its projects, systems, memory and keys), a
   backup is made first, and if your Hearth ever removes it, it goes back to its own account.
+- **Projects folder** (on each PC's card in Settings, PCs and devices): where War Room projects
+  made on that PC are saved, each in its own folder with its files, notes and docs (by default
+  Hearth Projects in your home folder). Type another folder (the whole path, on any drive) and
+  **Save**: new projects go there. Tick **Also move the projects already there** to move them too,
+  each one named first; a project open in another program stops the move there and says which
+  moved.
 - **Layout** (Settings, PCs and devices): each Hearth keeps its own layout. **Copy another
   Hearth's layout** makes this one look like another of your Hearths: choose it (found on your
   home network and Tailscale, or type its address), paste its **Hearth API key** (from its

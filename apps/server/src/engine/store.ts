@@ -375,6 +375,11 @@ export class EngineStore {
     this.run("UPDATE engine_projects SET description=? WHERE slug=?", description, slug);
   }
 
+  /** A project's folder moved (Settings, Projects folder). */
+  setProjectPath(slug: string, dir: string) {
+    this.run("UPDATE engine_projects SET path=? WHERE slug=?", dir, slug);
+  }
+
   setName(slug: string, name: string) {
     this.run("UPDATE engine_projects SET name=? WHERE slug=?", name, slug);
   }

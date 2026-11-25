@@ -470,7 +470,10 @@ export function WelcomePage() {
   const yoursAt = YOURS.findIndex((s) => s.id === id);
   const heading = useRef<HTMLHeadingElement>(null);
   const [aiName, setAiName] = useState<string | null>(null);
-  const [where, setWhere] = useState<Where | undefined>();
+  // "Set up a NAS" on the first screen arrives with the NAS already picked (11-24).
+  const [where, setWhere] = useState<Where | undefined>(() =>
+    params.get("where") === "nas" ? "nas" : undefined,
+  );
   const markDone = settings.mutateAsync;
   const saveStep = settings.mutate;
   const savedStep = ws.data?.onboardingStep;

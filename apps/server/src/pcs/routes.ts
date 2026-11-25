@@ -46,6 +46,11 @@ export interface PcsDeps {
   backup?: () => Promise<{ ok: boolean; detail: string }>;
   /** Open to my home network (tests replace it). */
   openNetwork?: () => { ok: boolean; message: string };
+  /** A joining PC scans itself, and adds what it found, before it joins (the Discover page's own). */
+  scanHere?: () => Promise<unknown>;
+  addHere?: (body: unknown) => Promise<{ services: number }>;
+  /** This PC's Projects folder: read, or changed (the War Room's engine). */
+  projectsFolder?: (folder?: string) => { folder: string };
 }
 
 /**
@@ -194,6 +199,49 @@ export function registerPcs(app: FastifyInstance, deps: PcsDeps): ConnectedKit {
     await setupOrOwner(request, body.setupCode ?? "");
     const found = await (deps.findHearths ?? findHearths)();
     return { thisPc: hostname(), found };
+  });
+
+  // Before a new PC joins (11-24, the owner: "it's still going to scan Jon's PC too"): it scans
+  // itself, and adds the apps you keep, so they come with it into your Hearth.
+  app.post("/api/pcs/setup-scan", async (request) => {
+    const body = z
+      .object({ setupCode: z.string().max(20).optional() })
+      .strict()
+      .parse(request.body);
+    await setupOrOwner(request, body.setupCode ?? "");
+    if (!deps.scanHere) throw new ConflictError("This Hearth can't scan itself here.");
+    return deps.scanHere();
+  });
+  app.post("/api/pcs/setup-add", async (request) => {
+    const body = z
+      .object({
+        setupCode: z.string().max(20).optional(),
+        reportId: z.string(),
+        selections: z
+          .array(z.object({ key: z.string(), name: z.string().max(60) }).strict())
+          .max(500),
+      })
+      .strict()
+      .parse(request.body);
+    await setupOrOwner(request, body.setupCode ?? "");
+    if (!deps.addHere) throw new ConflictError("This Hearth can't add apps here.");
+    return deps.addHere({ reportId: body.reportId, selections: body.selections });
+  });
+
+  // Where projects worked on here are saved (11-24), asked while a new PC joins; Settings changes
+  // it later. No folder: the one it uses now.
+  app.post("/api/pcs/setup-projects-folder", async (request) => {
+    const body = z
+      .object({ setupCode: z.string().max(20).optional(), folder: z.string().max(1000).optional() })
+      .strict()
+      .parse(request.body);
+    await setupOrOwner(request, body.setupCode ?? "");
+    if (!deps.projectsFolder) throw new ConflictError("This Hearth has no War Room here.");
+    try {
+      return deps.projectsFolder(body.folder?.trim() || undefined);
+    } catch (e) {
+      throw new ConflictError(e instanceof Error ? e.message : String(e));
+    }
   });
 
   // The Hearth API key, sent to the Hearth you picked (or typed): a join link if it is right.

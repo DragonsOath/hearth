@@ -192,10 +192,23 @@ test("Shows: Sonarr rows judged per episode, saved as a plan and read back", asy
     const row = panel.getByTestId("crucible-row").last();
     await expect(row.getByTestId("crucible-step-cap").first()).toContainText("an episode");
     await expect(row.getByTestId("crucible-explain").first()).toContainText("episodes");
+    // Season packs: preferred, with the most a whole season may be.
+    const packs = panel.getByTestId("crucible-season-packs");
+    await expect(packs.getByRole("radio", { name: "No preference" })).toBeChecked();
+    await packs.getByRole("radio", { name: "Preferred", exact: true }).check();
+    await packs.getByTestId("crucible-pack-max").fill("40");
+    await expect(packs.getByTestId("crucible-pack-sentence")).toContainText(
+      "Season packs preferred: a whole season in one download when one fits, else episode by episode; packs over 40 GB turned down",
+    );
+    await packs.screenshot({
+      path: `test-results/screens/${info.project.name}/crucible-season-packs.png`,
+    });
     await panel.getByTestId("crucible-save").click();
     const pop = page.getByTestId("approve-here");
     await expect(pop).toBeVisible({ timeout: 15_000 });
     await expect(pop).toContainText("Save the Crucible's show rows");
+    await expect(pop).toContainText("Season packs preferred");
+    await expect(pop).toContainText("packs over 40 GB turned down");
     // Sonarr's own episode size limits, or (this test workspace has Recyclarr) left alone, said so.
     await expect(pop).toContainText(
       /season packs judged per episode|Managed by Recyclarr or Profilarr/,

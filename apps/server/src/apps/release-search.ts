@@ -249,6 +249,7 @@ interface RawRelease {
   customFormatScore?: number;
   approved?: boolean;
   rejected?: boolean;
+  fullSeason?: boolean;
   rejections?: (string | { reason?: string })[];
 }
 
@@ -274,6 +275,7 @@ export function toOption(x: RawRelease): ReleaseOption | undefined {
         : {}),
     ...(x.customFormatScore !== undefined ? { score: x.customFormatScore } : {}),
     approved: Boolean(x.approved),
+    ...(x.fullSeason ? { fullSeason: true } : {}),
     rejections: (x.rejections ?? []).map(reasonOf).filter(Boolean),
     ...(x.quality?.quality?.resolution ? { resolution: `${x.quality.quality.resolution}p` } : {}),
     ...(SOURCE[x.quality?.quality?.source ?? ""]

@@ -90,6 +90,7 @@ const STEP_KIND_LABEL: Record<ActionKind, string> = {
   "app-arr-import": "Import a stuck download (Sonarr or Radarr)",
   "app-arr-search": "Search for a missing item (Sonarr or Radarr)",
   "app-arr-grab": "Download a release you picked (Sonarr or Radarr)",
+  "app-sonarr-season-pack": "Try a whole-season pack for one request (Sonarr)",
   "app-arr-add-collection": "Add the movies missing from a collection (Radarr)",
   "app-arr-queue-remove": "Remove one item from the download queue (Sonarr or Radarr)",
   "app-arr-set-cutoff-score": "Set where a quality profile stops upgrading (Sonarr or Radarr)",

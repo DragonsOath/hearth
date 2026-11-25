@@ -682,6 +682,7 @@ export function fakeHomeAssistant(): FakeHomeAssistant {
         else if (op === "turn_off") setState(st.entity_id, "off");
         else if (op === "turn_on") setState(st.entity_id, "idle");
         else if (op === "media_pause") setState(st.entity_id, "paused");
+        else if (op === "media_stop") setState(st.entity_id, "idle");
         else if (op === "media_play") setState(st.entity_id, "playing");
         else if (op === "play_media" && b.media_content_type === "cast") {
           const m = JSON.parse(String(b.media_content_id)) as {

@@ -369,7 +369,12 @@ export function scriptedProvider(
             text: JSON.stringify([
               { title: "Harbor Lights", year: 2019, why: "A quiet coastal story (test agent)." },
               { title: "Ember Lake", why: "Already on your shelf (test agent)." },
-              { title: "The Long Road", why: "Already on its way (test agent)." },
+              {
+                title: "The Long Road",
+                why: "Already on its way (test agent).",
+                // Think outside the box: a nearby pick, marked.
+                ...(task.prompt.includes("Think outside the box") ? { adjacent: true } : {}),
+              },
               { title: "A Film Nobody Made", year: 2001, why: "Invented (test agent)." },
             ]),
             durationMs: Date.now() - started,

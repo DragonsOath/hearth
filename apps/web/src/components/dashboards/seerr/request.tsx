@@ -1,3 +1,4 @@
+import { SeasonPacksSwitch } from "../../crucible/SeasonPacksSwitch";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { CheckCircle2, Play, X } from "lucide-react";
@@ -23,6 +24,7 @@ export function Seasons({
 }) {
   const q = useSeerrView<TitleView>(serviceId, "title", { type: "tv", id: r.tmdbId });
   const [picked, setPicked] = useState<number[] | undefined>();
+  const [packFrom, setPackFrom] = useState<string>();
   if (q.isLoading) return <Skeleton className="h-16" />;
   if (!q.data) return <p className="text-[0.8rem] text-amber">Could not read its seasons.</p>;
   const free = q.data.seasons.filter((s) => s.status === "not requested").map((s) => s.number);
@@ -31,6 +33,7 @@ export function Seasons({
     return <p className="text-[0.8rem] text-muted">Every season is in the library or requested.</p>;
   return (
     <div className="mt-2 space-y-2" data-testid="seerr-seasons">
+      <SeasonPacksSwitch once={{ sonarrId: packFrom, set: setPackFrom }} />
       <div className="flex flex-wrap gap-x-4 gap-y-1">
         {q.data.seasons.map((s) => {
           const open = s.status === "not requested";
@@ -65,18 +68,27 @@ export function Seasons({
         tone="primary"
         disabled={act.busy || !chosen.length}
         data-hearth-target={`discover:${r.tmdbId}:request-seasons`}
-        onClick={() =>
-          void act.propose(
-            "app-seerr-request",
-            {
-              mediaType: "tv",
-              tmdbId: r.tmdbId,
-              ...(chosen.length === free.length ? {} : { seasons: chosen.join(",") }),
-              ...saveParams(save),
-            },
+        onClick={() => {
+          const seasons = chosen.length === free.length ? undefined : chosen.join(",");
+          void act.proposeMany(
+            [
+              {
+                kind: "app-seerr-request",
+                params: {
+                  mediaType: "tv",
+                  tmdbId: r.tmdbId,
+                  ...(seasons ? { seasons } : {}),
+                  ...saveParams(save),
+                },
+              },
+              ...packSteps(
+                { seasonPackFrom: packFrom },
+                { mediaType: "tv", tmdbId: r.tmdbId, title: r.title, seasons: chosen.join(",") },
+              ),
+            ],
             `Request ${r.title}`,
-          )
-        }
+          );
+        }}
       >
         Request{" "}
         {chosen.length === free.length
@@ -103,7 +115,32 @@ interface ServersView {
 }
 
 /** Where a request goes, as the plan's params (empty: Seerr's defaults). */
-export type SaveChoice = { serverId?: number; rootFolder?: string; profileId?: number };
+export type SaveChoice = {
+  serverId?: number;
+  rootFolder?: string;
+  profileId?: number;
+  /** Shows: a season pack for this request only, from this Sonarr. */
+  seasonPackFrom?: string;
+};
+
+/** The season pack step that follows a show's request, when it was asked for. */
+export function packSteps(
+  where: SaveChoice | undefined,
+  m: { mediaType?: unknown; tmdbId?: unknown; title: string; seasons?: string },
+) {
+  if (!where?.seasonPackFrom || m.mediaType !== "tv" || !m.tmdbId) return [];
+  return [
+    {
+      kind: "app-sonarr-season-pack" as const,
+      serviceId: where.seasonPackFrom,
+      params: {
+        tmdbId: Number(m.tmdbId),
+        title: m.title,
+        ...(m.seasons ? { seasons: m.seasons } : {}),
+      },
+    },
+  ];
+}
 
 const tb = (b?: number) =>
   b === undefined
@@ -258,6 +295,7 @@ function resolveSave(servers: ServersView["servers"], value: SaveChoice): SaveCh
     serverId: server.id,
     ...(rootFolder ? { rootFolder } : {}),
     ...(profileId !== undefined ? { profileId } : {}),
+    ...(value.seasonPackFrom ? { seasonPackFrom: value.seasonPackFrom } : {}),
   };
 }
 
@@ -307,6 +345,11 @@ export function RequestAsk({
   const one = items.length === 1 ? first : undefined;
   // Your defaults go unless you choose otherwise (Change).
   const [changing, setChanging] = useState(false);
+  // A season pack is for this request only: the box opens with it unticked.
+  useEffect(() => {
+    if (value.seasonPackFrom) onChange({ ...value, seasonPackFrom: undefined });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const servers = useSeerrView<ServersView>(
     first?.serviceId ?? "",
     "servers",
@@ -410,6 +453,16 @@ export function RequestAsk({
                   type={first.type}
                   value={value}
                   onChange={onChange}
+                />
+              </div>
+            )}
+            {items.some((x) => x.type === "tv") && (
+              <div className="mt-3">
+                <SeasonPacksSwitch
+                  once={{
+                    sonarrId: value.seasonPackFrom,
+                    set: (id) => onChange({ ...value, seasonPackFrom: id }),
+                  }}
                 />
               </div>
             )}

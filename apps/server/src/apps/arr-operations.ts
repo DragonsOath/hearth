@@ -11,6 +11,7 @@ import { MAX_REPLACEMENTS } from "@dragon-control/core";
 import { episodeTitle, isFailedDownload } from "./arr-live";
 import { gb, type MediaLibrary } from "./media-library";
 import { grabChange, grabParams, grabRelease, type Call as SearchCall } from "./release-search";
+import { grabSeasonPacks, seasonPackChange, seasonPackParams } from "./season-pack";
 
 /**
  * Sonarr and Radarr operations on one item (feature request 7 and 18), as approved plan steps:
@@ -107,6 +108,7 @@ const LABEL: Partial<Record<ActionKind, string>> = {
   "app-arr-import": "Imported a stuck download",
   "app-arr-search": "Searched",
   "app-arr-grab": "Downloaded a picked release",
+  "app-sonarr-season-pack": "Tried a season pack",
   "app-arr-queue-remove": "Removed from the queue",
   "app-arr-add-collection": "Added a collection's missing movies",
 };
@@ -395,6 +397,17 @@ export class ArrOperations {
       );
     }
 
+    if (kind === "app-sonarr-season-pack") {
+      if (app !== "sonarr") throw new PlanError("Season packs are a Sonarr thing.");
+      const sp = seasonPackParams(params as Record<string, unknown> | undefined);
+      if (typeof sp === "string") throw new PlanError(sp);
+      return done(seasonPackChange(service.name, sp), {
+        tmdbId: sp.tmdbId,
+        title: sp.title,
+        ...(sp.seasons ? { seasons: sp.seasons.join(",") } : {}),
+      });
+    }
+
     if (kind === "app-arr-grab") {
       const g = grabParams(params as Record<string, unknown> | undefined);
       if (typeof g === "string") throw new PlanError(g);
@@ -541,7 +554,18 @@ export class ArrOperations {
     let ok: boolean;
     let detail: Record<string, unknown>;
 
-    if (step.kind === "app-arr-grab") {
+    if (step.kind === "app-sonarr-season-pack") {
+      const sp = seasonPackParams(p as Record<string, unknown>);
+      if (typeof sp === "string") return { ok: false, result: sp };
+      const call: SearchCall = (method, path, body) =>
+        this.lib.arr(service, method, path, `try a season pack for ${sp.title} (approved plan)`, {
+          ...(body !== undefined ? { body } : {}),
+        });
+      const out = await grabSeasonPacks(call, sp, this.wait);
+      ok = out.ok;
+      result = out.result;
+      detail = { title: sp.title, packs: out.grabbed };
+    } else if (step.kind === "app-arr-grab") {
       const g = grabParams(p as Record<string, unknown>);
       if (typeof g === "string") return { ok: false, result: g };
       const call: SearchCall = (method, path, body) =>

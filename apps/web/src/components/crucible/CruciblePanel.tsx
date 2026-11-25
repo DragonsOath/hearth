@@ -4,6 +4,10 @@ import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import {
   CRUCIBLE_PRESETS,
   CRUCIBLE_QUALITIES,
+  SEASON_PACK_WORDS,
+  seasonPackSentence,
+  seasonPacksOf,
+  type SeasonPackChoice,
   QUALITY_WORDS,
   capFormats,
   driftedRows,
@@ -461,7 +465,8 @@ function Editor({
     JSON.stringify(saved?.[k.rows]) !== JSON.stringify(draft[k.rows]) ||
     (saved?.autoAssign !== false) !== (draft.autoAssign !== false) ||
     (saved?.smallerWins !== false) !== (draft.smallerWins !== false) ||
-    (saved?.followAge !== false) !== (draft.followAge !== false);
+    (saved?.followAge !== false) !== (draft.followAge !== false) ||
+    JSON.stringify(seasonPacksOf(saved ?? {})) !== JSON.stringify(seasonPacksOf(draft));
   const waiting = library.titles.filter((t) => t.profile === HOLD_PROFILE);
   return (
     <div className="space-y-4" data-testid="crucible-editor">
@@ -651,6 +656,19 @@ function Editor({
               or Profilarr manages them.
             </li>
           )}
+          {k.app === "sonarr" && seasonPacksOf(draft).choice !== "neutral" && (
+            <li>
+              Custom format "Hearth · Season pack" (Sonarr's release type: season pack), scored{" "}
+              {seasonPacksOf(draft).choice === "prefer" ? "+50" : "-50"} in every show row; upgrades
+              need more than 50 points, so it never causes one.
+            </li>
+          )}
+          {k.app === "sonarr" && seasonPacksOf(draft).maxGB && (
+            <li>
+              Custom format "Hearth · Season pack over {seasonPacksOf(draft).maxGB} GB", scored
+              -10000 in every show row.
+            </li>
+          )}
           {k.app === "radarr" && draft.smallerWins !== false && (
             <li>
               Size band formats ("Hearth · Smaller 1080p (under 4 GB)" and so on), each adding 1 to
@@ -695,6 +713,7 @@ function Editor({
             When two releases are the same quality, take the smaller one
           </label>
         )}
+        {k.app === "sonarr" && <SeasonPacks draft={draft} setDraft={setDraft} />}
         <label className="flex min-h-11 items-center gap-2 text-[0.86rem] text-ink">
           <input
             type="checkbox"
@@ -1198,5 +1217,79 @@ function ExpertFile({ rows, onLoad }: { rows: CrucibleRow[]; onLoad: (r: Crucibl
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * Season packs (TV Shows; the owner, 11-24): preferred, no preference, or not preferred, and the
+ * most a whole pack may be. Saved with the rows, as Sonarr's own custom formats.
+ */
+function SeasonPacks({
+  draft,
+  setDraft,
+}: {
+  draft: CrucibleSetup;
+  setDraft: (s: CrucibleSetup) => void;
+}) {
+  const packs = seasonPacksOf(draft);
+  const set = (p: Partial<typeof packs>) => setDraft({ ...draft, seasonPacks: { ...packs, ...p } });
+  const help: Record<SeasonPackChoice, string> = {
+    prefer: "A whole season in one download when one fits your rules; else episode by episode.",
+    neutral: "Sonarr picks between packs and single episodes on quality alone.",
+    avoid: "Episode by episode; a pack only when nothing else fits.",
+  };
+  return (
+    <fieldset
+      className="space-y-2 rounded-xl border border-line p-3"
+      data-testid="crucible-season-packs"
+    >
+      <legend className="px-1 text-[0.86rem] text-ink">Season packs</legend>
+      <div role="radiogroup" aria-label="Season packs" className="flex flex-wrap gap-2">
+        {(["prefer", "neutral", "avoid"] as const).map((c) => (
+          <label
+            key={c}
+            className={cx(
+              "flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 text-[0.84rem]",
+              packs.choice === c
+                ? "border-gold bg-gold/10 text-ink"
+                : "border-line-strong text-muted",
+            )}
+          >
+            <input
+              type="radio"
+              name="season-packs"
+              checked={packs.choice === c}
+              onChange={() => set({ choice: c })}
+              className="accent-[var(--color-gold)]"
+            />
+            {SEASON_PACK_WORDS[c]}
+          </label>
+        ))}
+      </div>
+      <p className="text-[0.8rem] text-muted">{help[packs.choice]}</p>
+      <label className="flex flex-wrap items-center gap-2 text-[0.84rem] text-ink">
+        Largest season pack
+        <input
+          type="number"
+          min={1}
+          max={2000}
+          inputMode="numeric"
+          value={packs.maxGB ?? ""}
+          placeholder="No limit"
+          onChange={(e) => {
+            const n = Number(e.target.value);
+            set({ maxGB: e.target.value && n > 0 ? Math.min(2000, Math.round(n)) : null });
+          }}
+          aria-label="Largest season pack, in GB"
+          className="min-h-9 w-28 rounded-lg border border-line bg-raised px-2 text-ink"
+          data-testid="crucible-pack-max"
+        />
+        GB for the whole season
+      </label>
+      <p className="text-[0.76rem] text-faint" data-testid="crucible-pack-sentence">
+        {seasonPackSentence(packs)}. A season still airing has no pack yet, so it comes episode by
+        episode. Episodes you already have are never downloaded again just to swap them for a pack.
+      </p>
+    </fieldset>
   );
 }

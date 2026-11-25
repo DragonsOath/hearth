@@ -5,7 +5,13 @@ import type { RecommendItem, RecommendResult, WorkspaceSpec } from "@dragon-cont
 import { api } from "../../data/api";
 import { ApproveDialog, useApproveHere } from "../jobs/ApproveHere";
 import { ToolImage } from "../panels/ToolImage";
-import { RequestAsk, TrailerLink, saveParams, type SaveChoice } from "../dashboards/seerr/request";
+import {
+  RequestAsk,
+  TrailerLink,
+  packSteps,
+  saveParams,
+  type SaveChoice,
+} from "../dashboards/seerr/request";
 
 /**
  * Curator inside a Forge pick sheet (11-09): a row Ember builds from your library can come up
@@ -131,13 +137,21 @@ export function CuratorPicks({
   const send = (i: RecommendItem, where?: SaveChoice) => {
     const ids = seerrIds(i)!;
     if (i.request?.kind === "plan")
-      void act.propose(
-        i.request.step as Parameters<typeof act.propose>[0],
-        i.request.step === "app-seerr-request"
-          ? { ...i.request.params, ...saveParams(where ?? save) }
-          : i.request.params,
+      void act.proposeMany(
+        [
+          {
+            kind: i.request.step as Parameters<typeof act.propose>[0],
+            serviceId: i.request.serviceId,
+            params:
+              i.request.step === "app-seerr-request"
+                ? { ...i.request.params, ...saveParams(where ?? save) }
+                : i.request.params,
+          },
+          ...(i.request.step === "app-seerr-request"
+            ? packSteps(where, { ...i.request.params, title: i.title })
+            : []),
+        ],
         i.request.label,
-        i.request.serviceId,
       );
     setAsked((a) => [...a, ids.tmdbId]);
     remember.mutate(i);

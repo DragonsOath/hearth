@@ -120,6 +120,8 @@ export interface CrucibleSetup {
    * file yet, or its file already fits the new rule, so nothing is ever replaced by a move.
    */
   followAge?: boolean;
+  /** Shows: season packs preferred, not, or avoided, and a cap for a whole pack. */
+  seasonPacks?: SeasonPackSettings;
 }
 
 /** TMDB popularity Hearth calls "popular" (a starting point; most new wide releases pass it). */
@@ -463,6 +465,83 @@ export function capSpecifications(quality: CrucibleQuality, gb: number) {
       ],
     },
   ];
+}
+
+/**
+ * Season packs (shows; the owner, 11-24): a whole season in one download. Preferred: of a pack
+ * and single episodes the same quality, Sonarr takes the pack, and falls back to episodes when
+ * no pack fits (or the season is still airing, when there is no pack yet). Avoided: single
+ * episodes win, and a pack is taken only when nothing else fits. A cap turns down any pack over
+ * that many GB for the whole season. Sonarr does it with its own custom formats ("Release Type:
+ * Season Pack"), so it holds for every request, Hearth on or off.
+ */
+export type SeasonPackChoice = "prefer" | "neutral" | "avoid";
+export interface SeasonPackSettings {
+  choice: SeasonPackChoice;
+  /** The most a whole season pack may be, in GB; null: no limit. */
+  maxGB: number | null;
+}
+export const DEFAULT_SEASON_PACKS: SeasonPackSettings = { choice: "neutral", maxGB: null };
+export const SEASON_PACK_WORDS: Record<SeasonPackChoice, string> = {
+  prefer: "Preferred",
+  neutral: "No preference",
+  avoid: "Not preferred",
+};
+/**
+ * What a pack adds (or takes away) when preferred (or avoided): enough to win over single
+ * episodes the same quality, and profiles need more than this to upgrade, so episodes already on
+ * disk are never downloaded again just to swap them for a pack.
+ */
+export const SEASON_PACK_SCORE = 50;
+export const SEASON_PACK_FORMAT = `${HEARTH_PREFIX}Season pack`;
+export const seasonPackCapName = (gb: number) => `${HEARTH_PREFIX}Season pack over ${gb} GB`;
+/** Sonarr's release type for a whole season (its ReleaseType enum: 3). */
+const SEASON_PACK_TYPE = 3;
+export function seasonPackSpecifications() {
+  return [
+    {
+      name: "Season pack",
+      implementation: "ReleaseTypeSpecification",
+      negate: false,
+      required: true,
+      fields: [{ name: "value", value: SEASON_PACK_TYPE }],
+    },
+  ];
+}
+/** A pack over the cap: Sonarr's size condition measures a pack's whole size. */
+export function seasonPackCapSpecifications(gb: number) {
+  return [
+    ...seasonPackSpecifications(),
+    {
+      name: "Bigger than the cap",
+      implementation: "SizeSpecification",
+      negate: false,
+      required: true,
+      fields: [
+        { name: "min", value: gb },
+        { name: "max", value: Math.max(2000, gb * 20) },
+      ],
+    },
+  ];
+}
+/** The season pack settings, whatever was saved (older setups: no preference, no cap). */
+export function seasonPacksOf(s: Pick<CrucibleSetup, "seasonPacks">): SeasonPackSettings {
+  const p = s.seasonPacks;
+  const choice: SeasonPackChoice =
+    p?.choice === "prefer" || p?.choice === "avoid" ? p.choice : "neutral";
+  const maxGB =
+    typeof p?.maxGB === "number" && p.maxGB > 0 && p.maxGB <= 2000 ? Math.round(p.maxGB) : null;
+  return { choice, maxGB };
+}
+/** The setting in a sentence, for the plan and the request box. */
+export function seasonPackSentence(p: SeasonPackSettings): string {
+  const how =
+    p.choice === "prefer"
+      ? "Season packs preferred: a whole season in one download when one fits, else episode by episode"
+      : p.choice === "avoid"
+        ? "Season packs not preferred: episode by episode, a pack only when nothing else fits"
+        : "No preference between season packs and single episodes";
+  return `${how}${p.maxGB ? `; packs over ${p.maxGB} GB turned down` : ""}`;
 }
 
 /** Which cap formats a row turns releases down with (by name). */

@@ -198,6 +198,11 @@ export interface RecommendItem {
   /** A show you have some seasons of: the request is for the missing ones. */
   partial?: boolean;
   request?: RecommendAction;
+  /** Think outside the box: Ember's nearby pick (shown with Ember thinking, 11-24). */
+  outside?: boolean;
+  /** Movies and shows: the title in Seerr, for its full page (trailer, ratings, cast). */
+  tmdbId?: number;
+  mediaType?: "movie" | "tv";
 }
 
 export interface RecommendResult {

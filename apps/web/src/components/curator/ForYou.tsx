@@ -20,7 +20,13 @@ import { api } from "../../data/api";
 import { cx } from "../ui";
 import { EmberMark } from "../ember/EmberMark";
 import { ApproveDialog, useApproveHere } from "../jobs/ApproveHere";
-import { RequestAsk, TrailerLink, saveParams, type SaveChoice } from "../dashboards/seerr/request";
+import {
+  RequestAsk,
+  TrailerLink,
+  packSteps,
+  saveParams,
+  type SaveChoice,
+} from "../dashboards/seerr/request";
 import { RateIt } from "./RateIt";
 
 /**
@@ -183,6 +189,7 @@ export function ForYou({ onFindMissing }: { onFindMissing: (interest: string) =>
           serviceId: r!.seerr!,
           params: { mediaType: m.mediaType, tmdbId: m.tmdbId, ...saveParams(where) },
         },
+        ...packSteps(where, m),
       ],
       `Request ${m.title}`,
     );

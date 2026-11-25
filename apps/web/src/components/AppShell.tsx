@@ -20,6 +20,7 @@ import { CaveOverlay } from "./cave/CavePanel";
 import { PhoneLairButton, useOpenEmberChat } from "./shell/LairButton";
 import { ApprovalDock } from "./jobs/ApprovalDock";
 import { PlanNotices } from "./shell/PlanNotices";
+import { MiniPlayer } from "./home/MiniPlayer";
 import { UpdateNotice } from "./shell/UpdateNotice";
 import { OpenInApp } from "./shell/OpenInApp";
 import { PremiumSetup } from "./shell/PremiumSetup";
@@ -307,6 +308,7 @@ export function AppShell() {
     <CaveProvider>
       <Shell />
       <PlanNotices />
+      <MiniPlayer />
       <ApprovalDock />
       <UpdateNotice />
       <OpenInApp />

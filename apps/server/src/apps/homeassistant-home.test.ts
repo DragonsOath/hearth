@@ -208,6 +208,9 @@ describe("the home dashboard", () => {
     expect((await tap("media_player.kitchen_speaker", "pause")).state).toBe("paused");
     await tap("media_player.kitchen_speaker", "play");
     expect((await tap("media_player.kitchen_speaker", "next")).state).toBe("playing");
+    // The mini player's close stops the music outright.
+    expect((await tap("media_player.kitchen_speaker", "stop")).state).toBe("idle");
+    await tap("media_player.kitchen_speaker", "play");
     await tap("media_player.kitchen_speaker", "volume", { value: 70 });
     await tap("media_player.kitchen_speaker", "source", { value: "Radio" });
     await expect(tap("media_player.kitchen_speaker", "source", { value: "Nope" })).rejects.toThrow(

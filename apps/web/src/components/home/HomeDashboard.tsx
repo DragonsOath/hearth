@@ -38,6 +38,7 @@ import { useNow, type Ctx } from "./parts";
 import { CameraTile } from "./Pages";
 import { Slideshow } from "./Widgets";
 import { WeatherScene } from "./WeatherScene";
+import { useHomeDashboardShown } from "./MiniPlayer";
 import "./home.css";
 
 /**
@@ -295,6 +296,8 @@ export function HomeDashboard({
   exit?: ReactNode;
 }) {
   const [prefs, update] = useHomePrefs();
+  // The mini player steps aside while this is on screen.
+  useHomeDashboardShown();
   const q = useHome(service, prefs.devices);
   const act = useHomeAction(q.data?.serviceId ?? service);
   const [editing, setEditing] = useState(false);

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ChevronRight, Eye, Film } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ChevronRight, Eye, Film, X } from "lucide-react";
 import type { RecommendItem, RecommendRating } from "@dragon-control/core";
 import { ApproveDialog, useApproveHere } from "../jobs/ApproveHere";
 import { useWorkspace } from "../../data/api";
@@ -9,7 +9,6 @@ import { TitleSheet } from "../dashboards/seerr/DiscoverRows";
 import type { SearchResult } from "../dashboards/seerr/data";
 import { OutsideMark } from "./OutsideMark";
 import { RateIt } from "./RateIt";
-import { Sheet } from "../ui";
 
 /** Each row shows this many; See all opens every one (the owner, 11-25: "maybe only show 10"). */
 const PREVIEW = 10;
@@ -111,20 +110,12 @@ export function CuratorRows({
       {row("Missing from your collection", missing, "recommend-row-missing", false)}
       {row("In your library", have, "recommend-row-have", true)}
       {all && (
-        <Sheet
+        <SeeAll
           label={all.label}
-          eyebrow="Curator"
-          title={`${all.label} · ${allList.length}`}
+          count={allList.length}
           onClose={() => setAll(undefined)}
-          wide
-        >
-          <div className="space-y-5 px-6 pb-6" data-testid="recommend-all">
-            <ul className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3">
-              {allList.map((i) => (
-                <Tile key={i.key} i={i} requested={requested(i)} onOpen={show(i)} fill />
-              ))}
-            </ul>
-            {onMore && (
+          more={
+            onMore && (
               <button
                 type="button"
                 disabled={finding}
@@ -134,9 +125,13 @@ export function CuratorRows({
               >
                 {finding ? "Ember is looking for more…" : "More like these"}
               </button>
-            )}
-          </div>
-        </Sheet>
+            )
+          }
+        >
+          {allList.map((i) => (
+            <Tile key={i.key} i={i} requested={requested(i)} onOpen={show(i)} />
+          ))}
+        </SeeAll>
       )}
       {open && seerr && (
         <TitleSheet
@@ -166,20 +161,14 @@ function Tile({
   i,
   requested,
   onOpen,
-  fill,
 }: {
   i: RecommendItem;
   requested: boolean;
   onOpen?: () => void;
-  /** In See all's grid: as wide as its column. */
-  fill?: boolean;
 }) {
   const [broken, setBroken] = useState(false);
   return (
-    <li
-      className={fill ? "min-w-0 space-y-1.5" : "w-[9.5rem] shrink-0 snap-start space-y-1.5"}
-      data-testid="recommend-item"
-    >
+    <li className="w-[9.5rem] shrink-0 snap-start space-y-1.5" data-testid="recommend-item">
       <button
         type="button"
         onClick={onOpen}
@@ -241,5 +230,61 @@ function SeenIt({ onDone }: { onDone: (rating?: RecommendRating) => void }) {
     >
       <Eye strokeWidth={1.6} className="h-4 w-4" aria-hidden /> Seen it
     </button>
+  );
+}
+
+/**
+ * See all (the owner, 11-25): a pop-up box like the title page, with one row of every poster,
+ * about five at a time, moved with the arrows (or by swiping), and More like these under it.
+ */
+function SeeAll({
+  label,
+  count,
+  onClose,
+  more,
+  children,
+}: {
+  label: string;
+  count: number;
+  onClose: () => void;
+  more?: ReactNode;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const d = ref.current;
+    if (d && !d.open) d.showModal();
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      aria-label={label}
+      onClose={onClose}
+      onClick={(e) => {
+        if (e.target === ref.current) ref.current?.close();
+      }}
+      className="m-auto max-h-[92vh] w-[min(56rem,calc(100vw-1.5rem))] max-w-none overflow-clip rounded-2xl border border-line-strong bg-panel p-0 text-ink shadow-2xl backdrop:bg-black/75 backdrop:backdrop-blur-sm"
+      data-testid="recommend-all"
+    >
+      <button
+        type="button"
+        aria-label="Close"
+        onClick={() => ref.current?.close()}
+        className="absolute top-3 right-3 z-30 grid h-9 w-9 place-items-center rounded-full bg-black/60 text-white shadow-lg hover:bg-gold hover:text-bg"
+        data-testid="close-pinned"
+      >
+        <X className="h-4 w-4" />
+      </button>
+      <div className="max-h-[92vh] space-y-4 overflow-y-auto p-6" data-testid="window-scroll">
+        <div className="pr-10">
+          <p className="eyebrow mb-1">Curator</p>
+          <p className="font-display text-[1.5rem] leading-tight text-ink">
+            {label} <span className="text-muted">· {count}</span>
+          </p>
+        </div>
+        <Rail label={label}>{children}</Rail>
+        {more}
+      </div>
+    </dialog>
   );
 }

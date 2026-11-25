@@ -69,10 +69,12 @@ To remove Hearth, run it with `bash -s -- --uninstall` at the end on Linux, or s
 `$env:HEARTH_UNINSTALL = "1"` before it on Windows; it asks before deleting your data. Or
 uninstall it from any of your devices: Settings, PCs and devices, Uninstall.
 
-**More PCs, one account.** Install Hearth on your always-on machine first. Then, on that
-Hearth, open **PCs and devices**, **Link another Hearth** (Hearth Connected, Premium): it gives you one command, with a join link inside,
-to paste on the next PC. That PC installs Hearth and joins: its projects and systems show up in
-your Hearth, marked with the icon you pick for it, and you work on them from any device. A PC
+**More PCs, one account** (Hearth Connected, Premium: bought once, covers every linked PC).
+Install Hearth on your always-on machine first. Then install Hearth on the next PC the same way,
+and on its first screen pick **Connect to my existing Hearth**. Enter your **Connect code** (top
+of your Hearth's Secure Vault, or a short code from **PCs and devices**, **Add a PC**), let it
+scan the PC, and choose where its projects are saved. Its projects and systems show up in your
+Hearth, marked with the icon you pick for it, and you work on them from any device. A PC
 that already runs Hearth on its own joins from its own Settings, PCs and devices, **Join another
 Hearth**, keeping everything it has.
 

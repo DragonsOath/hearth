@@ -114,13 +114,39 @@ everything in one folder, updates in place when run again, and ends by opening t
 
 Fetch either script from `https://raw.githubusercontent.com/DragonsOath/hearth/main/deploy/<name>` (no sign-in needed:
 `curl -fsSL https://raw.githubusercontent.com/DragonsOath/hearth/main/deploy/get.sh | bash`, or `irm https://raw.githubusercontent.com/DragonsOath/hearth/main/deploy/get.ps1 | iex`).
-If the person already has Hearth on another PC and wants this one in the same account, ask
-them for the command from that Hearth's **PCs and devices**, **Link another Hearth** (it sets `HEARTH_JOIN`
-to a join link). Run that instead: there is no setup link then; the PC joins by itself and shows
-up in their Hearth. Uninstall: `get.sh --uninstall` / `HEARTH_UNINSTALL=1` with `get.ps1`, or
-from any device in PCs and devices.
+Uninstall: `get.sh --uninstall` / `HEARTH_UNINSTALL=1` with `get.ps1`, or from any device in
+PCs and devices.
 
 Then go to Step 4: hand over the setup link and stop.
+
+### Adding this PC to an existing Hearth (Premium)
+
+Ask first: "Do you already have Hearth on another computer, and do you want this one in the same
+account?" If yes, this is **Hearth Connected**, a Premium feature.
+
+- **Premium is bought once, on their existing Hearth** (Settings, Premium). It covers every PC
+  linked to it. The new PC needs no code or purchase of its own. Without Premium, every Hearth
+  still works fully on its own, and watching another machine's apps, Docker or NAS is free
+  (**Add a system** on the Services page). Say so instead of pushing the purchase.
+- **Install it the normal way** (the short way above, same commands, same two questions). The new
+  PC must be able to reach the existing Hearth, over the home network or Tailscale.
+- **Hand over the setup link and stop.** The person does the rest on screen:
+  1. **What are you setting up?** They pick **Connect to my existing Hearth** (Premium members).
+     The other choices are **Set up a new Hearth** and **Set up a NAS**.
+  2. It finds their Hearth and asks for **Your connect code**. That is the **Connect code** at the
+     top of the Secure Vault on their existing Hearth, or a short one-time code (like
+     `ABCD-1234`, valid 30 minutes) from **Settings, PCs and devices, Add a PC**. The person
+     types it. You never ask for it, see it or paste it: the Connect code is a credential.
+  3. **What's on this PC:** a scan of this PC, and they keep the apps they tick.
+  4. **Where should projects be saved?** This PC's Projects folder for War Room projects. The
+     default is fine; Settings, PCs and devices, **Projects folder** changes it later.
+  5. A name and icon for this PC, then **Finish linking**. It shows up in their Hearth.
+- **One command instead (optional).** **Add a PC**, under Advanced, has a ready-made command with a
+  join link inside (it sets `HEARTH_JOIN`). If the person copies it to you, run it the same way
+  as the short way: there is no setup link then, and the PC joins by itself. Show it first, and
+  don't repeat the link back in your replies.
+- **A PC that already runs Hearth on its own** joins from its own Settings, PCs and devices,
+  **Join another Hearth**. Nothing on it is lost: a backup is made first.
 
 ## Step 0. Is it already installed?
 
@@ -466,5 +492,6 @@ Access keys (Settings > Access keys) open specific routes only: `GET /api/status
 `POST /api/agent/conversations` (talk to the operator), and a few more. Home Assistant setup:
 `docs/HOME_ASSISTANT.md`.
 
-_Last updated: 2026-10-15 (install runbook for AI agents, the default name Ember, current tools).
-Earlier: 2026-10-09 (operator tools through the to-do list), M7 (2026-10-02)._
+_Last updated: 2026-11-24 (adding a PC to an existing Hearth with the Connect code, Premium).
+Earlier: 2026-10-15 (install runbook for AI agents, the default name Ember, current tools).
+2026-10-09 (operator tools through the to-do list), M7 (2026-10-02)._

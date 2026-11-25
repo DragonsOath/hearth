@@ -125,11 +125,12 @@ const SEEN_KEEP = 3000;
 
 export class RecommendError extends Error {}
 
-/** How many Ember is asked for: more than shown, as some are owned or can't be found. */
-const ASK_FOR = 18;
-const SHOW_AT_MOST = 12;
-/** Completing a niche: the whole set matters more than a short list. */
-const NICHE_AT_MOST = 18;
+/**
+ * No set number (the owner, 11-25: "if there's 50 relevant ones show them, if there's only one
+ * that's fine if it's true"). Ember lists every title that truly fits; this is only the most one
+ * answer can carry. "More like these" asks for the next ones.
+ */
+const ASK_FOR = 40;
 
 /** Lower case, accents and punctuation folded, "The " dropped: "The Holiday" ~ "holiday". */
 export const fold = (s: string) =>
@@ -168,14 +169,18 @@ const MODE_RULES: Record<string, string> = {
  * vibe"). Adjacent titles join the ones squarely on theme; each says how it connects.
  */
 export const WIDE_RULE =
-  'Think outside the box: besides titles squarely about this, include adjacent ones that are not about it directly but share its feel, season, setting, audience and values (for Christmas, warm family films set in snow and winter; for Thanksgiving, family films set in autumn with the same heart). Keep the spirit and audience of what was asked, never just the same keyword. For an adjacent title, "why" says how it connects, and add "adjacent": true to it.';
+  'Think outside the box: besides titles squarely about this, include adjacent ones that are not about it directly but share its feel, season, setting, audience and values (for Christmas, warm family films set in snow and winter; for Thanksgiving, family films set in autumn with the same heart; for a broad genre, titles from a neighbouring genre with the same appeal). Make about a third of the list adjacent. Keep the spirit and audience of what was asked, never just the same keyword. For an adjacent title, "why" says how it connects, and add "adjacent": true to it.';
+
+/** "More like these": the next ones, never the same again. */
+export const MORE_RULE =
+  "This is a follow-up: the titles listed above as not to suggest were already shown. Give the next ones that truly fit, including less obvious picks, hidden gems, other countries and smaller releases. If nothing else truly fits, answer with an empty array.";
 
 /**
  * What Ember is told: your words, your filters and the mode. Never your library, except in
  * "In my library", where it gets the names and years of the titles it may choose from.
  */
 export function recommendPrompt(
-  r: RecommendRequest,
+  r: RecommendRequest & { more?: boolean },
   pickFrom?: string[],
 ): { system: string; prompt: string } {
   const what = RECOMMEND_KIND_NAMES[r.kind];
@@ -196,10 +201,11 @@ export function recommendPrompt(
           : ""
       : "",
     r.exclude?.length
-      ? `Do not suggest any of these again: ${r.exclude.slice(0, 80).join("; ")}.`
+      ? `Do not suggest any of these again: ${r.exclude.slice(0, 400).join("; ")}.`
       : "",
     r.mode && MODE_RULES[r.mode] ? MODE_RULES[r.mode] : "",
     r.wide ? WIDE_RULE : "",
+    r.more ? MORE_RULE : "",
     pickFrom?.length
       ? `Choose only from these titles, which the person already owns, and use their names exactly as written:\n${pickFrom.join("\n")}`
       : "",
@@ -215,7 +221,7 @@ export function recommendPrompt(
   return {
     system: [
       "You are Ember, recommending titles in Hearth. Suggest real, released titles only, the way a friend who knows their stuff would: the best fits first, varied, not only the obvious ones.",
-      `Answer with JSON only, no other text: an array of up to ${ASK_FOR} objects {"title": string, "year": number, "creator": string, "why": string}.`,
+      `Answer with JSON only, no other text: an array of every title that truly fits what was asked, best first, up to ${ASK_FOR}, as objects {"title": string, "year": number, "creator": string, "why": string}. Fewer is fine: never pad the list with weak fits.`,
       r.kind === "music"
         ? '"title" is the artist\'s name; "year" the year they started; "creator" one album of theirs.'
         : `"creator" is the ${creator}.`,
@@ -306,49 +312,65 @@ export class Recommend {
       };
     const seen = (await this.d.seen.list().catch(() => [])).filter((s) => s.kind === r.kind);
     if (r.show === "have") return this.fromLibrary({ ...r, interest }, seen, service.id);
-    const { system, prompt } = recommendPrompt({
-      ...r,
-      interest,
-      // What you've seen is never suggested again (the most recent, if there are many).
-      exclude: [...(r.exclude ?? []), ...seen.slice(-120).map((s) => s.title)],
-    });
-    const suggestions = parseSuggestions(await this.d.ask(system, prompt));
-    if (!suggestions.length)
-      throw new RecommendError(
-        "Ember didn't come back with a list this time. Try again, or put it another way.",
-      );
     const profiles: { id: number; name: string }[] = [];
-    const checked =
-      app === "seerr"
-        ? await this.checkSeerr(service.id, r.kind === "show" ? "tv" : "movie", suggestions)
+    // One ask: Ember's list, each title checked in the app.
+    const round = async (exclude: string[], more: boolean) => {
+      const { system, prompt } = recommendPrompt({ ...r, interest, exclude, more });
+      const suggestions = parseSuggestions(await this.d.ask(system, prompt));
+      if (!suggestions.length) return [];
+      return app === "seerr"
+        ? this.checkSeerr(service.id, r.kind === "show" ? "tv" : "movie", suggestions)
         : app === "lidarr"
-          ? await this.checkLidarr(service.id, service.name, suggestions, profiles)
-          : await this.checkChaptarr(
+          ? this.checkLidarr(service.id, service.name, suggestions, profiles)
+          : this.checkChaptarr(
               service.id,
               r.kind === "audiobook" ? "audiobook" : "ebook",
               suggestions,
             );
-    const items: RecommendItem[] = [];
+    };
+    // What you've seen is never suggested again (the most recent, if there are many).
+    const firstExclude = [...(r.exclude ?? []), ...seen.slice(-120).map((s) => s.title)];
+    const first = await round(firstExclude, Boolean(r.more));
+    // A follow-up may honestly have nothing left; a first ask with nothing is a failed answer.
+    if (!first.length && !r.more)
+      throw new RecommendError(
+        "Ember didn't come back with a list this time. Try again, or put it another way.",
+      );
+    const missing: RecommendItem[] = [];
+    const have: RecommendItem[] = [];
     const owned: { title: string; year?: number }[] = [];
     const unverified: string[] = [];
     const both = r.show === "both";
-    for (const c of checked) {
-      if (!c.found) unverified.push(c.title);
-      else if (seen.some((s) => sameSeen(s, c.item))) continue;
-      else if (c.owned && !both)
-        owned.push({ title: c.title, ...(c.year ? { year: c.year } : {}) });
-      else if (!items.some((x) => x.key === c.item.key)) {
-        // Only a "Think outside the box" answer has nearby picks.
-        if (!r.wide) delete c.item.outside;
-        items.push(c.item);
+    const take = (checked: Checked[]) => {
+      for (const c of checked) {
+        if (!c.found) {
+          if (!unverified.includes(c.title)) unverified.push(c.title);
+        } else if (seen.some((s) => sameSeen(s, c.item))) continue;
+        else if (c.owned && !both) {
+          if (!owned.some((o) => sameTitle(o.title, c.title) && sameYear(o.year, c.year)))
+            owned.push({ title: c.title, ...(c.year ? { year: c.year } : {}) });
+        } else if (![...missing, ...have].some((x) => x.key === c.item.key)) {
+          // Only a "Think outside the box" answer has nearby picks.
+          if (!r.wide) delete c.item.outside;
+          (c.item.have ? have : missing).push(c.item);
+        }
       }
-    }
+    };
+    take(first);
     return {
       kind: r.kind,
-      items: items.slice(0, r.mode === "niche" ? NICHE_AT_MOST : SHOW_AT_MOST),
+      // Every one that fits: the rows show the first few and See all shows the rest.
+      items: [...missing, ...have],
       owned,
       unverified,
-      ...(profiles.length ? { qualityProfiles: profiles } : {}),
+      // Lidarr lists its profiles on each ask: once each.
+      ...(profiles.length
+        ? {
+            qualityProfiles: profiles.filter(
+              (p, n) => profiles.findIndex((q) => q.id === p.id) === n,
+            ),
+          }
+        : {}),
     };
   }
 
@@ -422,7 +444,7 @@ export class Recommend {
         have: true,
       });
     }
-    const shown = items.slice(0, SHOW_AT_MOST);
+    const shown = items;
     // Movies and shows: their Seerr page, so tapping one opens it (trailer, ratings, cast).
     if (seerrId && (r.kind === "movie" || r.kind === "show")) {
       const type = r.kind === "show" ? "tv" : "movie";

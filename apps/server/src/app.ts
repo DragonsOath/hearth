@@ -2817,10 +2817,11 @@ export async function buildApp({
           })
           .strict()
           .optional(),
-        exclude: z.array(z.string().max(200)).max(200).optional(),
+        exclude: z.array(z.string().max(200)).max(1000).optional(),
         show: z.enum(RECOMMEND_SHOW).optional(),
         mode: z.enum(RECOMMEND_MODES).optional(),
         wide: z.boolean().optional(),
+        more: z.boolean().optional(),
       })
       .strict()
       .parse(request.body);

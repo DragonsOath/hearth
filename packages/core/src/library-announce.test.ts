@@ -12,6 +12,7 @@ import {
   groupForBatch,
   LIBRARY_KINDS,
   mediaAnnounceSettings,
+  HERALD_ICON,
 } from "./media";
 
 // "New in your library" for everything a home server adds, not just movies and shows.
@@ -128,7 +129,10 @@ describe("New in your library: a card for each kind", () => {
       {},
       { line: { text: "Fresh tracks.", aiName: "Cinder" } },
     ).embeds[0]!;
-    expect(c.description?.startsWith("**Cinder:** Fresh tracks.")).toBe(true);
+    // Messenger Ember beside her line, at the top of the card; the heading joins the title.
+    expect(c.author).toEqual({ name: "Cinder: Fresh tracks.", icon_url: HERALD_ICON });
+    expect(c.title).toMatch(/^New music: /);
+    expect(c.description ?? "").not.toContain("Cinder:");
   });
 });
 
@@ -153,8 +157,10 @@ describe("New in your library: bursts go out as one message", () => {
     });
     const e = post.embeds[0]!;
     expect(e.title).toBe("6 new albums");
-    expect(e.author?.name).toBe("New music");
-    expect(e.description).toContain("**Ember:** A fresh crate");
+    expect(e.author).toEqual({
+      name: "Ember: A fresh crate of records. Dig in.",
+      icon_url: HERALD_ICON,
+    });
     expect(e.description).toContain("Album 6 by Fleetwood Mac");
     expect(batchTitle("podcast", 1)).toBe("1 new podcast episode");
     expect(batchTitle("series", 2)).toBe("2 new series");
@@ -251,5 +257,13 @@ describe("Let Ember write it: the daily cap", () => {
       EMBER_LINES_MAX_PER_DAY,
     );
     expect(mediaAnnounceSettings({ emberWritesPerDay: -3 }).emberWritesPerDay).toBe(0);
+  });
+});
+
+describe("the title line", () => {
+  it("never shows the year twice when the title already ends with it", () => {
+    const show = { kind: "series", title: "Dig (2026)", year: 2026 } as AnnounceItem;
+    expect(announceTitle(show)).toBe("Dig (2026)");
+    expect(announceTitle({ ...show, title: "Dig" })).toBe("Dig (2026)");
   });
 });

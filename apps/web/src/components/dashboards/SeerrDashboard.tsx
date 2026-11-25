@@ -1,6 +1,14 @@
 import { ApproveDialog, useApproveHere } from "../jobs/ApproveHere";
-import { useMemo, useState } from "react";
-import { AlertTriangle, Film, FolderOpen, MessageCircle, Search } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import {
+  AlertTriangle,
+  Check,
+  Film,
+  FolderOpen,
+  ListChecks,
+  MessageCircle,
+  Search,
+} from "lucide-react";
 import {
   REQUEST_STAGE_LABEL,
   type RequestedMovie,
@@ -13,6 +21,33 @@ import { useCave } from "../shell/cave-context";
 import { Button, Segmented, Skeleton, cx } from "../ui";
 import { ChangeCard, useConfirmedChange } from "./ConfirmedChange";
 import { EmberMark } from "../ember/EmberMark";
+import { showState } from "./seerr/missing";
+import { ShowCompleteness } from "./seerr/ShowCompleteness";
+import { TitleSheet } from "./seerr/DiscoverRows";
+import type { SearchResult } from "./seerr/data";
+
+/** A poster and title that open the title's window (trailer, details), as in Discover. */
+function Opens({
+  onOpen,
+  label,
+  children,
+}: {
+  onOpen: () => void;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`Open ${label}`}
+      className="block w-full rounded-lg text-left focus-visible:outline-2 focus-visible:outline-gold"
+      data-testid="seerr-open-title"
+    >
+      {children}
+    </button>
+  );
+}
 
 /**
  * Overseerr / Jellyseerr as a movie request dashboard: every request with its poster, digital
@@ -60,6 +95,26 @@ const longDate = (d: string) =>
     timeZone: "UTC",
   });
 
+/** The status filter for shows: the same words as for movies, read from Sonarr's state. */
+function showMatches(m: RequestedShow, filter: Filter): boolean {
+  const s = m.sonarr;
+  switch (filter) {
+    case "any":
+      return true;
+    case "trouble":
+      return m.approval === "failed" || !s || (s.missing ?? 0) > 0 || !s.monitored;
+    case "waiting":
+      return m.approval === "pending" || Boolean(s && !s.missing && s.nextAiring);
+    case "library":
+      return Boolean(s && !s.missing && s.episodesOnDisk > 0);
+    default:
+      // Overdue and Downloading are about a movie's digital release and download.
+      return false;
+  }
+}
+/** Shows by status: what needs you first. */
+const SHOW_ORDER = { warn: 0, quiet: 1, busy: 2, good: 3 } as const;
+
 function stageTone(m: RequestedMovie) {
   if (m.overdueDays !== undefined || TROUBLE.includes(m.stage)) return "border-amber/50 text-amber";
   if (GOOD.includes(m.stage)) return "border-live/40 text-live";
@@ -93,9 +148,11 @@ function MovieCard({
   showWho,
   showInstance,
   roots,
+  onOpen,
 }: {
   serviceId: string;
   m: RequestedMovie;
+  onOpen: () => void;
   showWho: boolean;
   showInstance: boolean;
   /** The root folders of the Radarr that has this movie. */
@@ -132,10 +189,18 @@ function MovieCard({
       data-capture-label={name}
     >
       <div className="w-20 shrink-0 @md:w-24">
-        <Poster serviceId={serviceId} m={m} />
+        <Opens onOpen={onOpen} label={name}>
+          <Poster serviceId={serviceId} m={m} />
+        </Opens>
       </div>
       <div className="min-w-0 flex-1 space-y-1.5">
-        <p className="text-[0.95rem] leading-snug text-ink">{name}</p>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="text-left text-[0.95rem] leading-snug text-ink hover:text-gold"
+        >
+          {name}
+        </button>
         <span
           className={cx(
             "fit-pill inline-flex rounded-full border px-2 py-0.5 text-[0.72rem]",
@@ -159,7 +224,7 @@ function MovieCard({
               : `Digital release was ${m.overdueDays} day${m.overdueDays === 1 ? "" : "s"} ago. Not grabbed yet.`}
           </p>
         )}
-        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[0.78rem]">
+        <dl className="grid grid-cols-[minmax(0,6.5rem)_1fr] gap-x-3 gap-y-0.5 text-[0.78rem]">
           <dt className="text-faint">Digital</dt>
           <dd className="text-ink" data-testid="seerr-digital">
             {m.digital ? longDate(m.digital.date) : "Not announced"}
@@ -395,15 +460,21 @@ function ShowCard({
   serviceId,
   m,
   showWho,
+  onOpen,
 }: {
   serviceId: string;
   m: RequestedShow;
   showWho: boolean;
+  onOpen: () => void;
 }) {
   const c = useConfirmedChange(serviceId);
   const name = `${m.title}${m.year ? ` (${m.year})` : ""}`;
   const sonarr = m.sonarr;
   const all = sonarr && sonarr.episodes > 0 && sonarr.episodesOnDisk >= sonarr.episodes;
+  const [missingOpen, setMissingOpen] = useState(false);
+  const state = showState(m);
+  const seasons = sonarr?.seasons ?? [];
+  const inLibrary = seasons.filter((s) => s.files > 0).length;
   return (
     <li
       className="flex gap-3 rounded-xl border border-line bg-bg/50 p-3"
@@ -412,24 +483,94 @@ function ShowCard({
       data-capture-label={name}
     >
       <div className="w-20 shrink-0 @md:w-24">
-        <Poster serviceId={serviceId} m={m} />
+        <Opens onOpen={onOpen} label={name}>
+          <Poster serviceId={serviceId} m={m} />
+        </Opens>
       </div>
       <div className="min-w-0 flex-1 space-y-1.5">
-        <p className="text-[0.95rem] leading-snug text-ink">{name}</p>
-        <p className="text-[0.8rem] text-muted">
-          {m.seasons.length
-            ? `Season${m.seasons.length > 1 ? "s" : ""} ${m.seasons.join(", ")}`
-            : "The whole show"}
-          {showWho ? ` · requested by ${m.requestedBy}` : ""}
-          {m.approval === "pending" ? " · waiting for approval" : ""}
-          {m.approval === "declined" ? " · declined" : ""}
-        </p>
-        <p className="text-[0.8rem] text-faint" data-testid="seerr-show-sonarr">
-          {sonarr
-            ? `${sonarr.instance}: ${sonarr.monitored ? "monitoring it" : "not monitoring it"} · ${sonarr.episodesOnDisk} of ${sonarr.episodes} episodes on disk${all ? " (all of them)" : ""}`
-            : "Not in Sonarr"}
-        </p>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="text-left text-[0.95rem] leading-snug text-ink hover:text-gold"
+        >
+          {name}
+        </button>
+        <span
+          className={cx(
+            "fit-pill inline-flex rounded-full border px-2 py-0.5 text-[0.72rem]",
+            state.tone === "warn"
+              ? "border-amber/50 text-amber"
+              : state.tone === "good"
+                ? "border-live/40 text-live"
+                : state.tone === "busy"
+                  ? "border-gold/50 text-gold"
+                  : "border-line-strong text-muted",
+          )}
+          data-testid="seerr-show-state"
+        >
+          {state.label}
+        </span>
+        <dl className="grid grid-cols-[minmax(0,6.5rem)_1fr] gap-x-3 gap-y-0.5 text-[0.78rem]">
+          {sonarr && (
+            <>
+              <dt className="text-faint">Next episode</dt>
+              <dd className="text-ink" data-testid="seerr-show-next">
+                {sonarr.nextAiring
+                  ? airDate(sonarr.nextAiring)
+                  : sonarr.ended
+                    ? "None, the show has ended"
+                    : "Not announced"}
+              </dd>
+            </>
+          )}
+          {seasons.length > 0 && (
+            <>
+              <dt className="text-faint">In your library</dt>
+              <dd className="text-ink" data-testid="seerr-show-seasons">
+                {inLibrary} of {seasons.length} season{seasons.length === 1 ? "" : "s"}
+              </dd>
+            </>
+          )}
+          <dt className="text-faint">Requested</dt>
+          <dd className="text-muted">
+            {m.seasons.length
+              ? `Season${m.seasons.length > 1 ? "s" : ""} ${m.seasons.join(", ")}`
+              : "The whole show"}
+            {showWho ? ` · requested by ${m.requestedBy}` : ""}
+          </dd>
+          <dt className="truncate text-faint" title={sonarr?.instance}>
+            {sonarr?.instance ?? "Sonarr"}
+          </dt>
+          <dd className="text-muted" data-testid="seerr-show-sonarr">
+            {sonarr
+              ? `${sonarr.monitored ? "monitoring it" : "not monitoring it"} · ${sonarr.episodesOnDisk} of ${sonarr.episodes} episodes on disk${all ? " (all of them)" : ""}`
+              : "Not in Sonarr"}
+          </dd>
+        </dl>
         <div className="flex flex-wrap items-center gap-2 pt-1">
+          {sonarr && (sonarr.missing ?? 0) > 0 && (
+            <button
+              type="button"
+              onClick={() => setMissingOpen(true)}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-amber/60 bg-amber/10 px-3 text-[0.8rem] text-amber hover:bg-amber/20"
+              data-testid="seerr-show-missing"
+            >
+              <ListChecks strokeWidth={1.5} className="h-4 w-4" /> What&apos;s Missing
+              <span className="rounded-full bg-amber/20 px-1.5 tabular">{sonarr.missing}</span>
+            </button>
+          )}
+          {sonarr && !sonarr.missing && (
+            <button
+              type="button"
+              onClick={() => setMissingOpen(true)}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-live/40 px-3 text-[0.8rem] text-live hover:bg-live/10"
+              title="Every aired episode is in your library. Open to see each season."
+              data-testid="seerr-show-complete"
+            >
+              <Check strokeWidth={2} className="h-4 w-4" />
+              {sonarr.nextAiring ? "Up to date" : "Complete"}
+            </button>
+          )}
           {sonarr && !sonarr.monitored && (
             <Button
               tone="primary"
@@ -512,9 +653,24 @@ function ShowCard({
           )}
         </div>
         <ChangeCard c={c} />
+        {missingOpen && sonarr && (
+          <ShowCompleteness seerrId={serviceId} show={m} onClose={() => setMissingOpen(false)} />
+        )}
       </div>
     </li>
   );
+}
+
+/** A date an episode airs, in the viewer's own time zone ("Thursday, December 4"). */
+function airDate(iso: string) {
+  const d = new Date(iso);
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
 }
 
 /**
@@ -586,9 +742,28 @@ export function SeerrDashboard({ serviceId, name }: { serviceId: string; name: s
   const [filter, setFilter] = useState<Filter>("any");
   const [sort, setSort] = useState<Sort>("requested");
   const [text, setText] = useState("");
-  const [kind, setKind] = useState<"movies" | "shows">("movies");
+  // All shows movies and shows together (11-24, the owner); Movies and Shows each on their own.
+  const [kind, setKind] = useState<"all" | "movies" | "shows">("all");
+  const [title, setTitle] = useState<SearchResult>();
+  const titleAct = useApproveHere(serviceId, "From the Seerr panel's requests.");
+  // A request opens as Discover's title window does; Seerr's own status says Requested.
+  const open = (
+    r: { tmdbId: number; title: string; year?: number; poster?: string },
+    type: "movie" | "tv",
+  ) =>
+    setTitle({
+      tmdbId: r.tmdbId,
+      mediaType: type,
+      title: r.title,
+      ...(r.year ? { year: r.year } : {}),
+      ...(r.poster ? { poster: r.poster } : {}),
+      overview: "",
+      status: "requested",
+    });
   // Mine first, when Hearth's key belongs to someone who requested anything.
-  const shownScope: Scope = scope ?? (d && d.totals.mine > 0 ? "mine" : "all");
+  const shownScope: Scope =
+    scope ??
+    (d && d.totals.mine + (d.shows ?? []).filter((m) => m.mine).length > 0 ? "mine" : "all");
 
   const list = useMemo(() => {
     if (!d) return [];
@@ -618,14 +793,18 @@ export function SeerrDashboard({ serviceId, name }: { serviceId: string; name: s
   }, [d, shownScope, filter, sort, text]);
   const shows = useMemo(() => {
     const words = text.trim().toLowerCase();
-    return (d?.shows ?? []).filter(
+    const rows = (d?.shows ?? []).filter(
       (m) =>
         (shownScope === "all" || m.mine) &&
         (!words ||
           m.title.toLowerCase().includes(words) ||
-          m.requestedBy.toLowerCase().includes(words)),
+          m.requestedBy.toLowerCase().includes(words)) &&
+        showMatches(m, filter),
     );
-  }, [d, shownScope, text]);
+    return sort === "status"
+      ? [...rows].sort((a, b) => SHOW_ORDER[showState(a).tone] - SHOW_ORDER[showState(b).tone])
+      : [...rows].sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
+  }, [d, shownScope, text, filter, sort]);
 
   if (q.isLoading) return <Skeleton className="h-64" />;
   if (q.error)
@@ -637,6 +816,31 @@ export function SeerrDashboard({ serviceId, name }: { serviceId: string; name: s
   if (q.data?.error) return <NotRead serviceId={serviceId} name={name} error={q.data.error} />;
   if (!d) return null;
   const instances = new Set(d.movies.map((m) => m.radarr?.instance).filter(Boolean)).size;
+  // Movies and shows together: a show request is a request too (11-24, the owner).
+  const allShows = d.shows ?? [];
+  const showsMine = allShows.filter((m) => m.mine).length;
+  const showsWaiting = allShows.filter((m) => m.approval === "pending").length;
+  const split = (movies: number, shows: number) =>
+    allShows.length
+      ? `${movies} movie${movies === 1 ? "" : "s"}, ${shows} show${shows === 1 ? "" : "s"}`
+      : "movies";
+  const scopeCount = (scopeOf: Scope) => {
+    const movies = scopeOf === "mine" ? d.totals.mine : d.totals.movies;
+    const tv = scopeOf === "mine" ? showsMine : allShows.length;
+    return kind === "shows" ? tv : kind === "movies" ? movies : movies + tv;
+  };
+  // All: one list, newest request first; another sort keeps movies in its order, then shows.
+  const both: ({ kind: "movie"; m: RequestedMovie } | { kind: "show"; m: RequestedShow })[] = [
+    ...list.map((m) => ({ kind: "movie" as const, m })),
+    ...shows.map((m) => ({ kind: "show" as const, m })),
+  ];
+  if (sort === "requested") both.sort((a, b) => b.m.requestedAt.localeCompare(a.m.requestedAt));
+  const shown =
+    kind === "movies"
+      ? both.filter((x) => x.kind === "movie")
+      : kind === "shows"
+        ? both.filter((x) => x.kind === "show")
+        : both;
 
   return (
     <section
@@ -652,9 +856,17 @@ export function SeerrDashboard({ serviceId, name }: { serviceId: string; name: s
               d.totals.overdue,
               `${d.overdueAfterDays ? `${d.overdueAfterDays}+ days ` : ""}past digital, not grabbed`,
             ],
-            ["My requests", d.totals.mine, d.me ? `as ${d.me}` : "movies"],
-            ["All requests", d.totals.movies, "movies"],
-            ["Awaiting approval", d.totals.awaitingApproval, "in Overseerr"],
+            [
+              "My requests",
+              d.totals.mine + showsMine,
+              allShows.length ? split(d.totals.mine, showsMine) : d.me ? `as ${d.me}` : "movies",
+            ],
+            [
+              "All requests",
+              d.totals.movies + allShows.length,
+              split(d.totals.movies, allShows.length),
+            ],
+            ["Awaiting approval", d.totals.awaitingApproval + showsWaiting, `in ${name}`],
           ] as const
         ).map(([label, value, sub]) => (
           <div key={label} className="stat-tile rounded-xl border border-line bg-bg/50 p-3">
@@ -687,6 +899,7 @@ export function SeerrDashboard({ serviceId, name }: { serviceId: string; name: s
           value={kind}
           onChange={setKind}
           options={[
+            { value: "all", label: "All", count: d.movies.length + d.shows!.length },
             { value: "movies", label: "Movies", count: d.movies.length },
             { value: "shows", label: "Shows", count: d.shows!.length },
           ]}
@@ -698,8 +911,8 @@ export function SeerrDashboard({ serviceId, name }: { serviceId: string; name: s
           value={shownScope}
           onChange={setScope}
           options={[
-            { value: "mine", label: "My requests", count: d.totals.mine },
-            { value: "all", label: "All requests", count: d.totals.movies },
+            { value: "mine", label: "My requests", count: scopeCount("mine") },
+            { value: "all", label: "All requests", count: scopeCount("all") },
           ]}
         />
         <input
@@ -711,7 +924,7 @@ export function SeerrDashboard({ serviceId, name }: { serviceId: string; name: s
           className="min-h-9 min-w-0 flex-1 rounded-lg border border-line bg-raised px-3 text-[0.84rem] text-ink"
           data-testid="seerr-search-box"
         />
-        {kind === "movies" && (
+        {
           <>
             <select
               value={filter}
@@ -740,46 +953,58 @@ export function SeerrDashboard({ serviceId, name }: { serviceId: string; name: s
               <option value="overdue">Most overdue</option>
             </select>
           </>
-        )}
+        }
       </div>
       <p className="text-[0.74rem] text-faint">
         {q.data?.sample ? "Sample data · " : ""}
         {d.version ? `${name} ${d.version} · ` : ""}release dates for {d.region} · refreshed every
         minute
       </p>
-      {kind === "shows" ? (
-        shows.length ? (
-          <ul className="grid gap-3 @2xl:grid-cols-2" data-testid="seerr-shows">
-            {shows.map((m) => (
+      {shown.length ? (
+        <ul
+          className="grid gap-3 @2xl:grid-cols-2"
+          data-testid={
+            kind === "shows" ? "seerr-shows" : kind === "movies" ? "seerr-movies" : "seerr-all"
+          }
+        >
+          {shown.map((x) =>
+            x.kind === "show" ? (
               <ShowCard
-                key={m.requestId}
+                key={`show-${x.m.requestId}`}
                 serviceId={serviceId}
-                m={m}
+                m={x.m}
                 showWho={shownScope === "all"}
+                onOpen={() => open(x.m, "tv")}
               />
-            ))}
-          </ul>
-        ) : (
-          <p className="text-[0.86rem] text-muted">No show requests match.</p>
-        )
-      ) : list.length ? (
-        <ul className="grid gap-3 @2xl:grid-cols-2" data-testid="seerr-movies">
-          {list.map((m) => (
-            <MovieCard
-              key={m.requestId}
-              serviceId={serviceId}
-              m={m}
-              showWho={shownScope === "all"}
-              showInstance={instances > 1}
-              roots={d.radarrs?.find((r) => r.serviceId === m.radarr?.serviceId)?.rootFolders ?? []}
-            />
-          ))}
+            ) : (
+              <MovieCard
+                key={`movie-${x.m.requestId}`}
+                serviceId={serviceId}
+                m={x.m}
+                showWho={shownScope === "all"}
+                showInstance={instances > 1}
+                onOpen={() => open(x.m, "movie")}
+                roots={
+                  d.radarrs?.find((r) => r.serviceId === x.m.radarr?.serviceId)?.rootFolders ?? []
+                }
+              />
+            ),
+          )}
         </ul>
       ) : (
         <p className="text-[0.86rem] text-muted">
-          {d.movies.length ? "No requests match." : "No movie requests yet."}
+          {d.movies.length + allShows.length ? "No requests match." : "No requests yet."}
         </p>
       )}
+      {title && (
+        <TitleSheet
+          serviceId={serviceId}
+          r={title}
+          act={titleAct}
+          onClose={() => setTitle(undefined)}
+        />
+      )}
+      <ApproveDialog c={titleAct} />
     </section>
   );
 }

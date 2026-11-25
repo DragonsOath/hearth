@@ -38,7 +38,11 @@ export function Modal({
       role={role}
       aria-labelledby={titleId}
       aria-describedby={describedBy}
-      onClose={onCancel}
+      // Only its own closing: a dialog opened inside this one (What's Missing, then a search)
+      // closes on its own without taking this one with it.
+      onClose={(e) => {
+        if (e.target === e.currentTarget) onCancel();
+      }}
       // A tap outside the window closes it (11-05: on a tablet there is no Escape key).
       onClick={(e) => {
         if (e.target !== e.currentTarget) return;

@@ -2,6 +2,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { ContainerInfo } from "./docker";
 import type { DiscoveryProbes } from "./scan";
+import type { PageRead } from "./analyze";
 
 /**
  * A synthetic homelab for tests and end-to-end runs. It reproduces the
@@ -131,6 +132,28 @@ const httpPorts = new Set([5959, 8092, 8384, 32400]);
 /** Answer only on 127.0.0.1, like Syncthing's default GUI setting. */
 const loopbackOnlyPorts = new Set([8384]);
 
+/**
+ * The fake home network's other machines: a Synology NAS at 10.0.0.30 running Sonarr and
+ * qBittorrent in Docker, and a Windows PC at 10.0.0.20 with Plex on it.
+ */
+export const FAKE_NAS = "10.0.0.30";
+const html = (title: string) => `<!doctype html><html><head><title>${title}</title></head></html>`;
+const NAS_PAGES: Record<number, string> = {
+  5000: html("Synology DiskStation - homenas"),
+  8989: html("Login - Sonarr"),
+  8080: html("qBittorrent WebUI"),
+};
+function fakePage(port: number, host: string): PageRead | null {
+  if (host === FAKE_NAS) {
+    const body = NAS_PAGES[port];
+    return body ? { status: 200, headers: {}, body } : null;
+  }
+  if (!httpPorts.has(port) || (host !== "127.0.0.1" && loopbackOnlyPorts.has(port))) return null;
+  return port === 32400
+    ? { status: 401, headers: { "x-plex-protocol": "1.0" }, body: "<html>Unauthorized</html>" }
+    : { status: 200, headers: {}, body: "" };
+}
+
 export const fakeProbes: DiscoveryProbes = {
   host: async () => ({
     id: "testbox",
@@ -171,6 +194,11 @@ export const fakeProbes: DiscoveryProbes = {
   docker: async () => ({ containers: FAKE_CONTAINERS, version: "28.0.0", endpoint: "fake" }),
   probeHttp: async (port, host = "127.0.0.1") =>
     httpPorts.has(port) && (host === "127.0.0.1" || !loopbackOnlyPorts.has(port)),
+  readPage: async (port, host) => fakePage(port, host),
+  lan: {
+    neighbours: async () => ["10.0.0.20", FAKE_NAS],
+    portOpen: async (host, port) => fakePage(port, host) !== null,
+  },
   disks: async (hostId) => [
     {
       id: `${hostId}-disk-0`,

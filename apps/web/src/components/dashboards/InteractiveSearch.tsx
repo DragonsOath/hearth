@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Check, Download, Search, X } from "lucide-react";
+import { BLOCK_WORDS, blockReason } from "@dragon-control/core";
 import type {
   ReleaseOption,
   ReleaseScope,
@@ -40,6 +41,15 @@ const query = (scope: ReleaseScope) =>
   Object.entries(scope)
     .map(([k, v]) => `${k}=${v}`)
     .join("&");
+
+/** Why the owner's own rules (the Crucible's settings in the app) turned a release down, plainly. */
+export function ruleWords(x: ReleaseOption): { words: string; blocklisted: boolean } {
+  const why = [...new Set(x.rejections.map(blockReason))];
+  return {
+    words: why.map((w) => BLOCK_WORDS[w]).join(", ") || "turned down for another reason",
+    blocklisted: why.includes("blocklist"),
+  };
+}
 
 const age = (h?: number) =>
   h === undefined ? "" : h < 48 ? `${h} h old` : `${Math.round(h / 24)} days old`;
@@ -313,6 +323,8 @@ export function Releases({
       ...(x.quality ? { quality: x.quality } : {}),
       ...(x.sizeGB !== undefined ? { sizeGB: x.sizeGB } : {}),
       ...(x.indexer ? { indexer: x.indexer } : {}),
+      // Against the owner's own rules: the plan says it is a one-time exception (rules unchanged).
+      ...(!x.approved ? { exception: ruleWords(x).words } : {}),
     };
     void (app === "sonarr" || app === "radarr"
       ? c.propose("app-arr-grab", params, `Download ${x.title}`)
@@ -410,6 +422,18 @@ export function Releases({
                     download it.
                   </p>
                 )}
+                {(x.resolution || x.source || x.codec || x.audio || x.hdr) && (
+                  <p className="mt-1.5 flex flex-wrap gap-1" data-testid="isearch-details">
+                    {[x.resolution, x.source, x.codec, x.hdr, x.audio].filter(Boolean).map((d) => (
+                      <span
+                        key={d}
+                        className="rounded-md border border-line-strong px-1.5 py-0.5 text-[0.7rem] text-muted"
+                      >
+                        {d}
+                      </span>
+                    ))}
+                  </p>
+                )}
                 <p className="mt-1 text-[0.76rem] text-faint">
                   {[
                     x.quality,
@@ -432,22 +456,51 @@ export function Releases({
                       <Check strokeWidth={2} className="h-3.5 w-3.5" /> {NAME[app]} would take it
                     </span>
                   ) : (
-                    <span className="inline-flex items-start gap-1 text-[0.76rem] text-amber">
+                    <span
+                      className="inline-flex items-start gap-1 text-[0.76rem] text-amber"
+                      data-testid="isearch-rule"
+                    >
                       <X strokeWidth={2} className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      {x.rejections.join("; ") || `${NAME[app]} would not take it on its own`}
+                      <span>
+                        Your rules turned it down: {ruleWords(x).words}
+                        {x.rejections.length > 0 && (
+                          <span className="block text-faint">
+                            {NAME[app]}: {x.rejections.join("; ")}
+                          </span>
+                        )}
+                      </span>
                     </span>
                   )}
-                  <button
-                    type="button"
-                    className={cx(btn, "ml-auto")}
-                    disabled={c.busy}
-                    onClick={() => download(x)}
-                    data-testid="isearch-download"
-                    data-hearth-target="release:grab"
-                  >
-                    <Download strokeWidth={1.5} className="h-3.5 w-3.5" /> Download this
-                  </button>
+                  {ruleWords(x).blocklisted && !x.approved ? (
+                    <span className="ml-auto text-[0.74rem] text-faint">
+                      Blocklisted, so Hearth won&apos;t download it
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className={cx(btn, "ml-auto")}
+                      disabled={c.busy}
+                      onClick={() => download(x)}
+                      title={
+                        x.approved
+                          ? undefined
+                          : "A one-time exception for this release only. Your quality rules stay as they are."
+                      }
+                      data-testid="isearch-download"
+                      data-hearth-target="release:grab"
+                    >
+                      <Download strokeWidth={1.5} className="h-3.5 w-3.5" />{" "}
+                      {x.approved ? "Download this" : "Download anyway"}
+                    </button>
+                  )}
                 </div>
+                {chosen === x.guid && !x.approved && (
+                  <p className="mt-2 text-[0.76rem] text-ink" data-testid="isearch-exception">
+                    A one-time exception: {NAME[app]} downloads this release even though your rules
+                    turned it down ({ruleWords(x).words}). Your rules stay as they are, for this and
+                    everything else.
+                  </p>
+                )}
                 {chosen === x.guid && (
                   <div className="mt-2 empty:hidden">
                     <ChangeCard c={c} />

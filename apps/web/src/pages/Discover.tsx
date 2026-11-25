@@ -120,9 +120,10 @@ function AnotherMachine({ onDone }: { onDone: () => void }) {
           Another machine
         </h2>
         <p className="mt-3 max-w-xl text-[0.88rem] leading-relaxed text-muted">
-          For a computer that keeps some apps, like Plex or Jellyfin on Windows. Nothing is
-          installed there: Hearth checks which well-known apps answer at its address, and keeps
-          checking them. It cannot restart them or see that machine&apos;s drives.
+          For a NAS (Synology, QNAP, TrueNAS, Unraid) or another computer that keeps some apps.
+          Nothing is installed there: Hearth reads which apps answer at its address, and the
+          NAS&apos;s own page, and keeps checking them. It cannot restart them or see that
+          machine&apos;s drives.
         </p>
         <form
           className="mt-6 grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end"

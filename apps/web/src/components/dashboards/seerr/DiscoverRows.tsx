@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowUp, ChevronRight, ExternalLink, Film, Plus, Tv, X } from "lucide-react";
+import { ArrowUp, Check, ChevronRight, ExternalLink, Film, Plus, Tv, X } from "lucide-react";
 import type { ActionKind, StepParams } from "@dragon-control/core";
 import type { useApproveHere } from "../../jobs/ApproveHere";
 import { Button, Sheet, Skeleton, cx } from "../../ui";
@@ -126,7 +126,8 @@ function Card({
 
 const longDate = (d?: string) =>
   d
-    ? new Date(`${d}T12:00:00`).toLocaleDateString([], {
+    ? // A plain date or a full timestamp: only the day counts.
+      new Date(`${d.slice(0, 10)}T12:00:00`).toLocaleDateString([], {
         month: "long",
         day: "numeric",
         year: "numeric",
@@ -466,6 +467,14 @@ export function TitleSheet({
               data-hearth-target={`discover:${r.tmdbId}:ask`}
             >
               <Plus className="h-4 w-4" aria-hidden /> Request
+            </Button>
+          )}
+          {/* Requested already (the Overview opens its requests here too, 11-24): said where
+              Request would be. */}
+          {!can && !inLibrary && ["requested", "processing", "available"].includes(status) && (
+            <Button tone="outline" disabled data-testid="discover-requested">
+              <Check className="h-4 w-4" aria-hidden />{" "}
+              {status === "available" ? "In your library" : "Requested"}
             </Button>
           )}
           {t?.upgrade && (

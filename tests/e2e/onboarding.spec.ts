@@ -89,9 +89,26 @@ const TINY_PNG = Buffer.from(
 test("a new owner is welcomed after claiming, and can skip it", async () => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/welcome$/);
-  // The first thing after the account: connecting Ember's AI, with where you are in setup.
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Connect Ember's AI");
+  // The first thing after the account: where the apps live, with where you are in setup.
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Where do your apps and files live?",
+  );
   const stages = page.getByTestId("onboarding-stages");
+  await expect(stages.locator("[aria-current=step]")).toContainText("Your homelab");
+  for (const id of ["here", "nas", "other", "new"])
+    await expect(page.getByTestId(`where-${id}`)).toBeVisible();
+  await expect(page.getByTestId("where-nas")).toContainText("or I'm not sure");
+  // Not sure what a NAS is: one plain line.
+  await page.getByTestId("where-not-sure").click();
+  await expect(page.getByTestId("where-nas-explained")).toContainText(
+    "A NAS is a box of drives on your home network",
+  );
+  expect(await seriousViolations(page)).toEqual([]);
+  await expectNoOverflow(page);
+  await shot("where");
+  // Skippable: on to connecting Ember's AI.
+  await page.getByTestId("where-skip").click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Connect Ember's AI");
   await expect(stages.locator("[aria-current=step]")).toContainText("Connect your AI");
   await expect(stages).toContainText("Your account (done)");
   // Only what Hearth can really connect is offered as working.
@@ -124,7 +141,7 @@ test("a new owner is welcomed after claiming, and can skip it", async () => {
   await expect(page.getByTestId("claude-connect")).toHaveText("Connect Claude Code");
   await expect(page.getByTestId("ai-setup-claude-code")).not.toContainText("sudo");
   await expect(page.getByRole("button", { name: "Next" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Back" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Back" })).toBeEnabled();
   expect(await seriousViolations(page)).toEqual([]);
   await expectNoOverflow(page);
   await shot("ai");
@@ -146,24 +163,15 @@ test("walks all seven steps, saving each one as it goes", async () => {
   const next = page.getByRole("button", { name: "Next" });
   const progress = page.getByTestId("welcome-progress");
 
+  // Apps on this computer: saved as an existing homelab, and on to connecting the AI.
+  await expect(heading).toHaveText("Where do your apps and files live?");
+  await page.getByTestId("where-here").click();
+  await expect.poll(async () => (await workspace()).journey).toBe("existing");
+
   // Connecting the AI can wait: Skip for now moves on, and nothing else needs it.
   await expect(heading).toHaveText("Connect Ember's AI");
   await page.getByTestId("ai-skip").click();
-  await expect(progress).toHaveText("Step 1 of 8: Hello");
-  await expect(heading).toHaveText("Welcome to Hearth");
-  // Two ways in: building a first homelab, or bringing an existing one.
-  await expect(page.getByTestId("welcome-path-build")).toContainText(
-    "Help me build my first homelab",
-  );
-  await expect(page.getByTestId("welcome-path-existing")).toContainText("I already have a homelab");
-
-  // 1. Hello: the beginner's path. Picking it is saved and moves on.
-  expect(await seriousViolations(page)).toEqual([]);
-  await expectNoOverflow(page);
-  await shot("0-hello");
-  await page.getByTestId("welcome-path-build").click();
-  await expect(progress).toHaveText("Step 2 of 8: You");
-  await expect.poll(async () => (await workspace()).journey).toBe("build");
+  await expect(progress).toHaveText("Step 1 of 7: You");
 
   // 2. You
   await page.getByLabel("Your name").fill("Alex");
@@ -171,7 +179,7 @@ test("walks all seven steps, saving each one as it goes", async () => {
   await expectNoOverflow(page);
   await shot("1-you");
   await next.click();
-  await expect(progress).toHaveText("Step 3 of 8: This PC");
+  await expect(progress).toHaveText("Step 2 of 7: This PC");
   await expect.poll(async () => (await workspace()).ownerName).toBe("Alex");
 
   // 3. This PC: its name (the computer's own to start) and one of the ten icons, saved as chosen.
@@ -191,30 +199,30 @@ test("walks all seven steps, saving each one as it goes", async () => {
   await expectNoOverflow(page);
   await shot("1b-this-pc");
   await next.click();
-  await expect(progress).toHaveText("Step 4 of 8: Your AI's name");
+  await expect(progress).toHaveText("Step 3 of 7: Your AI's name");
 
   // Closing the browser halfway: coming back resumes at the same step, still signed in.
   await expect.poll(async () => (await workspace()).onboardingStep).toBe("name");
   expect((await workspace()).onboardingNeeded).toBe(true);
   await page.goto("/");
   await expect(page).toHaveURL(/\/welcome$/);
-  await expect(progress).toHaveText("Step 4 of 8: Your AI's name");
+  await expect(progress).toHaveText("Step 3 of 7: Your AI's name");
   await page.reload();
-  await expect(progress).toHaveText("Step 4 of 8: Your AI's name");
+  await expect(progress).toHaveText("Step 3 of 7: Your AI's name");
 
   // 2. Your AI's name: empty, and called by the archetype's title until a name is typed.
   const name = page.getByLabel("AI administrator name");
   await expect(name).toHaveValue("");
   await expect(name).toHaveAttribute("placeholder", "Ember");
   await page.getByRole("button", { name: "Back" }).click();
-  await expect(progress).toHaveText("Step 3 of 8: This PC");
+  await expect(progress).toHaveText("Step 2 of 7: This PC");
   await expect(page.getByTestId("pc-name")).toHaveValue("Den");
   await next.click();
   expect(await seriousViolations(page)).toEqual([]);
   await expectNoOverflow(page);
   await shot("2-name");
   await next.click();
-  await expect(progress).toHaveText("Step 5 of 8: Its voice");
+  await expect(progress).toHaveText("Step 4 of 7: Its voice");
   let ws = await workspace();
   // Nothing typed: no name is saved, so it is called Ember.
   expect(ws.aiName).toBeUndefined();
@@ -266,7 +274,7 @@ test("walks all seven steps, saving each one as it goes", async () => {
   await expectNoOverflow(page);
   await shot("3-voice");
   await next.click();
-  await expect(progress).toHaveText("Step 6 of 8: Its look");
+  await expect(progress).toHaveText("Step 5 of 7: Its look");
 
   // 4. Its look: every look is offered, whatever the voice.
   await expect(heading).toHaveText("Ember's look");
@@ -336,7 +344,7 @@ test("walks all seven steps, saving each one as it goes", async () => {
   await next.click();
 
   // 5. Personality: style only.
-  await expect(progress).toHaveText("Step 7 of 8: Personality");
+  await expect(progress).toHaveText("Step 6 of 7: Personality");
   await expect(page.locator("main")).toContainText("never what it may do");
   await page
     .getByRole("radiogroup", { name: "Humor" })
@@ -351,7 +359,7 @@ test("walks all seven steps, saving each one as it goes", async () => {
   await next.click();
 
   // 6. Theme
-  await expect(progress).toHaveText("Step 8 of 8: Theme");
+  await expect(progress).toHaveText("Step 7 of 7: Theme");
   await page
     .getByRole("radiogroup", { name: "Theme" })
     .getByRole("radio", { name: /^Dragonfire/ })
@@ -373,8 +381,8 @@ test("walks all seven steps, saving each one as it goes", async () => {
   );
   const paths = page.getByTestId("welcome-paths");
   await expect(paths.getByRole("button", { name: "Meet Ember" })).toHaveCount(0);
-  // The beginner's plan stays one click away.
-  await expect(paths.getByRole("button", { name: "Build my setup" })).toBeVisible();
+  // Apps on this computer: finding them is one click away.
+  await expect(paths.getByRole("button", { name: "Find what I already run" })).toBeVisible();
   // Set up in a browser: Ember points them to the app, and how to pin it (11-22).
   if (
     !(await page.evaluate(
@@ -425,9 +433,7 @@ test("an owner with saved settings never sees it, but can run it again from Sett
   await expect(page).toHaveURL(/\/welcome\?step=ai$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Connect Ember's AI");
   await page.getByTestId("ai-skip").click();
-  // Then Hello, with the path chosen before still marked.
-  await expect(page.getByTestId("welcome-path-build")).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Next" }).click();
+  // Then the first of "Make it yours", with what was saved before.
   await expect(page.getByLabel("Your name")).toHaveValue("Alex");
   await page.getByRole("button", { name: "Skip setup" }).click();
   await expect(page).toHaveURL(/\/$/);
@@ -485,12 +491,12 @@ test("Connect your AI: a failed test says what to do, a passing one connects, an
   // Connected: no Skip any more, and Next moves on.
   await expect(page.getByTestId("ai-skip")).toHaveCount(0);
   await page.getByRole("button", { name: "Next" }).click();
-  await expect(page.getByTestId("welcome-progress")).toHaveText("Step 1 of 8: Hello");
+  await expect(page.getByTestId("welcome-progress")).toHaveText("Step 1 of 7: You");
 
   // Leaving and coming back resumes here, not at the start.
-  await expect.poll(async () => (await workspace()).onboardingStep).toBe("hello");
+  await expect.poll(async () => (await workspace()).onboardingStep).toBe("you");
   await page.goto("/welcome");
-  await expect(page.getByTestId("welcome-progress")).toHaveText("Step 1 of 8: Hello");
+  await expect(page.getByTestId("welcome-progress")).toHaveText("Step 1 of 7: You");
   await page.getByRole("button", { name: "Back" }).click();
   await expect(page.getByTestId("ai-connected")).toBeVisible();
 
@@ -723,4 +729,52 @@ test("choosing another character changes the AI's picture everywhere it appears"
   if (await hub.isVisible()) await expect(hub.locator(`img[src="${companion}"]`)).toBeVisible();
   await expect(page.locator('img[src="/voices/warden-small.webp"]')).toHaveCount(0);
   await use("warden");
+});
+
+test("Where do your apps live: a NAS is found on the home network and its apps added before Home", async () => {
+  test.setTimeout(60_000);
+  await page.request.patch("/api/settings", { data: { onboardingDone: false } });
+  await page.goto("/welcome?step=where");
+  await page.getByTestId("where-nas").click();
+  const finder = page.getByRole("region", { name: "Find your NAS" });
+  await expect(finder).toBeVisible();
+  // Not knowing its address is fine: Hearth looks on the home network (the sample network has
+  // a Synology NAS running Sonarr and qBittorrent, and a PC with Plex).
+  await finder.getByTestId("where-find").click();
+  const found = finder.getByTestId("where-found");
+  await expect(found).toContainText("Synology DSM at 10.0.0.30");
+  await expect(found).toContainText("Runs qBittorrent, Sonarr");
+  await expect(found).toContainText("A computer at 10.0.0.20");
+  expect(await seriousViolations(page)).toEqual([]);
+  await expectNoOverflow(page);
+  await shot("where-nas-found");
+  await found.getByRole("button", { name: /Synology DSM/ }).click();
+
+  // The NAS itself and its apps, ticked, and added in one go.
+  const results = finder.getByTestId("where-results");
+  for (const name of ["Synology DSM", "Sonarr", "qBittorrent"])
+    await expect(results.getByLabel(name)).toBeChecked();
+  await shot("where-nas-apps");
+  await results.getByRole("button", { name: "Add 3 and continue" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Connect Ember's AI");
+  const services = (await (await page.request.get("/api/workspace")).json()) as {
+    services: { name: string; localUrl?: string }[];
+  };
+  expect(
+    services.services
+      .filter((s) => s.localUrl?.includes("10.0.0.30"))
+      .map((s) => s.name)
+      .sort(),
+  ).toEqual(["Sonarr", "Synology DSM", "qBittorrent"]);
+  expect((await workspace()).journey).toBe("existing");
+});
+
+test("Where do your apps live: starting from nothing goes straight to Build my setup", async () => {
+  await page.request.patch("/api/settings", { data: { onboardingDone: false } });
+  await page.goto("/welcome?step=where");
+  await page.getByTestId("where-new").click();
+  await expect(page).toHaveURL(/\/plan$/);
+  const ws = await workspace();
+  expect(ws.journey).toBe("build");
+  expect(ws.onboardingDoneAt).toBeTruthy();
 });

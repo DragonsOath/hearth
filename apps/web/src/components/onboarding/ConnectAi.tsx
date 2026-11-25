@@ -22,7 +22,7 @@ import { FormError } from "../../pages/auth/AuthFrame";
 import { OllamaSetting } from "../settings/OllamaSetting";
 
 /**
- * "Connect your AI": the welcome's first step after the account, and the same thing later from
+ * "Connect your AI": the welcome's step after "Where do your apps live?", and the same thing later from
  * the AI Agent page. Which AI services appear, and which can be connected, comes from Hearth's
  * own catalog (the server): an option is only offered as working when the server can connect to
  * it. The words for each service live here; a service the server adds later and these words do

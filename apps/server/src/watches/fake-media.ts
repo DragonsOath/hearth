@@ -591,6 +591,10 @@ export function fakeMedia(): FakeMedia {
           name: "Ghosts (US)",
           firstAirDate: "2021-10-07",
           posterPath: `/poster${SHOW_TMDB}.jpg`,
+          backdropPath: `/backdrop${SHOW_TMDB}.jpg`,
+          genres: [{ name: "Comedy" }, { name: "Fantasy" }],
+          networks: [{ name: "CBS" }],
+          status: "Returning Series",
           externalIds: { tvdbId: SHOW_TVDB },
         });
       if (p === `/api/v1/request/${SHOW_REQUEST}`) {

@@ -6,6 +6,7 @@ import type {
   SearchEpisode,
   SearchTitle,
 } from "@dragon-control/core";
+import { releaseDetails } from "@dragon-control/core";
 import { gb } from "./media-library";
 
 /**
@@ -244,7 +245,7 @@ interface RawRelease {
   protocol?: string;
   ageHours?: number;
   age?: number;
-  quality?: { quality?: { name?: string } };
+  quality?: { quality?: { name?: string; source?: string; resolution?: number } };
   customFormatScore?: number;
   approved?: boolean;
   rejected?: boolean;
@@ -274,8 +275,28 @@ export function toOption(x: RawRelease): ReleaseOption | undefined {
     ...(x.customFormatScore !== undefined ? { score: x.customFormatScore } : {}),
     approved: Boolean(x.approved),
     rejections: (x.rejections ?? []).map(reasonOf).filter(Boolean),
+    ...(x.quality?.quality?.resolution ? { resolution: `${x.quality.quality.resolution}p` } : {}),
+    ...(SOURCE[x.quality?.quality?.source ?? ""]
+      ? { source: SOURCE[x.quality!.quality!.source!] }
+      : {}),
+    ...releaseDetails(x.title ?? ""),
   };
 }
+
+/** Sonarr's and Radarr's source names, as people say them. */
+const SOURCE: Record<string, string> = {
+  web: "WEB-DL",
+  webdl: "WEB-DL",
+  webRip: "WEBRip",
+  webrip: "WEBRip",
+  bluray: "Blu-ray",
+  blurayRaw: "Blu-ray disc",
+  remux: "Remux",
+  television: "HDTV",
+  televisionRaw: "TV",
+  tv: "HDTV",
+  dvd: "DVD",
+};
 
 /** What the indexers offer for one item right now: the ones the app would take first. */
 export async function findReleases(
@@ -442,6 +463,11 @@ export interface GrabParams {
   quality?: string;
   sizeGB?: number;
   indexer?: string;
+  /**
+   * Why the owner's quality rules turned this release down, when they chose it anyway: the plan
+   * says it is a one-time exception for this release, and no rule changes.
+   */
+  exception?: string;
 }
 
 /** The plan's parameters for downloading one release, or why they will not do. */
@@ -460,6 +486,9 @@ export function grabParams(p: Record<string, unknown> | undefined): GrabParams |
     ...(typeof p?.quality === "string" ? { quality: p.quality.slice(0, 60) } : {}),
     ...(typeof p?.sizeGB === "number" ? { sizeGB: p.sizeGB } : {}),
     ...(typeof p?.indexer === "string" ? { indexer: p.indexer.slice(0, 80) } : {}),
+    ...(typeof p?.exception === "string" && p.exception.trim()
+      ? { exception: p.exception.trim().slice(0, 300) }
+      : {}),
   };
 }
 
@@ -472,7 +501,7 @@ export function grabChange(serviceName: string, g: GrabParams) {
   ]
     .filter(Boolean)
     .join(", ");
-  const summary = `Download ${g.release} for ${g.title} in ${serviceName}`;
+  const summary = `Download ${g.release} for ${g.title} in ${serviceName}${g.exception ? `, as a one-time exception to your quality rules (${g.exception}). Your rules stay as they are` : ""}`;
   return {
     summary,
     settings: [
@@ -481,6 +510,16 @@ export function grabChange(serviceName: string, g: GrabParams) {
         before: "Not downloading this release",
         after: `${serviceName} sends ${g.release}${facts ? ` (${facts})` : ""} to the download client`,
       },
+      // Chosen against the owner's own rules: said plainly, and the rules themselves stay.
+      ...(g.exception
+        ? [
+            {
+              name: "Your quality rules",
+              before: `Turned this release down: ${g.exception}`,
+              after: "Unchanged. A one-time exception for this release only",
+            },
+          ]
+        : []),
     ],
   };
 }

@@ -5,7 +5,8 @@ import { networkInterfaces } from "node:os";
 import si from "systeminformation";
 import type { DiscoveryReport, PhysicalDisk, Volume } from "@dragon-control/core";
 import { readDisks } from "./disks";
-import { analyzeContainers, findAppsAt, findNativeApps } from "./analyze";
+import { findMachines, neighboursOf, portOpen, type FoundMachine, type LanProbes } from "./lan";
+import { analyzeContainers, findAppsAt, findNativeApps, type PageRead } from "./analyze";
 import { connectDocker } from "./docker-client";
 import { dockerVersion, listContainers, type ContainerInfo } from "./docker";
 
@@ -16,6 +17,10 @@ export interface DiscoveryProbes {
     { containers: ContainerInfo[]; version?: string; endpoint: string } | { error: string }
   >;
   probeHttp: (port: number, host?: string) => Promise<boolean>;
+  /** A page on another machine, to tell which app answers there (remote scans only). */
+  readPage?: (port: number, host: string) => Promise<PageRead | null>;
+  /** This machine's home network, for "find it for me". */
+  lan?: Pick<LanProbes, "neighbours" | "portOpen">;
   disks: (hostId: string) => Promise<PhysicalDisk[]>;
 }
 
@@ -111,6 +116,54 @@ function probeHttp(port: number, host = "127.0.0.1"): Promise<boolean> {
   });
 }
 
+/**
+ * One read-only GET of the page at a port on another machine, following its own redirects on the
+ * same address (a sign-in page, /web/), keeping the first 64 KB: enough to tell which app it is.
+ * Null when nothing speaks HTTP there.
+ */
+function readPage(port: number, host: string, path = "/", hops = 0): Promise<PageRead | null> {
+  return new Promise((resolve) => {
+    const req = http.request(
+      { host, port, path, method: "GET", timeout: 6000, headers: { accept: "text/html,*/*" } },
+      (res) => {
+        const status = res.statusCode ?? 0;
+        const location = res.headers.location;
+        if (status >= 300 && status < 400 && location && hops < 3) {
+          res.resume();
+          let next: URL | undefined;
+          try {
+            next = new URL(
+              location,
+              `http://${host.includes(":") ? `[${host}]` : host}:${port}${path}`,
+            );
+          } catch {
+            next = undefined;
+          }
+          // Only on the same address and port: never off to another site.
+          if (next && next.protocol === "http:" && Number(next.port || 80) === port)
+            return resolve(readPage(port, host, next.pathname + next.search, hops + 1));
+        }
+        const headers: Record<string, string> = {};
+        for (const [k, v] of Object.entries(res.headers))
+          if (v !== undefined) headers[k.toLowerCase()] = Array.isArray(v) ? v.join(", ") : v;
+        let body = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk: string) => {
+          body += chunk;
+          if (body.length >= 65_536) res.destroy();
+        });
+        const done = () => resolve({ status, headers, body: body.slice(0, 65_536) });
+        res.on("end", done);
+        res.on("close", done);
+        res.on("error", done);
+      },
+    );
+    req.on("timeout", () => req.destroy());
+    req.on("error", () => resolve(null));
+    req.end();
+  });
+}
+
 export const realProbes: DiscoveryProbes = {
   host: probeLocalHost,
   docker: async () => {
@@ -124,6 +177,11 @@ export const realProbes: DiscoveryProbes = {
     };
   },
   probeHttp,
+  readPage: (port, host) => readPage(port, host),
+  lan: {
+    neighbours: async () => neighboursOf((await defaultAddress()) ?? ""),
+    portOpen: (host, port) => portOpen(host, port),
+  },
   disks: readDisks,
 };
 
@@ -189,7 +247,7 @@ export async function runDiscovery(probes: DiscoveryProbes): Promise<DiscoveryRe
  * memory, and drives are not visible this way.
  */
 export async function runRemoteDiscovery(
-  probes: Pick<DiscoveryProbes, "probeHttp">,
+  probes: Pick<DiscoveryProbes, "probeHttp" | "readPage">,
   input: { address: string; name: string },
 ): Promise<DiscoveryReport> {
   const started = Date.now();
@@ -199,6 +257,7 @@ export async function runRemoteDiscovery(
     hostName: input.name,
     address: input.address,
     probeHttp: probes.probeHttp,
+    readPage: probes.readPage,
   });
   return {
     id: randomUUID(),
@@ -223,7 +282,17 @@ export async function runRemoteDiscovery(
     notes: findings.length
       ? []
       : [
-          `Nothing answered at ${input.address} on the usual ports for Plex, Jellyfin, Home Assistant, or Syncthing. Check the address, and that its firewall lets this machine in.`,
+          probes.readPage
+            ? `No app Hearth knows answered at ${input.address} on its usual port. Check the address, and that its firewall lets this machine in. An app on another port can be added by its address (Add a system).`
+            : `Nothing answered at ${input.address} on the usual ports for Plex, Jellyfin, Home Assistant, or Syncthing. Check the address, and that its firewall lets this machine in.`,
         ],
   };
+}
+
+/** "Find it for me": the NAS and app machines on the home network (see lan.ts). */
+export async function runFindMachines(
+  probes: Pick<DiscoveryProbes, "readPage" | "lan">,
+): Promise<FoundMachine[]> {
+  if (!probes.readPage || !probes.lan) return [];
+  return findMachines({ ...probes.lan, readPage: probes.readPage });
 }

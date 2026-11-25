@@ -265,7 +265,19 @@ export function DiscordPreview({
                   <div className="flex gap-3">
                     <div className="min-w-0 flex-1">
                       {e.author && (
-                        <p className="text-[0.8rem] font-medium text-white">{e.author.name}</p>
+                        <p className="flex items-center gap-2 text-[0.8rem] font-medium text-white">
+                          {/* Messenger Ember beside her line, as Discord shows it (the app's own
+                              copy, so the preview needs nothing from the internet). */}
+                          {e.author.icon_url && (
+                            <img
+                              src="/brand/ember-messenger.png"
+                              alt=""
+                              className="h-6 w-6 shrink-0 rounded-full"
+                              data-testid="announce-preview-ember"
+                            />
+                          )}
+                          <span>{e.author.name}</span>
+                        </p>
                       )}
                       {e.title && (
                         <p

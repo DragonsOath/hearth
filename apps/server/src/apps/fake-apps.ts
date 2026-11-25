@@ -150,6 +150,9 @@ export function fakeApps(): FakeApps {
   let failing = new Set<number>();
   /** Whether the stand-in Sonarr monitors Ghosts (Seerr's Stop tracking turns it off). */
   let seriesMonitored = true;
+  // Releases sent to the download client from an interactive search (the Seerr panel's What's
+  // Missing): they show in the queue, with the episode they are for.
+  let ghostsGrabbed: { title: string; episodeId: number }[] = [];
   // A stand-in Seerr and Radarr too, for release watch (watches/fake-media.ts).
   const media = fakeMedia();
   // And a stand-in Wizarr (port 5690) for its panel and invitations.
@@ -477,7 +480,140 @@ export function fakeApps(): FakeApps {
       qualityProfileId: 1,
       path: "/tv/Ghosts (US)",
       statistics: { episodeFileCount: 30, episodeCount: 40 },
+      // Season 1 complete, season 2 half there; a new episode next week (the Seerr panel's
+      // show card and its What you're missing).
+      status: "continuing",
+      nextAiring: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+      seasons: [
+        { seasonNumber: 0, monitored: false, statistics: { episodeFileCount: 0, episodeCount: 0 } },
+        {
+          seasonNumber: 1,
+          monitored: true,
+          statistics: { episodeFileCount: 20, episodeCount: 20 },
+        },
+        {
+          seasonNumber: 2,
+          monitored: true,
+          statistics: { episodeFileCount: 10, episodeCount: 20 },
+        },
+      ],
     });
+    // Season 2's missing half, aired and monitored, as Sonarr lists them for the series view.
+    const ghostsMissing = Array.from({ length: 10 }, (_, i) => ({
+      id: 9000 + i,
+      seriesId: 1,
+      seasonNumber: 2,
+      episodeNumber: 11 + i,
+      title: `Missing episode ${11 + i}`,
+      airDateUtc: new Date(Date.now() - (30 - i) * 86_400_000).toISOString(),
+      monitored: true,
+      hasFile: false,
+      episodeFileId: 0,
+    }));
+    // Season 3: the next episode next week, and one with no air date yet.
+    const ghostsComing = [
+      {
+        id: 9100,
+        seriesId: 1,
+        seasonNumber: 3,
+        episodeNumber: 1,
+        title: "Premiere",
+        airDateUtc: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+        monitored: true,
+        hasFile: false,
+        episodeFileId: 0,
+      },
+      {
+        id: 9101,
+        seriesId: 1,
+        seasonNumber: 3,
+        episodeNumber: 2,
+        title: "TBA",
+        monitored: true,
+        hasFile: false,
+        episodeFileId: 0,
+      },
+    ];
+    // What the indexers offer for one missing episode: one the rules accept, one over the size
+    // limit, and one on the blocklist.
+    const ghostsReleases = (episodeId: number) => {
+      const e = ghostsMissing.find((x) => x.id === episodeId);
+      if (!e) return [];
+      const code = `S02E${String(e.episodeNumber).padStart(2, "0")}`;
+      const r = (
+        n: number,
+        title: string,
+        gb: number,
+        q: { name: string; source: string; resolution: number },
+        approved: boolean,
+        rejections: string[],
+      ) => ({
+        guid: `ghosts-${episodeId}-${n}`,
+        indexerId: 1,
+        indexer: "Example Indexer",
+        title,
+        size: Math.round(gb * GB),
+        protocol: "torrent",
+        seeders: 40 - n * 10,
+        leechers: 2,
+        ageHours: 20 + n,
+        quality: { quality: q },
+        approved,
+        rejections,
+      });
+      return [
+        r(
+          1,
+          `Ghosts.US.${code}.1080p.WEB-DL.DDP5.1.H.264-GRP`,
+          1.6,
+          { name: "WEBDL-1080p", source: "web", resolution: 1080 },
+          true,
+          [],
+        ),
+        r(
+          2,
+          `Ghosts.US.${code}.2160p.WEB-DL.DDP5.1.DV.HEVC-GRP`,
+          9.4,
+          { name: "WEBDL-2160p", source: "web", resolution: 2160 },
+          false,
+          ["Release is larger than maximum allowed 4.0 GiB"],
+        ),
+        r(
+          3,
+          `Ghosts.US.${code}.720p.HDTV.x264-BAD`,
+          0.8,
+          { name: "HDTV-720p", source: "television", resolution: 720 },
+          false,
+          ["Release in the blocklist"],
+        ),
+      ];
+    };
+    if (p === "/api/v3/release" && method === "GET")
+      return reply(200, ghostsReleases(Number(u.searchParams.get("episodeId"))));
+    if (p === "/api/v3/release" && method === "POST") {
+      const body = JSON.parse(init.body!) as { guid?: string };
+      const ep = Number(String(body.guid).split("-")[1]);
+      const rel = ghostsReleases(ep).find((x) => x.guid === body.guid);
+      if (!rel) return reply(404, {});
+      ghostsGrabbed.push({ title: rel.title, episodeId: ep });
+      return reply(200, { title: rel.title });
+    }
+    if (p === "/api/v3/queue" && method === "GET")
+      return reply(200, {
+        records: ghostsGrabbed.map((g, i) => ({
+          id: 500 + i,
+          seriesId: 1,
+          episodeId: g.episodeId,
+          title: g.title,
+          size: 1000,
+          sizeleft: 600,
+          status: "downloading",
+          trackedDownloadState: "downloading",
+        })),
+      });
+    if (p === "/api/v3/system/status") return reply(200, { version: "4.0.15.2941" });
+    if (p === "/api/v3/qualityprofile" || p === "/api/v3/tag") return reply(200, []);
+    if (p === "/api/v3/episodefile" && method === "GET") return reply(200, []);
     if (p === "/api/v3/series" && method === "GET") return reply(200, [ghosts()]);
     if (p === "/api/v3/series/1" && method === "PUT") {
       seriesMonitored = (JSON.parse(init.body!) as { monitored: boolean }).monitored;
@@ -487,13 +623,29 @@ export function fakeApps(): FakeApps {
     if (p === "/api/v3/episode" && method === "GET")
       return reply(
         200,
-        files.map((f) => ({
-          id: f.id * 10,
-          seriesId: 1,
-          episodeFileId: f.id,
-          hasFile: true,
-          monitored: false,
-        })),
+        files
+          .map((f) => {
+            // Its episode, from the file name ("Ghosts.S02E03..."), for the series view.
+            const n = Number(/S\d\dE(\d\d)/.exec(f.relativePath)?.[1] ?? 0);
+            return {
+              id: f.id * 10,
+              seriesId: 1,
+              episodeFileId: f.id,
+              hasFile: true,
+              monitored: false,
+              ...(n
+                ? {
+                    seasonNumber: 2,
+                    episodeNumber: n,
+                    title: `Episode ${n}`,
+                    airDateUtc: new Date(Date.now() - (200 - n) * 86_400_000).toISOString(),
+                  }
+                : {}),
+            };
+          })
+          .concat(
+            u.searchParams.get("seriesId") === "1" ? [...ghostsMissing, ...ghostsComing] : [],
+          ),
       );
     if (p === "/api/v3/config/naming") return reply(200, structuredClone(naming));
     if (p === "/api/v3/config/naming/1" && method === "PUT") {
@@ -542,6 +694,7 @@ export function fakeApps(): FakeApps {
         deleted = [];
         failing = new Set();
         seriesMonitored = true;
+        ghostsGrabbed = [];
         wizarr.reset();
         tasterr.reset();
         musicAssistant.reset();

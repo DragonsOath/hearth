@@ -554,6 +554,12 @@ export interface RequestedShow {
   title: string;
   year?: number;
   poster?: string;
+  /** A wide picture of the show (TMDB path), for What's Missing. */
+  backdrop?: string;
+  genres?: string[];
+  network?: string;
+  /** TMDB's word for where the show is ("Returning Series", "Ended"). */
+  showStatus?: string;
   requestedAt: IsoTime;
   requestedBy: string;
   mine: boolean;
@@ -568,6 +574,14 @@ export interface RequestedShow {
     /** Episodes on disk, of the episodes Sonarr knows (aired). */
     episodesOnDisk: number;
     episodes: number;
+    /** When the next episode airs, when Sonarr knows. */
+    nextAiring?: IsoTime;
+    /** The show has ended: no more episodes are coming. */
+    ended?: boolean;
+    /** Its seasons (specials left out), each with episodes on disk of those aired and monitored. */
+    seasons?: { number: number; files: number; episodes: number; monitored: boolean }[];
+    /** Aired, monitored episodes not on disk yet (specials left out). */
+    missing?: number;
   };
 }
 

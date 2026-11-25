@@ -370,13 +370,118 @@ test("Overseerr panel: a show request, Sonarr's state, and Stop tracking that st
     const panel = page.getByTestId("seerr-dashboard");
     await expect(panel).toBeVisible({ timeout: 20_000 });
     await panel.getByRole("radio", { name: /All requests/ }).click();
-    await panel.getByRole("radio", { name: /Shows/ }).click();
+    // All: movies and shows in one list, counted together.
+    await expect(panel.getByRole("radio", { name: /^All/ }).first()).toBeChecked();
+    await expect(panel.getByTestId("seerr-all").getByTestId("seerr-show")).toHaveCount(1);
+    await expect(panel.getByTestId("seerr-all").getByTestId("seerr-movie").first()).toBeVisible();
+    await expect(panel.getByText(/\d+ movies?, 1 show/).first()).toBeVisible();
+    // A request opens like a title in Discover (details, trailer), saying Requested where
+    // Discover says Request.
+    const firstMovie = panel.getByTestId("seerr-all").getByTestId("seerr-movie").first();
+    await firstMovie.getByTestId("seerr-open-title").click();
+    const titleWindow = page.getByTestId("discover-title");
+    await expect(titleWindow).toBeVisible();
+    await expect(titleWindow.getByTestId("discover-requested")).toBeVisible({ timeout: 15_000 });
+    await expect(titleWindow.getByTestId("discover-request-open")).toHaveCount(0);
+    await page.screenshot({
+      path: `test-results/screens/${testInfo.project.name}/seerr-request-title.png`,
+    });
+    await titleWindow.getByRole("button", { name: "Close" }).click();
+    await expect(titleWindow).toHaveCount(0);
+    // Movies and Shows still work on their own.
+    await panel.getByRole("radio", { name: /^Movies/ }).click();
+    await expect(panel.getByTestId("seerr-movies").getByTestId("seerr-show")).toHaveCount(0);
+    await panel.getByRole("radio", { name: /^Shows/ }).click();
+    await expect(panel.getByTestId("seerr-shows").getByTestId("seerr-movie")).toHaveCount(0);
     const show = panel.getByTestId("seerr-show").filter({ hasText: "Ghosts (US)" });
     await expect(show).toContainText("Seasons 1, 2");
     await expect(show).toContainText("requested by Alex");
     await expect(show.getByTestId("seerr-show-sonarr")).toContainText(
       "monitoring it · 30 of 40 episodes on disk",
     );
+    // Like a movie: where it stands, the next episode, and the seasons in the library.
+    await expect(show.getByTestId("seerr-show-state")).toHaveText("Missing 10 episodes");
+    await expect(show.getByTestId("seerr-show-next")).not.toBeEmpty();
+    await expect(show.getByTestId("seerr-show-seasons")).toHaveText("2 of 2 seasons");
+    await expect(show.getByTestId("seerr-show-complete")).toHaveCount(0);
+    await page.screenshot({
+      path: `test-results/screens/${testInfo.project.name}/seerr-show-card.png`,
+      fullPage: true,
+    });
+
+    // What's Missing: the show's numbers, then each season, read from Sonarr.
+    await show.getByTestId("seerr-show-missing").click();
+    const missing = page.getByRole("dialog", { name: /^Ghosts \(US\)/ });
+    const stats = missing.getByTestId("seerr-completeness-stats");
+    await expect(stats).toContainText("Missing10 episodes");
+    await expect(stats).toContainText("S03E01");
+    const seasons = missing.getByTestId("seerr-season");
+    await expect(seasons).toHaveCount(2);
+    // Season 2 opens on its own: four on disk, ten missing.
+    const s2 = seasons.filter({ hasText: "Season 2" });
+    await expect(s2).toContainText("4 of 14 in library");
+    await expect(s2).toContainText("10 missing");
+    // Season 3 hasn't aired: nothing in it counts as missing.
+    const s3 = seasons.filter({ hasText: "Season 3" });
+    await expect(s3).toContainText("Not released");
+    await s3.locator("summary").click();
+    await expect(s3.locator('[data-state="next"]')).toContainText("Next to air");
+    await expect(s3.locator('[data-state="unknown"]')).toContainText("Air date unknown");
+    await expect(s3.getByTestId("seerr-episode-search")).toHaveCount(0);
+    expect(await seriousViolations(page)).toEqual([]);
+    await page.screenshot({
+      path: `test-results/screens/${testInfo.project.name}/seerr-whats-missing.png`,
+    });
+
+    // Interactive Search for one missing episode: Sonarr's own results for it.
+    const e11 = s2.getByTestId("seerr-episode").filter({ hasText: "S02E11" });
+    await expect(e11).toHaveAttribute("data-state", "missing");
+    await e11.getByTestId("seerr-episode-search").click();
+    const search = page.getByRole("dialog", { name: "Interactive search" });
+    const releases = search.getByTestId("isearch-release");
+    await expect(search.getByTestId("seerr-episode-releases")).toContainText("S02E11");
+    await expect(search).toContainText("3 found, 1 Sonarr would take on its own");
+    await search.getByRole("button", { name: /Show all 3/ }).click();
+    await expect(releases).toHaveCount(3);
+    const best = releases.filter({ hasText: "1080p.WEB-DL" });
+    await expect(best.getByTestId("isearch-details")).toContainText("1080p");
+    await expect(best.getByTestId("isearch-details")).toContainText("WEB-DL");
+    await expect(best.getByTestId("isearch-details")).toContainText("H.264");
+    await expect(best.getByTestId("isearch-details")).toContainText("DD+ 5.1");
+    // Over the size limit: the rule in plain words, and a one-time exception, explained.
+    const big = releases.filter({ hasText: "2160p" });
+    await expect(big.getByTestId("isearch-rule")).toContainText(
+      "Your rules turned it down: over your size limit",
+    );
+    await expect(big.getByTestId("isearch-details")).toContainText("Dolby Vision");
+    await expect(big.getByTestId("isearch-download")).toHaveText("Download anyway");
+    // Blocklisted: no way to download it from here.
+    const blocked = releases.filter({ hasText: "HDTV" });
+    await expect(blocked).toContainText("on your blocklist");
+    await expect(blocked.getByTestId("isearch-download")).toHaveCount(0);
+    await big.getByTestId("isearch-download").click();
+    await expect(big.getByTestId("isearch-exception")).toContainText("A one-time exception");
+    await expect(big.getByTestId("panel-change")).toContainText(
+      "as a one-time exception to your quality rules (over your size limit). Your rules stay as they are",
+    );
+    // Not approved: changed my mind, nothing is sent.
+    await big.getByTestId("panel-change").getByRole("button", { name: "Cancel" }).click();
+    await page.screenshot({
+      path: `test-results/screens/${testInfo.project.name}/seerr-episode-search.png`,
+    });
+    // The one the rules accept: picked, approved, and sent to Sonarr.
+    await best.getByTestId("isearch-download").click();
+    const change = best.getByTestId("panel-change");
+    await expect(change).toContainText("Ghosts (US) S02E11");
+    await change.getByTestId("panel-confirm").click();
+    await expect(change.getByTestId("panel-done")).toContainText("is in the queue", {
+      timeout: 30_000,
+    });
+    await search.getByRole("button", { name: "Close" }).click();
+    // Back in What's Missing, the episode shows as downloading.
+    await expect(e11).toHaveAttribute("data-state", "downloading", { timeout: 20_000 });
+    await expect(e11).toContainText("Downloading 40%");
+    await missing.getByRole("button", { name: "Close" }).first().click();
     await show.getByTestId("seerr-stop-tracking").click();
     const stop = show.getByTestId("panel-change");
     await expect(stop).toContainText("Ghosts (US)");

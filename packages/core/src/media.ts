@@ -245,11 +245,15 @@ const names = (l?: string[]) => (l?.length ? l.slice(0, 2).join(" and ") : undef
  * The title line: "Title (2026)", "Title, Season 2", "Title S3E5: Episode", "Album by Artist
  * (1977)", "Book by Author", "Series #12", "Game (SNES)", "Show: Episode".
  */
+/** " (2026)" after a title, unless the title already ends with it (Sonarr's "Dig (2026)"). */
+const yearAfter = (title: string, year?: number) =>
+  year && !title.trimEnd().endsWith(`(${year})`) ? ` (${year})` : "";
+
 export function announceTitle(i: AnnounceItem): string {
   const by = names(i.creators);
   switch (i.kind) {
     case "album":
-      return `${i.title}${by ? ` by ${by}` : ""}${i.year ? ` (${i.year})` : ""}`;
+      return `${i.title}${by ? ` by ${by}` : ""}${yearAfter(i.title, i.year)}`;
     case "audiobook":
     case "book":
       return `${i.title}${by ? ` by ${by}` : ""}`;
@@ -258,7 +262,7 @@ export function announceTitle(i: AnnounceItem): string {
         ? `${i.seriesName} #${i.seriesIndex}`
         : i.title;
     case "game":
-      return `${i.title}${i.platform ? ` (${i.platform})` : i.year ? ` (${i.year})` : ""}`;
+      return `${i.title}${i.platform ? ` (${i.platform})` : yearAfter(i.title, i.year)}`;
     case "podcast":
       return i.show ? `${i.show}: ${i.title}` : i.title;
   }
@@ -268,7 +272,7 @@ export function announceTitle(i: AnnounceItem): string {
     const e = String(i.episode ?? 0).padStart(2, "0");
     return `${i.title} S${s}E${e}${i.episodeTitle ? `: ${i.episodeTitle}` : ""}`;
   }
-  return `${i.title}${i.year ? ` (${i.year})` : ""}`;
+  return `${i.title}${yearAfter(i.title, i.year)}`;
 }
 
 /** Runtime as "1h 34m". */
@@ -288,7 +292,7 @@ export interface AnnounceImages {
 }
 
 export interface DiscordEmbed {
-  author?: { name: string };
+  author?: { name: string; icon_url?: string };
   title?: string;
   url?: string;
   description?: string;
@@ -312,8 +316,19 @@ export interface AnnounceLine {
   aiName: string;
 }
 
-const lineText = (l?: AnnounceLine) =>
-  l?.text ? `**${clip(l.aiName || "Ember", 40)}:** ${clip(l.text, 200)}` : undefined;
+/**
+ * Messenger Ember (her satchel and letter), beside her line on a card (11-24, the owner). Discord
+ * loads an icon from a public address, never from the owner's network, so it is the picture in
+ * Hearth's public repository.
+ */
+export const HERALD_ICON =
+  "https://raw.githubusercontent.com/DragonsOath/hearth/main/apps/web/public/brand/ember-messenger.png";
+
+/** Ember's line as the card's top line, her picture beside it ("Ember: A good laugh..."). */
+const lineAuthor = (l?: AnnounceLine): DiscordEmbed["author"] =>
+  l?.text
+    ? { name: clip(`${clip(l.aiName || "Ember", 40)}: ${l.text}`, 256), icon_url: HERALD_ICON }
+    : undefined;
 
 const colorOf = (hex: string) => {
   const n = Number.parseInt(hex.replace(/^#/, ""), 16);
@@ -373,8 +388,9 @@ export function discordAnnouncement(
       : undefined;
   // Banner: the picture above the card already has the heading, title and details.
   const banner = look.template === "banner" && show.art && Boolean(images.banner);
+  const ember = lineAuthor(opts.line);
+  const heading = look.heading || "Just added";
   const description = [
-    lineText(opts.line),
     meta.length && !banner ? `*${meta.join(" · ")}*` : undefined,
     synopsis,
     trailer,
@@ -390,12 +406,15 @@ export function discordAnnouncement(
     .join(" · ");
   const art = show.art;
   const embed: DiscordEmbed = {
+    // With Ember's line, she takes the top line (with her picture) and the heading joins the
+    // title: "New series: Dig (2026)".
     ...(banner
-      ? {}
-      : {
-          author: { name: clip(look.heading || "Just added", 256) },
-          title: clip(announceTitle(item), 256),
-        }),
+      ? ember
+        ? { author: ember }
+        : {}
+      : ember
+        ? { author: ember, title: clip(`${heading}: ${announceTitle(item)}`, 256) }
+        : { author: { name: clip(heading, 256) }, title: clip(announceTitle(item), 256) }),
     ...(description ? { description: clip(description, 4000) } : {}),
     color: colorOf(s.accent),
     ...(footer ? { footer: { text: clip(footer, 2048) } } : {}),
@@ -443,7 +462,7 @@ export function discordDigest(
     ...(opts.test ? { content: "🧪 Test roundup (not real new arrivals)" } : {}),
     embeds: [
       {
-        author: {
+        author: lineAuthor(opts.line) ?? {
           name: clip(
             opts.batch ? s.looks[opts.batch].heading || "New" : "Today in the library",
             256,
@@ -452,7 +471,7 @@ export function discordDigest(
         title: opts.batch
           ? batchTitle(opts.batch, items.length)
           : `${items.length} new ${items.length === 1 ? "arrival" : "arrivals"}`,
-        description: clip([lineText(opts.line), lines + more].filter(Boolean).join("\n\n"), 4000),
+        description: clip(lines + more, 4000),
         color: colorOf(s.accent),
         ...(s.branding ? { footer: { text: s.branding } } : {}),
       },

@@ -120,12 +120,12 @@ describe("New in your library: reading the library apps", () => {
     x.later(GATHER_MS + 1000);
     await x.w.tick();
     expect(x.sent.map((s) => [s.channelId, s.embed.title])).toEqual([
-      ["friends", "Mirage by Fleetwood Mac (1977)"],
-      ["family", "Mirage by Fleetwood Mac (1977)"],
+      ["friends", "New music: Mirage by Fleetwood Mac (1977)"],
+      ["family", "New music: Mirage by Fleetwood Mac (1977)"],
     ]);
-    expect(x.sent[0]!.embed.author?.name).toBe("New music");
-    // Ember's line leads the card, under the name she goes by here.
-    expect(x.sent[0]!.embed.description).toMatch(/^\*\*Cinder:\*\* /);
+    // Ember's line leads the card (her picture beside it), under the name she goes by here;
+    // the heading joins the title.
+    expect(x.sent[0]!.embed.author?.name).toMatch(/^Cinder: /);
   });
 
   it("an addition from days ago is not news", async () => {
@@ -152,13 +152,17 @@ describe("New in your library: bursts and destinations", () => {
     await x.w.tick();
     const friends = x.sent.filter((s) => s.channelId === "friends").map((s) => s.embed.title);
     // The audiobook is not burst-prone: it went out at once; the albums waited for each other.
-    expect(friends).toEqual(["Leviathan Wakes by James S. A. Corey", "3 new albums"]);
+    expect(friends).toEqual([
+      "New audiobook: Leviathan Wakes by James S. A. Corey",
+      "3 new albums",
+    ]);
     // The family channel said no to music: it gets the audiobook only.
     expect(x.sent.filter((s) => s.channelId === "family").map((s) => s.embed.title)).toEqual([
-      "Leviathan Wakes by James S. A. Corey",
+      "New audiobook: Leviathan Wakes by James S. A. Corey",
     ]);
     const batch = x.sent.find((s) => s.embed.title === "3 new albums")!;
-    expect(batch.embed.author?.name).toBe("New music");
+    // Her line leads it (it is picked from a set, so any of them).
+    expect(batch.embed.author?.name).toMatch(/^Cinder: /);
     expect(batch.embed.description).toContain("C by Fleetwood Mac");
   });
 
@@ -170,8 +174,8 @@ describe("New in your library: bursts and destinations", () => {
     await x.w.tick();
     x.later(GATHER_MS + 1000);
     await x.w.tick();
-    const by = Object.fromEntries(x.sent.map((s) => [s.channelId, s.embed.description ?? ""]));
-    expect(by.friends).toMatch(/^\*\*Cinder:\*\* /);
+    const by = Object.fromEntries(x.sent.map((s) => [s.channelId, s.embed.author?.name ?? ""]));
+    expect(by.friends).toMatch(/^Cinder: /);
     expect(by.family).not.toContain("Cinder:");
   });
 
@@ -185,8 +189,8 @@ describe("New in your library: bursts and destinations", () => {
       await x.w.tick();
       x.later(GATHER_MS + 1000);
       await x.w.tick();
-      const d = x.sent.at(-1)!.embed.description ?? "";
-      lines.push(/^\*\*Cinder:\*\* (.+?)(\n|$)/.exec(d)?.[1] ?? "");
+      const d = x.sent.at(-1)!.embed.author?.name ?? "";
+      lines.push(/^Cinder: (.+)$/.exec(d)?.[1] ?? "");
     }
     expect(x.sent).toHaveLength(8);
     for (let i = 1; i < lines.length; i++) expect(lines[i]).not.toBe(lines[i - 1]);
@@ -217,7 +221,8 @@ describe("Let Ember write it", () => {
     x.shelves.abs = [...x.shelves.abs, item];
     await x.w.tick();
   };
-  const lineOf = (d?: string) => /^\*\*Cinder:\*\* (.+?)(\n|$)/.exec(d ?? "")?.[1];
+  // Ember's line is the card's top line now, with her picture: "Cinder: ...".
+  const lineOf = (d?: string) => /^Cinder: (.+)$/.exec(d ?? "")?.[1];
 
   it("her own line goes on the card, checked and tidied", async () => {
     const asked: string[] = [];
@@ -228,7 +233,7 @@ describe("Let Ember write it", () => {
     await on(x);
     await x.w.tick();
     await arrive(x, audiobook("Leviathan Wakes", x.now()));
-    expect(lineOf(x.sent[0]?.embed.description)).toBe("A long voyage begins tonight, settle in.");
+    expect(lineOf(x.sent[0]?.embed.author?.name)).toBe("A long voyage begins tonight, settle in.");
     expect(asked[0]).toContain("Leviathan Wakes by James S. A. Corey");
     expect(asked[0]).toContain("Never mention who asked for it");
   });
@@ -238,7 +243,7 @@ describe("Let Ember write it", () => {
     await on(x);
     await x.w.tick();
     await arrive(x, audiobook("Caliban's War", x.now()));
-    const line = lineOf(x.sent[0]?.embed.description);
+    const line = lineOf(x.sent[0]?.embed.author?.name);
     expect(line).toBeTruthy();
     expect(line).not.toContain("guilty pleasure");
   });
@@ -252,7 +257,7 @@ describe("Let Ember write it", () => {
     expect(calls).toBe(2);
     expect(x.sent).toHaveLength(4);
     expect(
-      x.sent.map((m) => lineOf(m.embed.description)).filter((l) => l?.includes("number")),
+      x.sent.map((m) => lineOf(m.embed.author?.name)).filter((l) => l?.includes("number")),
     ).toHaveLength(2);
   });
 

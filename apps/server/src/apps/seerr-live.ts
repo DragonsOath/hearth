@@ -36,6 +36,11 @@ type SeerrRequest = {
 type ShowDetail = {
   name?: string;
   posterPath?: string;
+  backdropPath?: string;
+  genres?: { name?: string }[];
+  networks?: { name?: string }[];
+  status?: string;
+  numberOfSeasons?: number;
   firstAirDate?: string;
   externalIds?: { tvdbId?: number };
 };
@@ -46,8 +51,33 @@ type SonarrSeries = {
   tvdbId?: number;
   tmdbId?: number;
   monitored?: boolean;
+  status?: string;
+  nextAiring?: string;
   statistics?: { episodeFileCount?: number; episodeCount?: number };
+  seasons?: {
+    seasonNumber?: number;
+    monitored?: boolean;
+    statistics?: { episodeFileCount?: number; episodeCount?: number };
+  }[];
 };
+
+/** A show's seasons from Sonarr's series (specials left out), and what aired but isn't on disk. */
+export function seasonsOf(s: SonarrSeries) {
+  const seasons = (s.seasons ?? [])
+    .filter((x) => (x.seasonNumber ?? 0) > 0)
+    .map((x) => ({
+      number: x.seasonNumber!,
+      files: x.statistics?.episodeFileCount ?? 0,
+      episodes: x.statistics?.episodeCount ?? 0,
+      monitored: x.monitored === true,
+    }))
+    .sort((a, b) => a.number - b.number);
+  // No season list (an older Sonarr): the show's own totals, specials and all.
+  const missing = seasons.length
+    ? seasons.reduce((n, x) => n + Math.max(0, x.episodes - x.files), 0)
+    : Math.max(0, (s.statistics?.episodeCount ?? 0) - (s.statistics?.episodeFileCount ?? 0));
+  return { seasons, missing };
+}
 
 type MovieDetail = {
   title?: string;
@@ -436,6 +466,19 @@ export class SeerrLive {
         ...(d?.posterPath && /^\/[\w-]+\.(jpg|jpeg|png|webp)$/i.test(d.posterPath)
           ? { poster: d.posterPath }
           : {}),
+        ...(d?.backdropPath && /^\/[\w-]+\.(jpg|jpeg|png|webp)$/i.test(d.backdropPath)
+          ? { backdrop: d.backdropPath }
+          : {}),
+        ...(d?.genres?.length
+          ? {
+              genres: d.genres
+                .map((g) => g.name ?? "")
+                .filter(Boolean)
+                .slice(0, 4),
+            }
+          : {}),
+        ...(d?.networks?.[0]?.name ? { network: d.networks[0].name } : {}),
+        ...(d?.status ? { showStatus: d.status } : {}),
         requestedAt: req.createdAt ?? new Date(0).toISOString(),
         requestedBy: req.requestedBy?.displayName ?? "Someone",
         mine: meId !== undefined && req.requestedBy?.id === meId,
@@ -453,6 +496,9 @@ export class SeerrLive {
                 monitored: Boolean(match.s.monitored),
                 episodesOnDisk: match.s.statistics?.episodeFileCount ?? 0,
                 episodes: match.s.statistics?.episodeCount ?? 0,
+                ...(match.s.nextAiring ? { nextAiring: match.s.nextAiring } : {}),
+                ...(match.s.status === "ended" ? { ended: true } : {}),
+                ...seasonsOf(match.s),
               },
             }
           : {}),

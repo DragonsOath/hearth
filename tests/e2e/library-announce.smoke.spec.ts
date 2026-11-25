@@ -106,16 +106,24 @@ test("new in your library: an audiobook arrives with Ember's line, per destinati
     await panel.getByRole("tab", { name: /^Audiobooks/ }).click();
     await panel.getByLabel("Preview with").selectOption({ label: title });
     await expect(panel.getByTestId("announce-preview-title")).toContainText("by Sample Author");
-    // The line is signed with the AI's name ("Ember:", or whatever this Hearth calls it).
+    // The line is the card's top line, signed with the AI's name ("Ember:", or whatever this
+    // Hearth calls it), with Messenger Ember beside it.
     const preview = panel.getByTestId("announce-preview");
-    const signed = (await preview.locator("strong").first().textContent())?.trim() ?? "";
+    const ember = preview.getByTestId("announce-preview-ember");
+    await expect(ember).toBeVisible();
+    const top = (await ember.locator("xpath=..").textContent())?.trim() ?? "";
+    const signed = /^[^:]{1,40}:/.exec(top)?.[0] ?? "";
     expect(signed).toMatch(/^\S.*:$/);
+    await preview.screenshot({
+      path: `test-results/screens/${testInfo.project.name}/announce-preview-ember.png`,
+    });
     // Tone Off for this destination: its preview has no line.
     const custom = panel.getByTestId("announce-customize");
     await custom.locator("summary").click();
     await custom.getByLabel(new RegExp(`^Book club ${run}: .*line`)).selectOption("off");
     await panel.getByLabel("Test destination").selectOption({ label: `Book club ${run}` });
     await expect(preview).not.toContainText(signed);
+    await expect(ember).toHaveCount(0);
     await expect(preview).toContainText("by Sample Author");
     expect(
       await new AxeBuilder({ page }).include('[data-testid="media-announcements"]').analyze(),

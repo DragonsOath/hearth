@@ -16,7 +16,7 @@ import { LinkPc } from "./LinkPc";
 type Step = "secure" | "recovery" | "passkey";
 
 /** After the account: the welcome, starting with connecting Ember's AI. */
-const NEXT = "/welcome?step=ai";
+const NEXT = "/welcome?step=where";
 
 /** "Fingerprint" on phones, "Windows Hello" or similar on computers: keep it generic and plain. */
 export function defaultPasskeyName(): string {
@@ -161,7 +161,7 @@ export function SetupPage() {
           onDone={() =>
             passkeysSupported() ? setStep("passkey") : navigate(NEXT, { replace: true })
           }
-          doneLabel={passkeysSupported() ? "Continue" : "Next: Connect your AI"}
+          doneLabel={passkeysSupported() ? "Continue" : "Next: Your homelab"}
         />
       </AuthFrame>
     );
@@ -183,7 +183,7 @@ export function SetupPage() {
               className="w-full"
               onClick={() => navigate(NEXT, { replace: true })}
             >
-              Next: Connect your AI
+              Next: Your homelab
             </Button>
           </>
         ) : (
@@ -206,7 +206,7 @@ export function SetupPage() {
               className="mt-3 w-full"
               onClick={() => navigate(NEXT, { replace: true })}
             >
-              Not now. Next: Connect your AI
+              Not now. Next: Your homelab
             </Button>
             <FormError error={addPasskey.error} />
           </>

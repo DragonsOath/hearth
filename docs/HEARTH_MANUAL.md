@@ -130,12 +130,18 @@ Hearth is a homelab control center that lives on your PC (Linux or Windows). In 
 A new Hearth opens with setup, one step at a time (you can stop and pick up later):
 
 1. **Your account**: a password, then a passkey if your device supports it.
-2. **Connect your AI**: sign in to Claude Code (or choose Codex, or Ollama later). The screen
+2. **Where do your apps and files live?**: **On this computer**, **On a NAS** (Synology, QNAP,
+   TrueNAS, Unraid, OpenMediaVault, or not sure), **On another computer or server**, or **I'm
+   starting from nothing** (goes straight to **Build my setup**). For a NAS or another computer,
+   type its address or press **Find it for me** (Hearth looks on the home network, about 20
+   seconds, read only), then **Add** the NAS and the apps it found, before Home. **I'm not sure
+   what a NAS is** explains in one line. **Skip for now** works here too.
+3. **Connect your AI**: sign in to Claude Code (or choose Codex, or Ollama later). The screen
    explains what AI costs before you connect. **Skip for now** works; Hearth runs without AI
    (monitoring, known fixes and notifications keep working).
-3. **Make it yours**: your name and picture, **This PC** (its name and icon), your AI's name,
+4. **Make it yours**: your name and picture, **This PC** (its name and icon), your AI's name,
    its look, its voice, its personality, and your **Theme**.
-4. **Finish**: three ways in. Someone starting from nothing gets **Build my setup** as the main
+5. **Finish**: three ways in. Someone starting from nothing gets **Build my setup** as the main
    button, with **Enter Hearth** beside it; someone who already runs apps gets **Enter Hearth**
    and **Find what I already run**.
 
@@ -248,8 +254,10 @@ its containers and suggests what to watch. It only reads; nothing changes.
 - **Needs a name**: web apps it does not know yet; name them so they read well.
 - **Supporting**: databases, VPNs and helpers other apps rely on.
 - **Stopped**: not running, left out unless you choose them.
-- **Another machine**: for apps on another computer (Plex on a Windows PC): its **IP address**
-  and a **Name**.
+- **Another machine**: for a NAS or another computer that runs apps: its **IP address** and a
+  **Name**. Hearth reads the page at each usual app port and recognises the app from it (Sonarr,
+  qBittorrent and the rest, even on a shared port), and the NAS itself (Synology, QNAP, TrueNAS,
+  Unraid, OpenMediaVault), so its own page is watched too. Each app still needs its key once.
 - **Start over** scans fresh. Systems you removed stay removed (**Removed by you**).
 
 <!-- feature: sample-data -->
@@ -1121,6 +1129,20 @@ folder** (with free space), Seerr's defaults chosen to start with; the plan says
 cinemas**, **Digital** release dates, and what Radarr or Sonarr is doing. Filters: **Overdue**
 (digital release passed, not grabbed: amber), **Needs a look**, **Waiting**, **Downloading**,
 **In your library**. Sort by newest request, digital release, status, **Most overdue**.
+
+**All** (movies and shows together), **Movies** or **Shows**. Tap a request poster or title to open it as Discover does (trailer, details, cast); it says **Requested** (or **In your library**) where Discover says **Request**. A show card has where it stands
+(**Missing 10 episodes**, **Up to date, more coming**, **Complete**), **Next episode**, **In your
+library** (seasons), and Sonarr's episodes on disk. **What's Missing** (with the count; a show
+with nothing missing says **Complete** or **Up to date** instead) opens the show: its numbers
+(episodes in the library, seasons, missing, next episode), then each season to open, every
+episode marked **In library**, **Missing**, **Downloading**, **Missing, not monitored**, **Next to
+air**, **Not aired yet** or **Air date unknown** (only aired episodes count as missing; a season
+with nothing aired says **Not released**). **Search** on a missing episode is Sonarr's
+interactive search for it: each release with its resolution, source, codec, HDR and sound, and
+why your rules turned one down, in plain words. **Download this** is a plan you approve;
+**Download anyway** on a release your rules turned down is a one-time exception for that release,
+said in the plan, and your rules stay as they are. A blocklisted release can't be downloaded
+from here.
 
 - **Goes to**: change the root folder (**Move its files too**) or quality.
 - **Stop tracking**: removes the request from Overseerr and stops Radarr (or Sonarr) monitoring

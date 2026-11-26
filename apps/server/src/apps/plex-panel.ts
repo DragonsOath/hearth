@@ -156,18 +156,41 @@ export async function readPlexView(
       "X-Plex-Container-Start": String((page - 1) * size),
       "X-Plex-Container-Size": String(size),
     });
-    if (q.q) params.set("title", q.q.slice(0, 100));
+    // Plex reads a comma in a filter as "or": "Love, Simon" finds every Love and every Simon,
+    // and the one wanted can fall off the page (the owner, 11-25: Curator offered only Jellyfin
+    // for Love, Simon). So it is searched by its longest part and narrowed to the whole title here.
+    const typed = q.q?.slice(0, 100);
+    const parts = (typed ?? "")
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
+    if (typed)
+      params.set(
+        "title",
+        parts.length > 1 ? parts.reduce((a, b) => (b.length > a.length ? b : a)) : typed,
+      );
     if (q.filter === "unwatched") params.set("unwatched", "1");
     const r = await get<MC<{ totalSize?: number; size?: number; Metadata?: RawItem[] }>>(
       read,
       `/library/sections/${encodeURIComponent(section.id)}/all?${params.toString()}`,
     );
-    const items = r.MediaContainer?.Metadata ?? [];
+    const loose = (x: string) =>
+      x
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, " ")
+        .trim();
+    const all = r.MediaContainer?.Metadata ?? [];
+    const narrowed = parts.length > 1;
+    const items = narrowed
+      ? all.filter((m) => loose(m.title ?? "").includes(loose(typed ?? "")))
+      : all;
     return {
       sections,
       section: section.id,
       page,
-      total: r.MediaContainer?.totalSize ?? r.MediaContainer?.size ?? items.length,
+      total: narrowed
+        ? items.length
+        : (r.MediaContainer?.totalSize ?? r.MediaContainer?.size ?? items.length),
       items: items.map(card),
     };
   }

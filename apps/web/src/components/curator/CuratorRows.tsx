@@ -129,7 +129,7 @@ export function CuratorRows({
           }
         >
           {allList.map((i) => (
-            <Tile key={i.key} i={i} requested={requested(i)} onOpen={show(i)} />
+            <Tile key={i.key} i={i} requested={requested(i)} onOpen={show(i)} fill />
           ))}
         </SeeAll>
       )}
@@ -161,14 +161,20 @@ function Tile({
   i,
   requested,
   onOpen,
+  fill,
 }: {
   i: RecommendItem;
   requested: boolean;
   onOpen?: () => void;
+  /** In See all: as wide as its column. */
+  fill?: boolean;
 }) {
   const [broken, setBroken] = useState(false);
   return (
-    <li className="w-[9.5rem] shrink-0 snap-start space-y-1.5" data-testid="recommend-item">
+    <li
+      className={fill ? "min-w-0 space-y-1.5" : "w-[9.5rem] shrink-0 snap-start space-y-1.5"}
+      data-testid="recommend-item"
+    >
       <button
         type="button"
         onClick={onOpen}
@@ -234,8 +240,9 @@ function SeenIt({ onDone }: { onDone: (rating?: RecommendRating) => void }) {
 }
 
 /**
- * See all (the owner, 11-25): a pop-up box like the title page, with one row of every poster,
- * about five at a time, moved with the arrows (or by swiping), and More like these under it.
+ * See all (the owner, 11-25): a big pop-up box like the title page, every poster in rows of five
+ * (fewer on a phone), about four rows in view, scrolling down inside the box, and More like
+ * these at the end.
  */
 function SeeAll({
   label,
@@ -263,7 +270,7 @@ function SeeAll({
       onClick={(e) => {
         if (e.target === ref.current) ref.current?.close();
       }}
-      className="m-auto max-h-[92vh] w-[min(56rem,calc(100vw-1.5rem))] max-w-none overflow-clip rounded-2xl border border-line-strong bg-panel p-0 text-ink shadow-2xl backdrop:bg-black/75 backdrop:backdrop-blur-sm"
+      className="m-auto max-h-[92vh] w-[min(76rem,calc(100vw-1.5rem))] max-w-none overflow-clip rounded-2xl border border-line-strong bg-panel p-0 text-ink shadow-2xl backdrop:bg-black/75 backdrop:backdrop-blur-sm"
       data-testid="recommend-all"
     >
       <button
@@ -282,7 +289,9 @@ function SeeAll({
             {label} <span className="text-muted">· {count}</span>
           </p>
         </div>
-        <Rail label={label}>{children}</Rail>
+        <ul className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-5">
+          {children}
+        </ul>
         {more}
       </div>
     </dialog>

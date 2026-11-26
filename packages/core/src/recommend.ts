@@ -111,6 +111,8 @@ export interface RecommendRequest {
    * season, setting and values without being about it (family snow films for Christmas).
    */
   wide?: boolean;
+  /** More like these: the next titles that fit, after the ones in `exclude`. */
+  more?: boolean;
 }
 
 export const RECOMMEND_SHOW = ["have", "missing", "both"] as const;

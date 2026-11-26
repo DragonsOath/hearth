@@ -162,13 +162,63 @@ describe("movies and shows, through Seerr", () => {
   it("asked for both: what you have is shown, marked, instead of hidden", async () => {
     const d = deps({ said, seerrSearch: async (_id, q) => hits[q] ?? [] });
     const r = await new Recommend(d).find({ kind: "movie", interest: "x mas", show: "both" });
+    // Missing ones first, then the ones you have: each row has its own room.
     expect(r.items.map((i) => [i.title, Boolean(i.have)])).toEqual([
       ["Elf", false],
-      ["Home Alone", true],
       ["Krampus", false],
+      ["Home Alone", true],
     ]);
     expect(r.items[1]!.request).toBeUndefined();
     expect(r.owned).toEqual([]);
+  });
+
+  it("no set number: every title that fits is shown, owned or not", async () => {
+    // The owner, 11-25: "romcoms 2010-2026", Both, gave one missing title; the rest were owned
+    // and took the slots. "If there's 50 relevant ones show them."
+    const list = [
+      ...Array.from({ length: 30 }, (_, n) => ({ title: "Owned " + n, year: 2012, why: "Loved." })),
+      ...Array.from({ length: 9 }, (_, n) => ({
+        title: "Gem " + n,
+        year: 2015,
+        why: "Less known.",
+      })),
+    ];
+    const d = deps({
+      said: list,
+      seerrSearch: async (_id, q) => [
+        {
+          tmdbId: 1000 + Number(q.split(" ")[1]) + (q.startsWith("Gem") ? 500 : 0),
+          mediaType: "movie",
+          title: q,
+          year: q.startsWith("Gem") ? 2015 : 2012,
+          status: q.startsWith("Owned") ? "available" : "not requested",
+        },
+      ],
+    });
+    const r = await new Recommend(d).find({ kind: "movie", interest: "romcoms", show: "both" });
+    expect(d.asked).toHaveLength(1);
+    expect(d.asked[0]!.system).toContain("every title that truly fits");
+    expect(d.asked[0]!.system).toContain("never pad");
+    expect(r.items.filter((i) => !i.have)).toHaveLength(9);
+    expect(r.items.filter((i) => i.have)).toHaveLength(30);
+  });
+
+  it("More like these: told what was shown, and nothing left is an honest empty answer", async () => {
+    const d = deps({ said: [] });
+    const r = await new Recommend(d).find({
+      kind: "movie",
+      interest: "romcoms",
+      exclude: ["Long Shot"],
+      more: true,
+    });
+    expect(r.items).toEqual([]);
+    expect(d.asked[0]!.prompt).toContain("Long Shot");
+    expect(d.asked[0]!.prompt).toContain("follow-up");
+  });
+
+  it("thinking outside the box asks for about a third nearby picks", () => {
+    const { prompt } = recommendPrompt({ kind: "movie", interest: "romcoms", wide: true });
+    expect(prompt).toContain("about a third of the list adjacent");
   });
 
   it("what you've seen is never suggested again, and Ember is told so", async () => {

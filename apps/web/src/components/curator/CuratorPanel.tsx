@@ -168,7 +168,7 @@ function Discover({ seed }: { seed?: { interest: string; at: number } }) {
         kind,
         interest: interest.trim(),
         ...(Object.keys(filters).length ? { filters } : {}),
-        ...(more ? { exclude: shown.map((i) => i.title) } : {}),
+        ...(more ? { exclude: shown.map((i) => i.title), more: true } : {}),
         show,
         mode,
         ...(wide ? { wide } : {}),
@@ -623,6 +623,8 @@ function Discover({ seed }: { seed?: { interest: string; at: number } }) {
           seerr={seerrOf}
           requested={(i) => Boolean(i.requested || done.includes(i.key))}
           onSeen={(i, rating) => seen.mutate({ i, ...(rating ? { rating } : {}) })}
+          onMore={() => find.mutate(true)}
+          finding={find.isPending}
         />
       )}
       {shown.length > 0 && !screen && (

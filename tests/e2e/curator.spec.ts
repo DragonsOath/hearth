@@ -89,6 +89,27 @@ test("Curator: Ember suggests, what you have is hidden, and a request is one app
     await sheet.getByRole("button", { name: "Close" }).click();
     await expect(sheet).toHaveCount(0);
     await expect(panel.getByTestId("recommend-more")).toBeVisible();
+    // See all (11-25): every title of the row on one screen, posters you tap, More like these.
+    await panel.getByTestId("recommend-row-missing").getByTestId("recommend-see-all").click();
+    const all = page.getByTestId("recommend-all");
+    await expect(all.getByTestId("recommend-item")).toHaveCount(2);
+    await expect(all.getByTestId("recommend-all-more")).toBeVisible();
+    await page.screenshot({
+      path: `test-results/screens/${testInfo.project.name}/curator-see-all.png`,
+    });
+    await all
+      .getByTestId("recommend-item")
+      .filter({ hasText: "The Long Road" })
+      .getByTestId("recommend-open-title")
+      .click();
+    await expect(sheet).toBeVisible();
+    await sheet.getByRole("button", { name: "Close" }).click();
+    await expect(sheet).toHaveCount(0);
+    await page
+      .getByRole("dialog", { name: "Missing from your collection" })
+      .getByRole("button", { name: "Close" })
+      .click();
+    await expect(all).toHaveCount(0);
     // Think outside the box: Ember's nearby picks carry Ember thinking beside the title (11-24).
     await panel.getByTestId("recommend-wide").getByRole("checkbox").check();
     await panel.getByTestId("recommend-find").click();

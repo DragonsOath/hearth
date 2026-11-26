@@ -51,7 +51,12 @@ function Fail($text) { Write-Host ""; Write-Host $text -ForegroundColor Red; thr
 
 $HearthHome = if ($env:HEARTH_HOME) { $env:HEARTH_HOME } else { Join-Path $env:LOCALAPPDATA "Hearth" }
 $App = Join-Path $HearthHome "app"
-$Work = Join-Path ([IO.Path]::GetTempPath()) ("hearth-get-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
+# Build on the same drive as Hearth's folder: Windows cannot move a folder to another drive, so a
+# Hearth folder on D: (HEARTH_HOME) builds next to it instead of in the temporary folder on C:.
+$WorkRoot = [IO.Path]::GetTempPath()
+$HomeFull = [IO.Path]::GetFullPath($HearthHome)
+if ([IO.Path]::GetPathRoot($WorkRoot) -ne [IO.Path]::GetPathRoot($HomeFull)) { $WorkRoot = Split-Path -Parent $HomeFull }
+$Work = Join-Path $WorkRoot ("hearth-get-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
 New-Item -ItemType Directory -Force $Work | Out-Null
 
 # Removing it: stops it, removes the sign-in task, then, only if you say so, its folder.
@@ -148,6 +153,8 @@ try {
     }
     if (-not $DryRun) {
       Expand-Archive $zip -DestinationPath $Work -Force
+      # On a fresh PC the Hearth folder does not exist yet, and Move-Item will not create it.
+      New-Item -ItemType Directory -Force $HearthHome | Out-Null
       if (Test-Path $OwnNode) { Remove-Item -Recurse -Force $OwnNode }
       Move-Item (Join-Path $Work ($file -replace "\.zip$", "")) $OwnNode
       $env:PATH = "$OwnNode;$env:PATH"
@@ -219,9 +226,14 @@ try {
       $a = $null
       if ($interactive) {
         Say "One question"
-        Write-Host "Open Hearth to your other devices (phone, laptop) on your home network?"
-        Write-Host "No keeps it to this PC only. You can change it later. (Windows may ask once to allow it.)"
-        try { $a = Read-Host "Open to your home network? [y/N]" } catch { $interactive = $false }
+        Write-Host "Will you open this Hearth from other devices at home, like a phone or a laptop?"
+        Write-Host "  Yes: any device on your home network can open its sign-in page. Windows may ask once to allow it."
+        Write-Host "  No: only this PC can. Pick this if you'll use Hearth only here, or this PC joins a"
+        Write-Host "      Hearth you already have and you use that one from your devices."
+        Write-Host "You can change it later."
+        try {
+          while ($a -notmatch "^[yYnN]") { $a = Read-Host "Open it to your home network? [y/n]"; if ($a -notmatch "^[yYnN]") { Write-Host "Type y or n." } }
+        } catch { $interactive = $false }
       }
       if (-not $interactive) {
         Write-Host "No one to ask, so Hearth stays on this PC only (home network: no)."
@@ -246,6 +258,16 @@ try {
   # --- Build --------------------------------------------------------------------------------------
   Say "Building Hearth (a few minutes, once per update)"
   $env:COREPACK_ENABLE_DOWNLOAD_PROMPT = "0"
+  # Hearth's build scripts run a plain `pnpm`, and Node ships corepack but no pnpm command.
+  # Give pnpm a command of its own: in Hearth's own Node when it brought one, else in Hearth\bin.
+  $PnpmDir = if (Test-Path (Join-Path $OwnNode "node.exe")) { $OwnNode } else { Join-Path $HearthHome "bin" }
+  New-Item -ItemType Directory -Force $PnpmDir | Out-Null
+  & cmd /c "corepack enable pnpm --install-directory `"$PnpmDir`" > `"$Work\corepack.log`" 2>&1"
+  if ($LASTEXITCODE -ne 0) { Get-Content "$Work\corepack.log" -Tail 30; Fail "Setting up pnpm failed." }
+  $env:PATH = "$PnpmDir;$env:PATH"
+  # pnpm asks before it rebuilds a node_modules folder, and nobody can answer when the installer
+  # runs from the update job or an AI assistant; CI tells it to go ahead.
+  $env:CI = "true"
   Push-Location $Fresh.FullName
   try {
     $log = Join-Path $Work "build.log"
@@ -273,13 +295,44 @@ try {
       if (Test-Path $App) { Move-Item $App $Previous -ErrorAction Stop }
       Move-Item $Fresh.FullName $App -ErrorAction Stop
       $swapped = $true
-    } catch { Start-Sleep -Seconds 1 }
+    } catch { $swapError = $_.Exception.Message; Start-Sleep -Seconds 1 }
   }
   if (-not $swapped) {
+    Write-Host "Windows said: $swapError"
     if (-not (Test-Path $App) -and (Test-Path $Previous)) { Move-Item $Previous $App }
-    if (Test-Path $Control) { StartHearth }
-    Fail "Windows kept Hearth's folder busy, so the update was not installed. Hearth was started again on the version you had; try the update again in a minute."
+    if (Test-Path $Control) {
+      StartHearth
+      Fail "Windows kept Hearth's folder busy, so the update was not installed. Hearth was started again on the version you had; try the update again in a minute."
+    }
+    Fail "Windows would not let the installer put Hearth in $App. Nothing was installed; try again in a minute."
   }
+
+  # Anything failing from here on: an update puts back the version that was there and starts it;
+  # a first install removes what it set up, so running the installer again starts fresh (and asks
+  # its question again) instead of treating the failed try as an update.
+  function UndoInstall {
+    if (Test-Path $Control) { & powershell -NoProfile -ExecutionPolicy Bypass -File $Control stop | Out-Null }
+    if (Test-Path $Previous) {
+      if (Test-Path $App) { Remove-Item -Recurse -Force $App }
+      Move-Item $Previous $App
+      StartHearth
+      Write-Host "Put the previous version back and started it."
+    } elseif (-not $Update) {
+      Unregister-ScheduledTask -TaskName "Hearth" -Confirm:$false -ErrorAction SilentlyContinue
+      Remove-Item (Join-Path $HearthHome "hearth.ps1"), (Join-Path $HearthHome "install.json") -ErrorAction SilentlyContinue
+      Write-Host "Nothing from this try is kept as an install, so running the installer again starts fresh."
+    }
+  }
+
+  # pnpm links each package folder with an absolute-path junction on Windows, so moving the build
+  # out of the temporary folder leaves every link pointing at a folder that is then deleted. Link
+  # them again where Hearth now lives (offline: everything is already in pnpm's store).
+  Push-Location $App
+  try {
+    & cmd /c "pnpm install --frozen-lockfile --offline > `"$Work\relink.log`" 2>&1"
+    $relinked = $LASTEXITCODE -eq 0
+  } finally { Pop-Location }
+  if (-not $relinked) { Get-Content "$Work\relink.log" -Tail 30; UndoInstall; Fail "Linking Hearth's packages failed." }
 
   if (-not (Test-Path $Control)) {
     $hostAddr = if ($Network -eq "yes") { "0.0.0.0" } else { "127.0.0.1" }
@@ -353,13 +406,7 @@ switch (`$Do) {
   }
   if (-not $up) {
     if (Test-Path (Join-Path $HearthHome "hearth.err.log")) { Get-Content (Join-Path $HearthHome "hearth.err.log") -Tail 30 }
-    if (Test-Path $Previous) {
-      & powershell -NoProfile -ExecutionPolicy Bypass -File $Control stop | Out-Null
-      Remove-Item -Recurse -Force $App
-      Move-Item $Previous $App
-      StartHearth
-      Write-Host "Put the previous version back and started it."
-    }
+    UndoInstall
     Fail "Hearth did not start. The messages above say why."
   }
   if (Test-Path $Previous) { Remove-Item -Recurse -Force $Previous }
@@ -434,7 +481,18 @@ Start-Process -FilePath "$browser" -ArgumentList @("--user-data-dir=```"$profile
     Write-Host ""
     Write-Host "    $link"
     Write-Host ""
-    Start-Process $link
+    # In Hearth's own window, like its shortcut; a plain browser tab only when there is no
+    # Chrome or Edge to open it with.
+    $opened = $false
+    if ($browser) {
+      $sep = if ($link.Contains("?")) { "&" } else { "?" }
+      try {
+        Start-Process -FilePath $browser -ArgumentList @("--user-data-dir=`"$profileDir`"", "--no-first-run", "--no-default-browser-check",
+          "--autoplay-policy=no-user-gesture-required", "--app=$link${sep}window=app")
+        $opened = $true
+      } catch { }
+    }
+    if (-not $opened) { Start-Process $link }
   } else {
     Say "Hearth is updated and running. Sign in as usual at $link"
   }

@@ -21,7 +21,9 @@ answers:
 
 - **Open Hearth to other devices on the home network?** `HEARTH_NETWORK=yes|no`. Yes: Hearth
   listens on all of the computer's addresses (port 7600 or the next free one), so other devices on
-  the network can reach its sign-in page. No: this computer only. It can be changed later.
+  the network can reach its sign-in page. No: this computer only. It can be changed later. Don't
+  recommend either answer; ask whether they'll open this Hearth from a phone or another computer.
+  A computer joining a Hearth they already have usually needs no: they use the main one.
 - **Set up the admin helper now?** `HEARTH_HELPER=yes|no`. No: Hearth's plan page asks later, the
   first time a plan needs Docker or Tailscale. Yes: it runs `sudo` now, which needs the person's
   password; ask before it. With no terminal, sudo usually cannot ask, and the installer says the
@@ -218,9 +220,12 @@ The questions:
      a second machine that fetches encrypted copies (`DC_OFFSITE_NAME`).
    If `/srv` is not writable for them, suggest the same layout under their home folder.
    "I don't know": these defaults, and no second copy for now.
-5. **This machine only, or the whole home network?**
-   - *This machine only* (the default, `DC_HOST=127.0.0.1`): only a browser on this machine can
-     open it. The safest choice; other devices can still reach it later through Tailscale
+5. **This machine only, or the whole home network?** Don't mark either as recommended. Ask
+   what they'll do: will they open this Hearth from a phone or another computer at home? If this
+   machine joins a Hearth they already have, they use that one from their devices, so this one can
+   stay on this machine only.
+   - *This machine only* (`DC_HOST=127.0.0.1`): only a browser on this machine can
+     open it. Other devices can still reach it later through Tailscale
      (`sudo tailscale serve --bg 7400`), which also gives passkeys the https they need.
    - *The whole home network* (`DC_HOST=0.0.0.0`): any device on their Wi-Fi can open the sign-in
      page at `http://<this machine's address>:7400`. Say plainly that passkeys and fingerprint

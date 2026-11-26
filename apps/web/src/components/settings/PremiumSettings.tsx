@@ -313,17 +313,17 @@ function Upgrade({ onCode }: { onCode: () => void }) {
         Already using Hearth for free? Upgrade any time: everything you set up stays as it is.
       </p>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <div className="rounded-lg border border-line p-3">
-          <p className="text-[0.9rem] text-ink">Sponsor Dragon&apos;s Oath</p>
-          <p className="mt-1 text-[0.8rem] text-muted">
-            Supporter: $5 a month, Premium while you sponsor.
-            <br />
-            <span data-testid="premium-founder-price">{founderPriceLine()}</span>, once: Premium for
-            life.
-            <br />
-            Paid on GitHub Sponsors; you then claim a code and enter it here.
-          </p>
-          {SPONSORS_OPEN ? (
+        {SPONSORS_OPEN ? (
+          <div className="rounded-lg border border-line p-3">
+            <p className="text-[0.9rem] text-ink">Sponsor Dragon&apos;s Oath</p>
+            <p className="mt-1 text-[0.8rem] text-muted">
+              Supporter: $5 a month, Premium while you sponsor.
+              <br />
+              <span data-testid="premium-founder-price">{founderPriceLine()}</span>, once: Premium
+              for life.
+              <br />
+              Paid on GitHub Sponsors; you then claim a code and enter it here.
+            </p>
             <a
               href={SPONSORS_URL}
               target="_blank"
@@ -333,12 +333,18 @@ function Upgrade({ onCode }: { onCode: () => void }) {
             >
               Sponsor on GitHub
             </a>
-          ) : (
-            <p className="mt-3 text-[0.8rem] text-faint" data-testid="premium-sponsor-soon">
-              Opens with Hearth&apos;s public launch. Hearth never asks for card details.
+          </div>
+        ) : (
+          // Until payments open (the owner, 11-26): no prices and nothing to buy, only that it's coming.
+          <div className="rounded-lg border border-line p-3" data-testid="premium-sponsor-soon">
+            <p className="text-[0.9rem] text-ink">Coming soon</p>
+            <p className="mt-1 text-[0.8rem] text-muted">
+              Premium isn&apos;t for sale yet. When it opens it will be through GitHub Sponsors, and
+              the details will be on hearth.dragonsoath.com first. Everything free in Hearth stays
+              free. Hearth never asks for card details.
             </p>
-          )}
-        </div>
+          </div>
+        )}
         <div className="rounded-lg border border-line p-3">
           <p className="text-[0.9rem] text-ink">I have a code</p>
           <p className="mt-1 text-[0.8rem] text-muted">

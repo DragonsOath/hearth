@@ -59,9 +59,16 @@ choose_network() {
         n=no
       elif has_tty; then
         say "One question" >&2
-        echo "Open Hearth to your other devices (phone, laptop) on your home network?" >&2
-        echo "No keeps it to this computer only. You can change it later." >&2
-        case "$(ask "Open to your home network? [Y/n]" y)" in [nN]*) n=no ;; *) n=yes ;; esac
+        echo "Will you open this Hearth from other devices at home, like a phone or a laptop?" >&2
+        echo "  Yes: any device on your home network can open its sign-in page." >&2
+        echo "  No: only this computer can. Pick this if you'll use Hearth only here, or this" >&2
+        echo "      computer joins a Hearth you already have and you use that one from your devices." >&2
+        echo "You can change it later." >&2
+        while [[ -z "$n" ]]; do
+          case "$(ask "Open it to your home network? [y/n]" "")" in
+            [yY]*) n=yes ;; [nN]*) n=no ;; *) echo "Type y or n." >&2 ;;
+          esac
+        done
       else
         n=no
         echo "No terminal to ask in, so Hearth stays on this computer only (home network: no)." >&2

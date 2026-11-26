@@ -59,6 +59,19 @@ describe("the Plex panel's tabs", () => {
       "Harbor Lights",
       "Quiet Harbor",
     ]);
+    // A comma is "or" to Plex: searched by the longest part, narrowed to the whole title.
+    const asked: string[] = [];
+    const comma = await readPlexView(
+      async (path) => {
+        asked.push(path);
+        return read(path);
+      },
+      "library",
+      { q: "Harbor, Lights" },
+    );
+    expect(asked.at(-1)).toContain("title=Harbor");
+    expect(asked.at(-1)).not.toMatch(/title=[^&]*(%2C|,)/);
+    expect((comma.items as { title: string }[]).map((x) => x.title)).toEqual(["Harbor Lights"]);
     const unwatched = await readPlexView(read, "library", { filter: "unwatched" });
     expect((unwatched.items as { title: string }[]).map((x) => x.title)).not.toContain(
       "Quiet Harbor",
